@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
+    
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CONTOH</title>
@@ -13,50 +14,7 @@
         }
 
         /* Navbar Styles */
-        .navbar-custom {
-            background: linear-gradient(135deg, #b71c1c 0%, #d32f2f 100%);
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-            padding: 10px 0;
-        }
-
-        .navbar-brand {
-            font-weight: bold;
-            font-size: 1.5rem;
-            color: white !important;
-            text-decoration: none;
-        }
-
-        .navbar-nav .nav-item {
-            position: relative;
-            margin: 0 5px;
-        }
-
-        .navbar-nav .nav-link {
-            color: white !important;
-            font-weight: 500;
-            padding: 10px 15px !important;
-            border-radius: 5px;
-            transition: all 0.3s ease;
-            text-decoration: none;
-        }
-
-        .navbar-nav .nav-link:hover {
-            background: rgba(255,255,255,0.1);
-            transform: translateY(-1px);
-        }
-
-        .dropdown-toggle::after {
-            margin-left: 8px;
-        }
-
-        .dropdown-menu {
-            background: white;
-            border: none;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-            border-radius: 8px;
-            margin-top: 5px;
-            min-width: 200px;
-        }
+      
 
         .dropdown-item {
             padding: 10px 20px;
@@ -283,88 +241,12 @@
         }
 
         @media (max-width: 992px) {
-            .navbar-nav {
-                background: rgba(0,0,0,0.1);
-                border-radius: 8px;
-                margin-top: 10px;
-                padding: 10px;
-            }
+         
         }
     </style>
 </head>
 <body>
-    <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-custom">
-        <div class="container">
-            <a class="navbar-brand" href="#">
-                <i class="fas fa-database me-2"></i>SIP BANAR
-            </a>
-            
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" 
-                    aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation" 
-                    style="border: 2px solid rgba(255,255,255,0.5);">
-                <i class="fas fa-bars" style="color: white;"></i>
-            </button>
-            
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-chart-bar me-1"></i>Rekap Pengadaan
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li class="dropdown-submenu">
-                                <a class="dropdown-item" href="#">
-                                    <i class="fas fa-table me-2"></i>RUP
-                                </a>
-                                <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" href="rekappengadaan/rup/pengadaanlangsung.php"><i class="fas fa-list me-2"></i>Seluruh Pengadaan</a></li>
-                                    <li><a class="dropdown-item" href="#"><i class="fas fa-building me-2"></i>Swakelola</a></li>
-                                </ul>
-                            </li>
-                            <li class="dropdown-submenu">
-                                <a class="dropdown-item" href="#">
-                                    <i class="fas fa-chart-pie me-2"></i>Realisasi
-                                </a>
-                                <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" href="#"><i class="fas fa-list me-2"></i>Seluruh Pengadaan</a></li>
-                                    <li><a class="dropdown-item" href="#"><i class="fas fa-building me-2"></i>Swakelola</a></li>
-                                </ul>
-                            </li>
-                        </ul>
-                    </li>
-                    
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-list me-1"></i>Kategori
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="#"><i class="fas fa-chart-line me-2"></i>Ekonomi</a></li>
-                            <li><a class="dropdown-item" href="#"><i class="fas fa-users me-2"></i>Kependudukan</a></li>
-                            <li><a class="dropdown-item" href="#"><i class="fas fa-hospital me-2"></i>Kesehatan</a></li>
-                            <li><a class="dropdown-item" href="#"><i class="fas fa-graduation-cap me-2"></i>Pendidikan</a></li>
-                            <li><a class="dropdown-item" href="#"><i class="fas fa-seedling me-2"></i>Pertanian</a></li>
-                            <li><a class="dropdown-item" href="#"><i class="fas fa-truck me-2"></i>Transportasi</a></li>
-                        </ul>
-                    </li>
-                    
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-chart-area me-1"></i>Laporan
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="#"><i class="fas fa-file-pdf me-2"></i>Laporan Tahunan</a></li>
-                            <li><a class="dropdown-item" href="#"><i class="fas fa-calendar-alt me-2"></i>Laporan Bulanan</a></li>
-                            <li><a class="dropdown-item" href="#"><i class="fas fa-chart-line me-2"></i>Tren Data</a></li>
-                        </ul>
-                    </li>
-                    
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="fas fa-info-circle me-1"></i>Tentang
-                        </a>
-                    </li>
-                </ul>
+   
                 
                 <!-- Search Form -->
                 <form class="d-flex search-container">
