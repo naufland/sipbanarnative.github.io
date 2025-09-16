@@ -4,7 +4,7 @@
  */
 class Database {
     private $host = "localhost";
-    private $db_name = "dummy_db"; // Sesuaikan nama database
+    private $db_name = "sipbanar"; // Sesuaikan nama database
     private $username = "root";
     private $password = "";
     private $conn;

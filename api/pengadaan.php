@@ -19,7 +19,12 @@ try {
 
     $method = $_SERVER['REQUEST_METHOD'];
     $action = $_GET['action'] ?? 'list';
-
+// Filter range tanggal
+if (!empty($filters['tanggal_awal']) && !empty($filters['tanggal_akhir'])) {
+    $sql .= " AND Pemilihan BETWEEN :tanggal_awal AND :tanggal_akhir";
+    $params[':tanggal_awal'] = $filters['tanggal_awal'];
+    $params[':tanggal_akhir'] = $filters['tanggal_akhir'];
+}
     switch ($method) {
         case 'GET':
             switch ($action) {
@@ -27,8 +32,8 @@ try {
                     // Get filters from query parameters
                     $filters = [
                         'tahun' => $_GET['tahun'] ?? '',
-                        'bulan_awal' => $_GET['bulan_awal'] ?? '',
-                        'bulan_akhir' => $_GET['bulan_akhir'] ?? '',
+                        'tanggal_awal' => $_GET['tanggal_awal'] ?? '',
+                        'tanggal_akhir' => $_GET['tanggal_akhir'] ?? '',
                         'jenis_pengadaan' => $_GET['jenis_pengadaan'] ?? '',
                         'klpd' => $_GET['klpd'] ?? '',
                         'usaha_kecil' => $_GET['usaha_kecil'] ?? '',
@@ -36,8 +41,9 @@ try {
                         'search' => $_GET['search'] ?? ''
                     ];
 
+
                     // Remove empty filters
-                    $filters = array_filter($filters, function($value) {
+                    $filters = array_filter($filters, function ($value) {
                         return $value !== '' && $value !== null;
                     });
 
@@ -97,7 +103,7 @@ try {
                     $filters = array_filter($filters);
 
                     $stats = $pengadaan->getStatistics($filters);
-                    
+
                     echo json_encode([
                         'success' => true,
                         'statistics' => $stats
@@ -124,15 +130,24 @@ try {
                         header('Content-Disposition: attachment; filename="data_pengadaan_' . date('Y-m-d') . '.csv"');
 
                         $output = fopen('php://output', 'w');
-                        
+
                         // Add BOM for proper UTF-8 encoding in Excel
-                        fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
-                        
+                        fprintf($output, chr(0xEF) . chr(0xBB) . chr(0xBF));
+
                         // Headers
                         fputcsv($output, [
-                            'No', 'Paket', 'Pagu (Rp)', 'Jenis Pengadaan', 
-                            'Produk Dalam Negeri', 'Usaha Kecil', 'Metode', 
-                            'Pemilihan', 'KLPD', 'Satuan Kerja', 'Lokasi', 'ID'
+                            'No',
+                            'Paket',
+                            'Pagu (Rp)',
+                            'Jenis Pengadaan',
+                            'Produk Dalam Negeri',
+                            'Usaha Kecil',
+                            'Metode',
+                            'Pemilihan',
+                            'KLPD',
+                            'Satuan Kerja',
+                            'Lokasi',
+                            'ID'
                         ]);
 
                         // Data rows
@@ -152,7 +167,7 @@ try {
                                 $row['ID']
                             ]);
                         }
-                        
+
                         fclose($output);
                         exit;
                     }
@@ -174,7 +189,6 @@ try {
             ]);
             break;
     }
-
 } catch (Exception $e) {
     error_log("API Error: " . $e->getMessage());
     echo json_encode([

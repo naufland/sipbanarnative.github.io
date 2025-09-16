@@ -1,7 +1,7 @@
 <?php
 class PengadaanModel {
     private $conn;
-    private $table_name = "tes_ruphuhuhud"; // ganti dengan nama tabel kamu di database
+    private $table_name = "rup_keseluruhan";
 
     public function __construct($db) {
         $this->conn = $db;
@@ -12,11 +12,19 @@ class PengadaanModel {
         $sql = "SELECT * FROM " . $this->table_name . " WHERE 1=1";
         $params = [];
 
-        // Terapkan filter
+        // Filter tahun
         if (!empty($filters['tahun'])) {
-            $sql .= " AND YEAR(ID) = :tahun"; // ganti kalau field tahun ada di kolom lain
+            $sql .= " AND YEAR(Pemilihan) = :tahun"; 
             $params[':tahun'] = $filters['tahun'];
         }
+
+        // Filter range tanggal
+        if (!empty($filters['tanggal_awal']) && !empty($filters['tanggal_akhir'])) {
+            $sql .= " AND Pemilihan BETWEEN :tanggal_awal AND :tanggal_akhir";
+            $params[':tanggal_awal'] = $filters['tanggal_awal'];
+            $params[':tanggal_akhir'] = $filters['tanggal_akhir'];
+        }
+
         if (!empty($filters['jenis_pengadaan'])) {
             $sql .= " AND Jenis_Pengadaan = :jenis_pengadaan";
             $params[':jenis_pengadaan'] = $filters['jenis_pengadaan'];
@@ -41,7 +49,6 @@ class PengadaanModel {
         $sql .= " ORDER BY No ASC LIMIT :limit OFFSET :offset";
         $stmt = $this->conn->prepare($sql);
 
-        // Bind parameter dinamis
         foreach ($params as $key => $value) {
             $stmt->bindValue($key, $value);
         }
@@ -59,9 +66,16 @@ class PengadaanModel {
         $params = [];
 
         if (!empty($filters['tahun'])) {
-            $sql .= " AND YEAR(ID) = :tahun";
+            $sql .= " AND YEAR(Pemilihan) = :tahun";
             $params[':tahun'] = $filters['tahun'];
         }
+
+        if (!empty($filters['tanggal_awal']) && !empty($filters['tanggal_akhir'])) {
+            $sql .= " AND Pemilihan BETWEEN :tanggal_awal AND :tanggal_akhir";
+            $params[':tanggal_awal'] = $filters['tanggal_awal'];
+            $params[':tanggal_akhir'] = $filters['tanggal_akhir'];
+        }
+
         if (!empty($filters['jenis_pengadaan'])) {
             $sql .= " AND Jenis_Pengadaan = :jenis_pengadaan";
             $params[':jenis_pengadaan'] = $filters['jenis_pengadaan'];
@@ -101,10 +115,9 @@ class PengadaanModel {
         return $stmt->fetchAll(PDO::FETCH_COLUMN);
     }
 
-    // Ambil tahun yang tersedia (kalau ada kolom tahun)
+    // Ambil tahun yang tersedia
     public function getAvailableYears() {
-        // kalau tidak ada kolom tahun, ganti sesuai data real
-        $sql = "SELECT DISTINCT YEAR(ID) as tahun FROM " . $this->table_name . " WHERE ID IS NOT NULL ORDER BY tahun DESC";
+        $sql = "SELECT DISTINCT YEAR(Pemilihan) as tahun FROM " . $this->table_name . " WHERE Pemilihan IS NOT NULL ORDER BY tahun DESC";
         $stmt = $this->conn->prepare($sql);
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_COLUMN);
@@ -116,8 +129,14 @@ class PengadaanModel {
         $params = [];
 
         if (!empty($filters['tahun'])) {
-            $sql .= " AND YEAR(ID) = :tahun";
+            $sql .= " AND YEAR(Pemilihan) = :tahun";
             $params[':tahun'] = $filters['tahun'];
+        }
+
+        if (!empty($filters['tanggal_awal']) && !empty($filters['tanggal_akhir'])) {
+            $sql .= " AND Pemilihan BETWEEN :tanggal_awal AND :tanggal_akhir";
+            $params[':tanggal_awal'] = $filters['tanggal_awal'];
+            $params[':tanggal_akhir'] = $filters['tanggal_akhir'];
         }
 
         $sql .= " GROUP BY Jenis_Pengadaan ORDER BY total DESC";
