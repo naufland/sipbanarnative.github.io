@@ -1,6 +1,6 @@
     <?php
     // URL API (ganti sesuai lokasi file php API kamu)
-    $apiUrl = " ";
+    $apiUrl = "http://sipbanar-phpnative.id/api/pengadaan.php";
 
     // Tambahkan parameter GET ke URL API
     if (!empty($_GET)) {
@@ -18,7 +18,7 @@
     $data = json_decode($response, true);
 
     // Set page title untuk header
-    $page_title = "Data Pengadaan - SIP BANAR";
+    $page_title = "Data Swakelola - SIP BANAR";
 
     // Include header
     include '../../navbar/header.php';
