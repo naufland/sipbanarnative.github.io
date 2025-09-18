@@ -311,7 +311,7 @@
                                     Rekap Pengadaan
                                 </a>
                                 <ul class="dropdown-menu" aria-labelledby="rekapDropdown">
-                                    <!-- Tambahan submenu RUP -->
+                                    <!-- Tambahan submenu RUP -->~
                                     <li class="dropdown-submenu">
                                         <a class="dropdown-item dropdown-toggle" href="#">
                                             <i class="fas fa-folder-open"></i>
@@ -319,13 +319,13 @@
                                         </a>
                                         <ul class="dropdown-menu">
                                             <li>
-                                                <a class="dropdown-item" href="rekappengadaan/rup/pengadaanlangsung.php"">
+                                                <a class="dropdown-item" href="/rekappengadaan/rup/pengadaanlangsung.php"">
                                                     <i class="fas fa-bolt"></i>
                                                     Pengadaan Langsung
                                                 </a>
                                             </li>
                                             <li>
-                                                <a class="dropdown-item" href="rekappengadaan/rup/swakelola.php">
+                                                <a class="dropdown-item" href="/rekappengadaan/rup/swakelola.php">
                                                     <i class="fas fa-people-carry"></i>
                                                     Swakelola
                                                 </a>
