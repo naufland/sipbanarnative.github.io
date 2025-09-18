@@ -4,7 +4,7 @@ header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
 
-// Handle preflight requests
+// Handle preflight request
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     exit(0);
 }
@@ -24,83 +24,57 @@ try {
         case 'GET':
             switch ($action) {
                 case 'list':
-                    // Get filters from query parameters - mendukung filter lama dan baru
+                    // Filter
                     $filters = [
-                        'tahun' => $_GET['tahun'] ?? '',
-                        'tanggal_awal' => $_GET['tanggal_awal'] ?? '',
-                        'tanggal_akhir' => $_GET['tanggal_akhir'] ?? '',
-                        // Filter baru
-                        'tipe_swakelola' => $_GET['tipe_swakelola'] ?? '',
-                        'klpd' => $_GET['klpd'] ?? '',
-                        'satuan_kerja' => $_GET['satuan_kerja'] ?? '',
-                        'lokasi' => $_GET['lokasi'] ?? '',
-                        // Filter lama untuk backward compatibility
-                        'jenis_pengadaan' => $_GET['jenis_pengadaan'] ?? '',
-                        'usaha_kecil' => $_GET['usaha_kecil'] ?? '',
-                        'metode' => $_GET['metode'] ?? '',
-                        'search' => $_GET['search'] ?? ''
+                        'tahun'          => $_GET['tahun'] ?? '',
+                        'tanggal_awal'   => $_GET['tanggal_awal'] ?? '',
+                        'tanggal_akhir'  => $_GET['tanggal_akhir'] ?? '',
+                        'jenis_pengadaan'=> $_GET['jenis_pengadaan'] ?? '',
+                        'klpd'           => $_GET['klpd'] ?? '',
+                        'usaha_kecil'    => $_GET['usaha_kecil'] ?? '',
+                        'metode'         => $_GET['metode'] ?? '',
+                        'search'         => $_GET['search'] ?? ''
                     ];
+                    $filters = array_filter($filters);
 
-                    // Remove empty filters
-                    $filters = array_filter($filters, function ($value) {
-                        return $value !== '' && $value !== null;
-                    });
-
-                    // Pagination parameters
-                    $page = intval($_GET['page'] ?? 1);
-                    $limit = intval($_GET['limit'] ?? 100);
+                    // Pagination
+                    $page   = intval($_GET['page'] ?? 1);
+                    $limit  = intval($_GET['limit'] ?? 100);
                     $offset = ($page - 1) * $limit;
 
-                    // Get data and total count
-                    $data = $pengadaan->getPengadaanData($filters, $limit, $offset);
+                    // Query
+                    $data  = $pengadaan->getSwakelolaData($filters, $limit, $offset);
                     $total = $pengadaan->getTotalCount($filters);
                     $totalPages = ceil($total / $limit);
 
-                    // Add row numbers
+                    // Tambah nomor urut
                     foreach ($data as $key => $row) {
                         $data[$key]['No'] = $offset + $key + 1;
                     }
 
                     echo json_encode([
                         'success' => true,
-                        'data' => $data,
+                        'data'    => $data,
                         'pagination' => [
-                            'current_page' => $page,
-                            'total_pages' => $totalPages,
+                            'current_page'  => $page,
+                            'total_pages'   => $totalPages,
                             'total_records' => $total,
-                            'per_page' => $limit,
-                            'has_next' => $page < $totalPages,
-                            'has_prev' => $page > 1
+                            'per_page'      => $limit,
+                            'has_next'      => $page < $totalPages,
+                            'has_prev'      => $page > 1
                         ]
                     ]);
                     break;
 
                 case 'options':
-                    // Get dropdown options - mendukung kolom lama dan baru
-                    $tipeSwakelola = $pengadaan->getDistinctValues('Tipe_Swakelola');
-                    $klpd = $pengadaan->getDistinctValues('KLPD');
-                    $satuanKerja = $pengadaan->getDistinctValues('Satuan_Kerja');
-                    $lokasi = $pengadaan->getDistinctValues('Lokasi');
-                    $years = $pengadaan->getAvailableYears();
-                    
-                    // Untuk backward compatibility
-                    $jenisPengadaan = $pengadaan->getDistinctValues('Jenis_Pengadaan'); // akan di-map ke Tipe_Swakelola
-                    $usahaKecil = $pengadaan->getDistinctValues('Usaha_Kecil');
-                    $metode = $pengadaan->getDistinctValues('Metode');
-
                     echo json_encode([
                         'success' => true,
                         'options' => [
-                            // Opsi baru
-                            'tipe_swakelola' => $tipeSwakelola,
-                            'klpd' => $klpd,
-                            'satuan_kerja' => $satuanKerja,
-                            'lokasi' => $lokasi,
-                            'years' => $years,
-                            // Opsi lama untuk backward compatibility
-                            'jenis_pengadaan' => $jenisPengadaan,
-                            'usaha_kecil' => $usahaKecil,
-                            'metode' => $metode
+                            'jenis_pengadaan' => $pengadaan->getDistinctValues('Jenis_Pengadaan'),
+                            'klpd'            => $pengadaan->getDistinctValues('KLPD'),
+                            'usaha_kecil'     => $pengadaan->getDistinctValues('Usaha_Kecil'),
+                            'metode'          => $pengadaan->getDistinctValues('Metode'),
+                            'years'           => $pengadaan->getAvailableYears()
                         ]
                     ]);
                     break;
@@ -120,42 +94,35 @@ try {
                     break;
 
                 case 'export':
-                    // Export functionality - mendukung filter lama dan baru
                     $filters = [
-                        'tahun' => $_GET['tahun'] ?? '',
-                        'tanggal_awal' => $_GET['tanggal_awal'] ?? '',
-                        'tanggal_akhir' => $_GET['tanggal_akhir'] ?? '',
-                        // Filter baru
-                        'tipe_swakelola' => $_GET['tipe_swakelola'] ?? '',
-                        'klpd' => $_GET['klpd'] ?? '',
-                        'satuan_kerja' => $_GET['satuan_kerja'] ?? '',
-                        'lokasi' => $_GET['lokasi'] ?? '',
-                        // Filter lama untuk backward compatibility
-                        'jenis_pengadaan' => $_GET['jenis_pengadaan'] ?? '',
-                        'usaha_kecil' => $_GET['usaha_kecil'] ?? '',
-                        'metode' => $_GET['metode'] ?? '',
-                        'search' => $_GET['search'] ?? ''
+                        'tahun'          => $_GET['tahun'] ?? '',
+                        'bulan_awal'     => $_GET['bulan_awal'] ?? '',
+                        'bulan_akhir'    => $_GET['bulan_akhir'] ?? '',
+                        'jenis_pengadaan'=> $_GET['jenis_pengadaan'] ?? '',
+                        'klpd'           => $_GET['klpd'] ?? '',
+                        'search'         => $_GET['search'] ?? ''
                     ];
                     $filters = array_filter($filters);
 
                     $format = $_GET['format'] ?? 'csv';
-                    $data = $pengadaan->getPengadaanData($filters, 10000, 0); // Get all data for export
+                    $data   = $pengadaan->getSwakelolaData($filters, 10000, 0);
 
                     if ($format == 'csv') {
                         header('Content-Type: text/csv; charset=utf-8');
                         header('Content-Disposition: attachment; filename="data_pengadaan_' . date('Y-m-d') . '.csv"');
 
                         $output = fopen('php://output', 'w');
+                        fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
 
-                        // Add BOM for proper UTF-8 encoding in Excel
-                        fprintf($output, chr(0xEF) . chr(0xBB) . chr(0xBF));
-
-                        // Headers
+                        // Header CSV
                         fputcsv($output, [
                             'No',
                             'Paket',
                             'Pagu (Rp)',
-                            'Tipe Swakelola',
+                            'Jenis Pengadaan',
+                            'Produk Dalam Negeri',
+                            'Usaha Kecil',
+                            'Metode',
                             'Pemilihan',
                             'KLPD',
                             'Satuan Kerja',
@@ -163,13 +130,16 @@ try {
                             'ID'
                         ]);
 
-                        // Data rows
+                        // Isi data
                         foreach ($data as $index => $row) {
                             fputcsv($output, [
                                 $index + 1,
                                 $row['Paket'],
                                 $row['Pagu_Rp'],
-                                $row['Tipe_Swakelola'],
+                                $row['Jenis_Pengadaan'],
+                                $row['Produk_Dalam_Negeri'],
+                                $row['Usaha_Kecil'],
+                                $row['Metode'],
                                 $row['Pemilihan'],
                                 $row['KLPD'],
                                 $row['Satuan_Kerja'],
@@ -206,4 +176,3 @@ try {
         'message' => 'Server error: ' . $e->getMessage()
     ]);
 }
-?>

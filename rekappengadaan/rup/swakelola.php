@@ -9,35 +9,34 @@
     // Buat array parameter yang valid untuk API
     $validParams = [];
     
-    // Filter dan validasi parameter
+    // Filter dan validasi parameter - SESUAIKAN DENGAN API ANDA
     if (isset($_GET['tanggal_awal']) && !empty($_GET['tanggal_awal'])) {
-        // Validasi format tanggal
         if (DateTime::createFromFormat('Y-m-d', $_GET['tanggal_awal'])) {
             $validParams['tanggal_awal'] = $_GET['tanggal_awal'];
         }
     }
     
     if (isset($_GET['tanggal_akhir']) && !empty($_GET['tanggal_akhir'])) {
-        // Validasi format tanggal
         if (DateTime::createFromFormat('Y-m-d', $_GET['tanggal_akhir'])) {
             $validParams['tanggal_akhir'] = $_GET['tanggal_akhir'];
         }
     }
     
+    // PERUBAHAN: Gunakan jenis_pengadaan sesuai API, bukan tipe_swakelola
     if (isset($_GET['tipe_swakelola']) && !empty($_GET['tipe_swakelola'])) {
-        $validParams['tipe_swakelola'] = htmlspecialchars($_GET['tipe_swakelola']);
+        $validParams['jenis_pengadaan'] = htmlspecialchars($_GET['tipe_swakelola']);
     }
     
     if (isset($_GET['klpd']) && !empty($_GET['klpd'])) {
         $validParams['klpd'] = htmlspecialchars($_GET['klpd']);
     }
     
-    if (isset($_GET['satuan_kerja']) && !empty($_GET['satuan_kerja'])) {
-        $validParams['satuan_kerja'] = htmlspecialchars($_GET['satuan_kerja']);
-    }
+    // PERUBAHAN: API tidak mendukung satuan_kerja sebagai filter, hapus atau sesuaikan
+    // if (isset($_GET['satuan_kerja']) && !empty($_GET['satuan_kerja'])) {
+    //     $validParams['satuan_kerja'] = htmlspecialchars($_GET['satuan_kerja']);
+    // }
     
     if (isset($_GET['pagu_min']) && !empty($_GET['pagu_min'])) {
-        // Bersihkan format number dan validasi
         $pagu_min = preg_replace('/[^\d]/', '', $_GET['pagu_min']);
         if (is_numeric($pagu_min) && $pagu_min >= 0) {
             $validParams['pagu_min'] = $pagu_min;
@@ -45,7 +44,6 @@
     }
     
     if (isset($_GET['pagu_max']) && !empty($_GET['pagu_max'])) {
-        // Bersihkan format number dan validasi
         $pagu_max = preg_replace('/[^\d]/', '', $_GET['pagu_max']);
         if (is_numeric($pagu_max) && $pagu_max >= 0) {
             $validParams['pagu_max'] = $pagu_max;
@@ -64,29 +62,26 @@
     $page = isset($_GET['page']) && is_numeric($_GET['page']) ? (int)$_GET['page'] : 1;
     $validParams['page'] = $page;
 
-    // Bangun URL API dengan parameter
-    if (!empty($validParams)) {
-        $apiUrl = $baseApiUrl . '?' . http_build_query($validParams);
-    }
+    // PENTING: Tambahkan action=list untuk data utama
+    $validParams['action'] = 'list';
 
-    // Debug: tampilkan URL API yang akan dipanggil
-    // error_log("API URL: " . $apiUrl);
+    // Bangun URL API dengan parameter
+    $apiUrl = $baseApiUrl . '?' . http_build_query($validParams);
 
     // Inisialisasi variabel untuk menghindari error
     $data = null;
     $options = null;
     $errorMessage = null;
 
-    // Ambil data dari API dengan error handling
-    try {
-        // Gunakan cURL untuk request yang lebih robust
+    // Function untuk melakukan cURL request
+    function makeApiRequest($url, $timeout = 30) {
         $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $apiUrl);
+        curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+        curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
         curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // Untuk development, hapus di production
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
         
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -105,12 +100,18 @@
             throw new Exception("Empty response from API");
         }
         
-        $data = json_decode($response, true);
+        $decodedResponse = json_decode($response, true);
         
         if (json_last_error() !== JSON_ERROR_NONE) {
             throw new Exception("JSON Decode Error: " . json_last_error_msg());
         }
         
+        return $decodedResponse;
+    }
+
+    // Ambil data dari API dengan error handling
+    try {
+        $data = makeApiRequest($apiUrl);
     } catch (Exception $e) {
         error_log("API Error: " . $e->getMessage());
         $errorMessage = "Terjadi kesalahan saat mengambil data: " . $e->getMessage();
@@ -129,7 +130,7 @@
                 $response = file_get_contents($apiUrl, false, $context);
                 if ($response) {
                     $data = json_decode($response, true);
-                    $errorMessage = null; // Reset error jika berhasil
+                    $errorMessage = null;
                 }
             } catch (Exception $fallbackError) {
                 error_log("Fallback Error: " . $fallbackError->getMessage());
@@ -137,49 +138,69 @@
         }
     }
 
-    // Ambil options untuk dropdown dari API (tanpa parameter filter)
-    try {
-        $optionsUrl = $baseApiUrl . "?get_options=1"; // Asumsi API mendukung parameter ini
+    // PERBAIKAN: Ambil options dari data yang sudah berhasil diambil
+    $options = [
+        'success' => true,
+        'options' => [
+            'tipe_swakelola' => [],
+            'klpd' => [],
+            'satuan_kerja' => []
+        ]
+    ];
+    
+    // Jika data berhasil diambil, ekstrak unique values untuk dropdown
+    if ($data && isset($data['success']) && $data['success'] && isset($data['data']) && is_array($data['data'])) {
+        $uniqueTipe = [];
+        $uniqueKlpd = [];
+        $uniqueSatker = [];
         
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $optionsUrl);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 15);
-        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        
-        $optionsResponse = curl_exec($ch);
-        $optionsHttpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-        
-        if ($optionsHttpCode === 200 && $optionsResponse) {
-            $options = json_decode($optionsResponse, true);
-        } else {
-            // Fallback: gunakan data dari response utama untuk options
-            if ($data && isset($data['options'])) {
-                $options = $data;
-            } else {
-                // Buat options kosong untuk menghindari error
-                $options = [
-                    'options' => [
-                        'tipe_swakelola' => [],
-                        'klpd' => [],
-                        'satuan_kerja' => []
-                    ]
-                ];
+        foreach ($data['data'] as $row) {
+            // Ambil Jenis_Pengadaan untuk Tipe Swakelola
+            $jenis = $row['Jenis_Pengadaan'] ?? null;
+            if ($jenis && $jenis !== 'N/A' && $jenis !== '' && !in_array($jenis, $uniqueTipe)) {
+                $uniqueTipe[] = $jenis;
+            }
+            
+            // Ambil KLPD
+            $klpd = $row['KLPD'] ?? null;
+            if ($klpd && $klpd !== 'N/A' && $klpd !== '' && !in_array($klpd, $uniqueKlpd)) {
+                $uniqueKlpd[] = $klpd;
+            }
+            
+            // Ambil Satuan Kerja
+            $satker = $row['Satuan_Kerja'] ?? null;
+            if ($satker && $satker !== 'N/A' && $satker !== '' && !in_array($satker, $uniqueSatker)) {
+                $uniqueSatker[] = $satker;
             }
         }
         
-    } catch (Exception $e) {
-        error_log("Options API Error: " . $e->getMessage());
-        // Set default empty options
-        $options = [
-            'options' => [
-                'tipe_swakelola' => [],
-                'klpd' => [],
-                'satuan_kerja' => []
-            ]
-        ];
+        // Sort arrays untuk tampilan yang rapi
+        sort($uniqueTipe);
+        sort($uniqueKlpd);  
+        sort($uniqueSatker);
+        
+        $options['options']['tipe_swakelola'] = $uniqueTipe;
+        $options['options']['klpd'] = $uniqueKlpd;
+        $options['options']['satuan_kerja'] = $uniqueSatker;
+        
+        error_log("Extracted options - Tipe: " . count($uniqueTipe) . ", KLPD: " . count($uniqueKlpd) . ", Satker: " . count($uniqueSatker));
+    }
+    
+    // FALLBACK: Coba ambil dari API options jika data ekstraksi tidak berhasil
+    if (empty($options['options']['tipe_swakelola']) && empty($options['options']['klpd'])) {
+        try {
+            $optionsUrl = $baseApiUrl . "?action=options";
+            $apiOptions = makeApiRequest($optionsUrl, 15);
+            
+            if (isset($apiOptions['success']) && $apiOptions['success'] && isset($apiOptions['options'])) {
+                error_log("Using API options as fallback");
+                $options['options']['tipe_swakelola'] = $apiOptions['options']['jenis_pengadaan'] ?? [];
+                $options['options']['klpd'] = $apiOptions['options']['klpd'] ?? [];
+                // satuan_kerja tetap dari ekstraksi data karena API tidak menyediakan
+            }
+        } catch (Exception $e) {
+            error_log("Options API Fallback Error: " . $e->getMessage());
+        }
     }
 
     // Set page title untuk header
@@ -189,6 +210,7 @@
     include '../../navbar/header.php';
     
     ?>
+    <!-- Sisa kode HTML dan JavaScript tetap sama seperti sebelumnya -->
 
     <!-- Custom CSS untuk halaman ini -->
     <script src="../../js/submenu.js"></script>
@@ -1533,4 +1555,4 @@
     <?php 
     // Include footer
     include '../../navbar/footer.php'; 
-    ?>
+    ?>  
