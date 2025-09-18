@@ -10,37 +10,36 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 }
 
 require_once '../config/database.php';
-require_once '../includes/PengadaanModel.php';
+require_once '../includes/SwakelolaModel.php';
 
 try {
     $database = new Database();
     $db = $database->getConnection();
-    $pengadaan = new PengadaanModel($db);
+    $pengadaan = new SwakelolaModel($db);
 
     $method = $_SERVER['REQUEST_METHOD'];
     $action = $_GET['action'] ?? 'list';
-// Filter range tanggal
-if (!empty($filters['tanggal_awal']) && !empty($filters['tanggal_akhir'])) {
-    $sql .= " AND Pemilihan BETWEEN :tanggal_awal AND :tanggal_akhir";
-    $params[':tanggal_awal'] = $filters['tanggal_awal'];
-    $params[':tanggal_akhir'] = $filters['tanggal_akhir'];
-}
+
     switch ($method) {
         case 'GET':
             switch ($action) {
                 case 'list':
-                    // Get filters from query parameters
+                    // Get filters from query parameters - mendukung filter lama dan baru
                     $filters = [
                         'tahun' => $_GET['tahun'] ?? '',
                         'tanggal_awal' => $_GET['tanggal_awal'] ?? '',
                         'tanggal_akhir' => $_GET['tanggal_akhir'] ?? '',
-                        'jenis_pengadaan' => $_GET['jenis_pengadaan'] ?? '',
+                        // Filter baru
+                        'tipe_swakelola' => $_GET['tipe_swakelola'] ?? '',
                         'klpd' => $_GET['klpd'] ?? '',
+                        'satuan_kerja' => $_GET['satuan_kerja'] ?? '',
+                        'lokasi' => $_GET['lokasi'] ?? '',
+                        // Filter lama untuk backward compatibility
+                        'jenis_pengadaan' => $_GET['jenis_pengadaan'] ?? '',
                         'usaha_kecil' => $_GET['usaha_kecil'] ?? '',
                         'metode' => $_GET['metode'] ?? '',
                         'search' => $_GET['search'] ?? ''
                     ];
-
 
                     // Remove empty filters
                     $filters = array_filter($filters, function ($value) {
@@ -77,21 +76,31 @@ if (!empty($filters['tanggal_awal']) && !empty($filters['tanggal_akhir'])) {
                     break;
 
                 case 'options':
-                    // Get dropdown options
-                    $jenisPengadaan = $pengadaan->getDistinctValues('Jenis_Pengadaan');
+                    // Get dropdown options - mendukung kolom lama dan baru
+                    $tipeSwakelola = $pengadaan->getDistinctValues('Tipe_Swakelola');
                     $klpd = $pengadaan->getDistinctValues('KLPD');
+                    $satuanKerja = $pengadaan->getDistinctValues('Satuan_Kerja');
+                    $lokasi = $pengadaan->getDistinctValues('Lokasi');
+                    $years = $pengadaan->getAvailableYears();
+                    
+                    // Untuk backward compatibility
+                    $jenisPengadaan = $pengadaan->getDistinctValues('Jenis_Pengadaan'); // akan di-map ke Tipe_Swakelola
                     $usahaKecil = $pengadaan->getDistinctValues('Usaha_Kecil');
                     $metode = $pengadaan->getDistinctValues('Metode');
-                    $years = $pengadaan->getAvailableYears();
 
                     echo json_encode([
                         'success' => true,
                         'options' => [
-                            'jenis_pengadaan' => $jenisPengadaan,
+                            // Opsi baru
+                            'tipe_swakelola' => $tipeSwakelola,
                             'klpd' => $klpd,
+                            'satuan_kerja' => $satuanKerja,
+                            'lokasi' => $lokasi,
+                            'years' => $years,
+                            // Opsi lama untuk backward compatibility
+                            'jenis_pengadaan' => $jenisPengadaan,
                             'usaha_kecil' => $usahaKecil,
-                            'metode' => $metode,
-                            'years' => $years
+                            'metode' => $metode
                         ]
                     ]);
                     break;
@@ -111,13 +120,20 @@ if (!empty($filters['tanggal_awal']) && !empty($filters['tanggal_akhir'])) {
                     break;
 
                 case 'export':
-                    // Export functionality
+                    // Export functionality - mendukung filter lama dan baru
                     $filters = [
                         'tahun' => $_GET['tahun'] ?? '',
-                        'bulan_awal' => $_GET['bulan_awal'] ?? '',
-                        'bulan_akhir' => $_GET['bulan_akhir'] ?? '',
-                        'jenis_pengadaan' => $_GET['jenis_pengadaan'] ?? '',
+                        'tanggal_awal' => $_GET['tanggal_awal'] ?? '',
+                        'tanggal_akhir' => $_GET['tanggal_akhir'] ?? '',
+                        // Filter baru
+                        'tipe_swakelola' => $_GET['tipe_swakelola'] ?? '',
                         'klpd' => $_GET['klpd'] ?? '',
+                        'satuan_kerja' => $_GET['satuan_kerja'] ?? '',
+                        'lokasi' => $_GET['lokasi'] ?? '',
+                        // Filter lama untuk backward compatibility
+                        'jenis_pengadaan' => $_GET['jenis_pengadaan'] ?? '',
+                        'usaha_kecil' => $_GET['usaha_kecil'] ?? '',
+                        'metode' => $_GET['metode'] ?? '',
                         'search' => $_GET['search'] ?? ''
                     ];
                     $filters = array_filter($filters);
@@ -153,7 +169,7 @@ if (!empty($filters['tanggal_awal']) && !empty($filters['tanggal_akhir'])) {
                                 $index + 1,
                                 $row['Paket'],
                                 $row['Pagu_Rp'],
-                                $row['Usaha_Kecil'],
+                                $row['Tipe_Swakelola'],
                                 $row['Pemilihan'],
                                 $row['KLPD'],
                                 $row['Satuan_Kerja'],
@@ -190,3 +206,4 @@ if (!empty($filters['tanggal_awal']) && !empty($filters['tanggal_akhir'])) {
         'message' => 'Server error: ' . $e->getMessage()
     ]);
 }
+?>

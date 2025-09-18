@@ -1,6 +1,6 @@
     <?php
     // URL API (ganti sesuai lokasi file php API kamu)
-    $apiUrl = " ";
+    $apiUrl = "http://sipbanar-phpnative.id/api/pengadaan.php";
 
     // Tambahkan parameter GET ke URL API
     if (!empty($_GET)) {

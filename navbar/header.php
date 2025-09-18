@@ -325,7 +325,7 @@
                                                 </a>
                                             </li>
                                             <li>
-                                                <a class="dropdown-item" href="/rekap/rup/swakelola">
+                                                <a class="dropdown-item" href="rekappengadaan/rup/swakelola.php">
                                                     <i class="fas fa-people-carry"></i>
                                                     Swakelola
                                                 </a>
