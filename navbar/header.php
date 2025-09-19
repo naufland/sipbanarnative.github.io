@@ -496,10 +496,11 @@
                                         <hr class="dropdown-divider">
                                     </li>
                                     <li>
-                                        <a class="dropdown-item" href="<?= $_SERVER['REQUEST_SCHEME'] ?>://<?= $_SERVER['HTTP_HOST'] ?>/rekap/analisis">
+                                        <a class="dropdown-item" href="<?= $_SERVER['REQUEST_SCHEME'] ?>://<?= $_SERVER['HTTP_HOST'] ?>/grafik/grafik_rup.php">
                                             <i class="fas fa-chart-pie"></i>
-                                            Analisis Data
+                                            Grafik
                                         </a>
+                                        
                                     </li>
                                 </ul>
                             </li>
