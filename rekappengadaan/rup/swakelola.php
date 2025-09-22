@@ -282,7 +282,7 @@ include '../../navbar/header.php';
     }
 
     .summary-header {
-        background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
         color: white;
         padding: 20px 25px;
         display: flex;
@@ -619,14 +619,7 @@ include '../../navbar/header.php';
                         <div class="card-subtitle">Per Paket</div>
                     </div>
                 </div>
-                <div class="summary-card warning">
-                    <div class="card-icon"><i class="fas fa-building"></i></div>
-                    <div class="card-content">
-                        <div class="card-value"><?= number_format($klpdCount, 0, ',', '.') ?></div>
-                        <div class="card-label">KLPD Terlibat</div>
-                        <div class="card-subtitle">Instansi</div>
-                    </div>
-                </div>
+
             </div>
         </div>
     </div>
