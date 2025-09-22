@@ -10,12 +10,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 }
 
 require_once '../config/database.php';
-require_once '../includes/SwakelolaModel.php';
+require_once '../includes/SwakelolaModel.php'; // Pastikan model ini ada dan benar
 
 try {
     $database = new Database();
     $db = $database->getConnection();
-    $pengadaan = new SwakelolaModel($db);
+    $swakelola = new SwakelolaModel($db); // Menggunakan SwakelolaModel
 
     $method = $_SERVER['REQUEST_METHOD'];
     $action = $_GET['action'] ?? 'list';
@@ -24,152 +24,97 @@ try {
         case 'GET':
             switch ($action) {
                 case 'list':
-                    // Filter
+                    // Filter (menambahkan semua filter yang relevan dari front-end)
                     $filters = [
-                        'tahun'          => $_GET['tahun'] ?? '',
-                        'tanggal_awal'   => $_GET['tanggal_awal'] ?? '',
-                        'tanggal_akhir'  => $_GET['tanggal_akhir'] ?? '',
-                        'jenis_pengadaan'=> $_GET['jenis_pengadaan'] ?? '',
-                        'klpd'           => $_GET['klpd'] ?? '',
-                        'usaha_kecil'    => $_GET['usaha_kecil'] ?? '',
-                        'metode'         => $_GET['metode'] ?? '',
-                        'search'         => $_GET['search'] ?? ''
+                        'tanggal_awal'    => $_GET['tanggal_awal'] ?? '',
+                        'tanggal_akhir'   => $_GET['tanggal_akhir'] ?? '',
+                        // PERBAIKAN: API menerima 'jenis_pengadaan', front-end mengirim 'tipe_swakelola'. Kita tangani keduanya.
+                        'jenis_pengadaan' => $_GET['tipe_swakelola'] ?? ($_GET['jenis_pengadaan'] ?? ''),
+                        'klpd'            => $_GET['klpd'] ?? '',
+                        'satuan_kerja'    => $_GET['satuan_kerja'] ?? '', // Tambahkan filter satuan kerja
+                        'pagu_min'        => $_GET['pagu_min'] ?? '',     // Tambahkan filter pagu min
+                        'pagu_max'        => $_GET['pagu_max'] ?? '',     // Tambahkan filter pagu max
+                        'search'          => $_GET['search'] ?? ''
                     ];
-                    $filters = array_filter($filters);
+                    $filters = array_filter($filters, fn($value) => $value !== '' && $value !== null);
 
                     // Pagination
                     $page   = intval($_GET['page'] ?? 1);
-                    $limit  = intval($_GET['limit'] ?? 100);
+                    $limit  = intval($_GET['limit'] ?? 25);
                     $offset = ($page - 1) * $limit;
 
                     // Query
-                    $data  = $pengadaan->getSwakelolaData($filters, $limit, $offset);
-                    $total = $pengadaan->getTotalCount($filters);
+                    $data  = $swakelola->getSwakelolaData($filters, $limit, $offset);
+                    $total = $swakelola->getTotalCount($filters);
                     $totalPages = ceil($total / $limit);
-
-                    // Tambah nomor urut
-                    foreach ($data as $key => $row) {
-                        $data[$key]['No'] = $offset + $key + 1;
-                    }
 
                     echo json_encode([
                         'success' => true,
                         'data'    => $data,
+                        'options' => [ // Kirim juga options agar front-end tidak perlu request lagi
+                             'jenis_pengadaan' => $swakelola->getDistinctValues('Tipe_Swakelola'),
+                             'klpd' => $swakelola->getDistinctValues('KLPD'),
+                             'satuan_kerja' => $swakelola->getDistinctValues('Satuan_Kerja'),
+                        ],
                         'pagination' => [
                             'current_page'  => $page,
                             'total_pages'   => $totalPages,
                             'total_records' => $total,
-                            'per_page'      => $limit,
-                            'has_next'      => $page < $totalPages,
-                            'has_prev'      => $page > 1
+                            'per_page'      => $limit
                         ]
                     ]);
                     break;
+
+                // === PENAMBAHAN BAGIAN SUMMARY DIMULAI DI SINI ===
+                case 'summary':
+                    // Ambil semua filter yang sama persis seperti 'list'
+                    $filters = [
+                        'tanggal_awal'    => $_GET['tanggal_awal'] ?? '',
+                        'tanggal_akhir'   => $_GET['tanggal_akhir'] ?? '',
+                        'jenis_pengadaan' => $_GET['tipe_swakelola'] ?? ($_GET['jenis_pengadaan'] ?? ''),
+                        'klpd'            => $_GET['klpd'] ?? '',
+                        'satuan_kerja'    => $_GET['satuan_kerja'] ?? '',
+                        'pagu_min'        => $_GET['pagu_min'] ?? '',
+                        'pagu_max'        => $_GET['pagu_max'] ?? '',
+                        'search'          => $_GET['search'] ?? ''
+                    ];
+                    $filters = array_filter($filters, fn($value) => $value !== '' && $value !== null);
+
+                    // Panggil fungsi baru di model untuk menghitung summary
+                    $summary = $swakelola->getSummary($filters);
+
+                    echo json_encode([
+                        'success' => true,
+                        'summary' => $summary
+                    ]);
+                    break;
+                // === AKHIR BAGIAN SUMMARY ===
 
                 case 'options':
                     echo json_encode([
                         'success' => true,
                         'options' => [
-                            'jenis_pengadaan' => $pengadaan->getDistinctValues('Jenis_Pengadaan'),
-                            'klpd'            => $pengadaan->getDistinctValues('KLPD'),
-                            'usaha_kecil'     => $pengadaan->getDistinctValues('Usaha_Kecil'),
-                            'metode'          => $pengadaan->getDistinctValues('Metode'),
-                            'years'           => $pengadaan->getAvailableYears()
+                            'jenis_pengadaan' => $swakelola->getDistinctValues('Tipe_Swakelola'), // Sesuaikan nama kolom
+                            'klpd'            => $swakelola->getDistinctValues('KLPD'),
+                            'satuan_kerja'    => $swakelola->getDistinctValues('Satuan_Kerja')
                         ]
                     ]);
                     break;
 
-                case 'statistics':
-                    $filters = [
-                        'tahun' => $_GET['tahun'] ?? ''
-                    ];
-                    $filters = array_filter($filters);
-
-                    $stats = $pengadaan->getStatistics($filters);
-
-                    echo json_encode([
-                        'success' => true,
-                        'statistics' => $stats
-                    ]);
-                    break;
-
-                case 'export':
-                    $filters = [
-                        'tahun'          => $_GET['tahun'] ?? '',
-                        'bulan_awal'     => $_GET['bulan_awal'] ?? '',
-                        'bulan_akhir'    => $_GET['bulan_akhir'] ?? '',
-                        'jenis_pengadaan'=> $_GET['jenis_pengadaan'] ?? '',
-                        'klpd'           => $_GET['klpd'] ?? '',
-                        'search'         => $_GET['search'] ?? ''
-                    ];
-                    $filters = array_filter($filters);
-
-                    $format = $_GET['format'] ?? 'csv';
-                    $data   = $pengadaan->getSwakelolaData($filters, 10000, 0);
-
-                    if ($format == 'csv') {
-                        header('Content-Type: text/csv; charset=utf-8');
-                        header('Content-Disposition: attachment; filename="data_pengadaan_' . date('Y-m-d') . '.csv"');
-
-                        $output = fopen('php://output', 'w');
-                        fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
-
-                        // Header CSV
-                        fputcsv($output, [
-                            'No',
-                            'Paket',
-                            'Pagu (Rp)',
-                            'Jenis Pengadaan',
-                            'Produk Dalam Negeri',
-                            'Usaha Kecil',
-                            'Metode',
-                            'Pemilihan',
-                            'KLPD',
-                            'Satuan Kerja',
-                            'Lokasi',
-                            'ID'
-                        ]);
-
-                        // Isi data
-                        foreach ($data as $index => $row) {
-                            fputcsv($output, [
-                                $index + 1,
-                                $row['Paket'],
-                                $row['Pagu_Rp'],
-                                $row['Jenis_Pengadaan'],
-                                $row['Produk_Dalam_Negeri'],
-                                $row['Usaha_Kecil'],
-                                $row['Metode'],
-                                $row['Pemilihan'],
-                                $row['KLPD'],
-                                $row['Satuan_Kerja'],
-                                $row['Lokasi'],
-                                $row['ID']
-                            ]);
-                        }
-
-                        fclose($output);
-                        exit;
-                    }
-                    break;
-
                 default:
-                    echo json_encode([
-                        'success' => false,
-                        'message' => 'Invalid action'
-                    ]);
+                    http_response_code(400);
+                    echo json_encode(['success' => false, 'message' => 'Invalid action specified']);
                     break;
             }
             break;
 
         default:
-            echo json_encode([
-                'success' => false,
-                'message' => 'Method not allowed'
-            ]);
+            http_response_code(405);
+            echo json_encode(['success' => false, 'message' => 'Method not allowed']);
             break;
     }
 } catch (Exception $e) {
+    http_response_code(500);
     error_log("API Error: " . $e->getMessage());
     echo json_encode([
         'success' => false,

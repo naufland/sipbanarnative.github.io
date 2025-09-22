@@ -1,20 +1,49 @@
-<?php 
-class SwakelolaModel {
+<?php
+class SwakelolaModel
+{
     private $conn;
     private $table_name = "rup_swakelola"; // ganti sesuai nama tabel di DB
 
-    public function __construct($db) {
+    public function __construct($db)
+    {
         $this->conn = $db;
     }
+    public function getSummary($filters)
+    {
+        // Ambil semua data yang cocok dengan filter tanpa limit
+        $allData = $this->getSwakelolaData($filters, 100000, 0); // Limit besar untuk mencakup semua data
 
+        $totalPaket = count($allData);
+        $totalPagu = 0;
+        $klpdSet = [];
+
+        foreach ($allData as $row) {
+            // Pastikan Pagu_Rp adalah angka
+            $paguValue = preg_replace('/[^\d]/', '', $row['Pagu_Rp']);
+            $totalPagu += (int)$paguValue;
+
+            // Kumpulkan KLPD unik
+            if (!empty($row['KLPD'])) {
+                $klpdSet[$row['KLPD']] = true;
+            }
+        }
+
+        return [
+            'total_paket' => $totalPaket,
+            'total_pagu'  => $totalPagu,
+            'avg_pagu'    => $totalPaket > 0 ? $totalPagu / $totalPaket : 0,
+            'total_klpd'  => count($klpdSet)
+        ];
+    }
     // Ambil data utama dengan filter + pagination
-    public function getSwakelolaData($filters = [], $limit = 50, $offset = 0) {
+    public function getSwakelolaData($filters = [], $limit = 50, $offset = 0)
+    {
         $sql = "SELECT * FROM " . $this->table_name . " WHERE 1=1";
         $params = [];
 
         // Filter tahun
         if (!empty($filters['tahun'])) {
-            $sql .= " AND YEAR(Pemilihan) = :tahun"; 
+            $sql .= " AND YEAR(Pemilihan) = :tahun";
             $params[':tahun'] = $filters['tahun'];
         }
 
@@ -64,7 +93,8 @@ class SwakelolaModel {
     }
 
     // Hitung total data (untuk pagination)
-    public function getTotalCount($filters = []) {
+    public function getTotalCount($filters = [])
+    {
         $sql = "SELECT COUNT(*) as total FROM " . $this->table_name . " WHERE 1=1";
         $params = [];
 
@@ -110,7 +140,8 @@ class SwakelolaModel {
     }
 
     // Ambil nilai unik untuk dropdown (misalnya tipe swakelola, klpd, satuan kerja)
-    public function getDistinctValues($column) {
+    public function getDistinctValues($column)
+    {
         $sql = "SELECT DISTINCT $column FROM " . $this->table_name . " 
                 WHERE $column IS NOT NULL AND $column != '' 
                 ORDER BY $column ASC";
@@ -120,7 +151,8 @@ class SwakelolaModel {
     }
 
     // Ambil tahun yang tersedia
-    public function getAvailableYears() {
+    public function getAvailableYears()
+    {
         $sql = "SELECT DISTINCT YEAR(Pemilihan) as tahun FROM " . $this->table_name . " 
                 WHERE Pemilihan IS NOT NULL 
                 ORDER BY tahun DESC";
@@ -130,7 +162,8 @@ class SwakelolaModel {
     }
 
     // Statistik sederhana (contoh grouping per tipe swakelola)
-    public function getStatistics($filters = []) {
+    public function getStatistics($filters = [])
+    {
         $sql = "SELECT Tipe_Swakelola, COUNT(*) as total 
                 FROM " . $this->table_name . " WHERE 1=1";
         $params = [];
