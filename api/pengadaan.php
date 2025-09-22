@@ -19,12 +19,7 @@ try {
 
     $method = $_SERVER['REQUEST_METHOD'];
     $action = $_GET['action'] ?? 'list';
-// Filter range tanggal
-if (!empty($filters['tanggal_awal']) && !empty($filters['tanggal_akhir'])) {
-    $sql .= " AND Pemilihan BETWEEN :tanggal_awal AND :tanggal_akhir";
-    $params[':tanggal_awal'] = $filters['tanggal_awal'];
-    $params[':tanggal_akhir'] = $filters['tanggal_akhir'];
-}
+
     switch ($method) {
         case 'GET':
             switch ($action) {
@@ -40,7 +35,6 @@ if (!empty($filters['tanggal_awal']) && !empty($filters['tanggal_akhir'])) {
                         'metode' => $_GET['metode'] ?? '',
                         'search' => $_GET['search'] ?? ''
                     ];
-
 
                     // Remove empty filters
                     $filters = array_filter($filters, function ($value) {
@@ -72,6 +66,109 @@ if (!empty($filters['tanggal_awal']) && !empty($filters['tanggal_akhir'])) {
                             'per_page' => $limit,
                             'has_next' => $page < $totalPages,
                             'has_prev' => $page > 1
+                        ]
+                    ]);
+                    break;
+
+                case 'summary':
+                    // NEW: Get summary/statistics data
+                    $filters = [
+                        'tahun' => $_GET['tahun'] ?? '',
+                        'tanggal_awal' => $_GET['tanggal_awal'] ?? '',
+                        'tanggal_akhir' => $_GET['tanggal_akhir'] ?? '',
+                        'jenis_pengadaan' => $_GET['jenis_pengadaan'] ?? '',
+                        'klpd' => $_GET['klpd'] ?? '',
+                        'usaha_kecil' => $_GET['usaha_kecil'] ?? '',
+                        'metode' => $_GET['metode'] ?? '',
+                        'search' => $_GET['search'] ?? ''
+                    ];
+
+                    // Remove empty filters
+                    $filters = array_filter($filters, function ($value) {
+                        return $value !== '' && $value !== null;
+                    });
+
+                    // Get all data for summary calculation (without pagination)
+                    $allData = $pengadaan->getPengadaanData($filters, 10000, 0);
+                    $totalRecords = count($allData);
+                    
+                    // Calculate summary statistics
+                    $totalPagu = 0;
+                    $jenisPengadaanStats = [];
+                    $klpdStats = [];
+                    $metodeStats = [];
+                    $usahaKecilStats = [];
+                    
+                    foreach ($allData as $row) {
+                        // Calculate total pagu - remove non-numeric characters
+                        $paguValue = preg_replace('/[^\d]/', '', $row['Pagu_Rp']);
+                        $paguValue = (int)$paguValue;
+                        $totalPagu += $paguValue;
+                        
+                        // Count by Jenis Pengadaan
+                        $jenis = $row['Jenis_Pengadaan'];
+                        if (!isset($jenisPengadaanStats[$jenis])) {
+                            $jenisPengadaanStats[$jenis] = ['count' => 0, 'total_pagu' => 0];
+                        }
+                        $jenisPengadaanStats[$jenis]['count']++;
+                        $jenisPengadaanStats[$jenis]['total_pagu'] += $paguValue;
+                        
+                        // Count by KLPD
+                        $klpd = $row['KLPD'];
+                        if (!isset($klpdStats[$klpd])) {
+                            $klpdStats[$klpd] = ['count' => 0, 'total_pagu' => 0];
+                        }
+                        $klpdStats[$klpd]['count']++;
+                        $klpdStats[$klpd]['total_pagu'] += $paguValue;
+                        
+                        // Count by Metode
+                        $metode = $row['Metode'];
+                        if (!isset($metodeStats[$metode])) {
+                            $metodeStats[$metode] = ['count' => 0, 'total_pagu' => 0];
+                        }
+                        $metodeStats[$metode]['count']++;
+                        $metodeStats[$metode]['total_pagu'] += $paguValue;
+                        
+                        // Count by Usaha Kecil
+                        $usahaKecil = $row['Usaha_Kecil'];
+                        if (!isset($usahaKecilStats[$usahaKecil])) {
+                            $usahaKecilStats[$usahaKecil] = ['count' => 0, 'total_pagu' => 0];
+                        }
+                        $usahaKecilStats[$usahaKecil]['count']++;
+                        $usahaKecilStats[$usahaKecil]['total_pagu'] += $paguValue;
+                    }
+                    
+                    // Sort arrays by total_pagu descending
+                    uasort($jenisPengadaanStats, function($a, $b) {
+                        return $b['total_pagu'] - $a['total_pagu'];
+                    });
+                    uasort($klpdStats, function($a, $b) {
+                        return $b['total_pagu'] - $a['total_pagu'];
+                    });
+                    uasort($metodeStats, function($a, $b) {
+                        return $b['total_pagu'] - $a['total_pagu'];
+                    });
+                    uasort($usahaKecilStats, function($a, $b) {
+                        return $b['total_pagu'] - $a['total_pagu'];
+                    });
+                    
+                    // Calculate averages
+                    $avgPagu = $totalRecords > 0 ? $totalPagu / $totalRecords : 0;
+                    
+                    // Prepare response
+                    echo json_encode([
+                        'success' => true,
+                        'summary' => [
+                            'total_paket' => $totalRecords,
+                            'total_pagu' => $totalPagu,
+                            'avg_pagu' => $avgPagu,
+                            'total_klpd' => count($klpdStats),
+                            'breakdown' => [
+                                'jenis_pengadaan' => $jenisPengadaanStats,
+                                'klpd' => $klpdStats,
+                                'metode' => $metodeStats,
+                                'usaha_kecil' => $usahaKecilStats
+                            ]
                         ]
                     ]);
                     break;
@@ -114,10 +211,11 @@ if (!empty($filters['tanggal_awal']) && !empty($filters['tanggal_akhir'])) {
                     // Export functionality
                     $filters = [
                         'tahun' => $_GET['tahun'] ?? '',
-                        'bulan_awal' => $_GET['bulan_awal'] ?? '',
-                        'bulan_akhir' => $_GET['bulan_akhir'] ?? '',
+                        'tanggal_awal' => $_GET['tanggal_awal'] ?? '',
+                        'tanggal_akhir' => $_GET['tanggal_akhir'] ?? '',
                         'jenis_pengadaan' => $_GET['jenis_pengadaan'] ?? '',
                         'klpd' => $_GET['klpd'] ?? '',
+                        'metode' => $_GET['metode'] ?? '',
                         'search' => $_GET['search'] ?? ''
                     ];
                     $filters = array_filter($filters);
