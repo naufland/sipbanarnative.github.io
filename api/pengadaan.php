@@ -43,7 +43,7 @@ try {
 
                     // Pagination parameters
                     $page = intval($_GET['page'] ?? 1);
-                    $limit = intval($_GET['limit'] ?? 100);
+                    $limit = intval($_GET['limit'] ?? 100000);
                     $offset = ($page - 1) * $limit;
 
                     // Get data and total count

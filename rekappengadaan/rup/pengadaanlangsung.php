@@ -1,68 +1,89 @@
 <?php
-// URL API (ganti sesuai lokasi file php API kamu)
-$apiUrl = "http://sipbanar-phpnative.id/api/pengadaan.php";
+// =================================================================
+// == PERBAIKAN DIMULAI DI SINI ====================================
+// =================================================================
 
-// Tambahkan parameter GET ke URL API
+// URL API dasar
+$apiBaseUrl = "http://sipbanar-phpnative.id/api/pengadaan.php";
+
+// 1. URL untuk menampilkan data di tabel (dengan semua parameter termasuk limit)
+$apiUrl = $apiBaseUrl;
 if (!empty($_GET)) {
     $queryParams = array_filter($_GET, function ($value) {
         return $value !== '' && $value !== null;
     });
-
     if (!empty($queryParams)) {
         $apiUrl .= '?' . http_build_query($queryParams);
     }
 }
 
-// Ambil data dari API
+// 2. URL untuk menghitung statistik total (semua parameter KECUALI 'limit')
+$apiSummaryUrl = $apiBaseUrl;
+if (!empty($_GET)) {
+    $summaryParams = $_GET;
+    unset($summaryParams['limit']); // Hapus 'limit' agar kita mendapatkan semua data
+
+    $summaryQueryParams = array_filter($summaryParams, function ($value) {
+        return $value !== '' && $value !== null;
+    });
+
+    if (!empty($summaryQueryParams)) {
+        $apiSummaryUrl .= '?' . http_build_query($summaryQueryParams);
+    }
+}
+
+// Ambil data untuk DITAMPILKAN DI TABEL (dibatasi oleh 'limit')
 $response = file_get_contents($apiUrl);
 $data = json_decode($response, true);
 
-if ($data && isset($data['success']) && $data['success'] && count($data['data']) > 0) {
-    // Hitung total pagu dan total paket
-    $totalPagu = 0;
-    $totalPaket = count($data['data']);
+// Ambil data KESELURUHAN untuk DIHITUNG STATISTIKNYA (tanpa 'limit')
+$summaryResponse = file_get_contents($apiSummaryUrl);
+$summaryData = json_decode($summaryResponse, true);
 
-    foreach ($data['data'] as $row) {
-        // Bersihkan format rupiah dan konversi ke angka
+// Inisialisasi variabel statistik agar tidak error jika data kosong
+$totalPagu = 0;
+$totalPaket = 0;
+$formattedTotalPagu = 'Rp 0';
+$avgPagu = 0;
+$formattedAvgPagu = 'Rp 0';
+$jenisPengadaanStats = [];
+$klpdStats = [];
+$metodeStats = [];
+
+// Gunakan data dari $summaryData untuk semua perhitungan statistik
+if ($summaryData && isset($summaryData['success']) && $summaryData['success'] && count($summaryData['data']) > 0) {
+    // Hitung total pagu dan total paket dari data KESELURUHAN
+    $totalPaket = count($summaryData['data']);
+
+    foreach ($summaryData['data'] as $row) {
         $paguValue = $row['Pagu_Rp'];
-        // Hapus semua karakter non-digit
         $cleanPagu = preg_replace('/[^\d]/', '', $paguValue);
         $totalPagu += (int)$cleanPagu;
     }
 
-    // Format angka untuk tampilan
     $formattedTotalPagu = 'Rp ' . number_format($totalPagu, 0, ',', '.');
-
-    // Hitung rata-rata pagu per paket
     $avgPagu = $totalPaket > 0 ? $totalPagu / $totalPaket : 0;
     $formattedAvgPagu = 'Rp ' . number_format($avgPagu, 0, ',', '.');
 
-    // Analisis berdasarkan jenis pengadaan
-    $jenisPengadaanStats = [];
-    $klpdStats = [];
-    $metodeStats = [];
-
-    foreach ($data['data'] as $row) {
+    // Lakukan analisis dari data KESELURUHAN
+    foreach ($summaryData['data'] as $row) {
         $jenis = $row['Jenis_Pengadaan'];
         $klpd = $row['KLPD'];
         $metode = $row['Metode'];
         $paguValue = (int)preg_replace('/[^\d]/', '', $row['Pagu_Rp']);
 
-        // Statistik per jenis pengadaan
         if (!isset($jenisPengadaanStats[$jenis])) {
             $jenisPengadaanStats[$jenis] = ['count' => 0, 'total_pagu' => 0];
         }
         $jenisPengadaanStats[$jenis]['count']++;
         $jenisPengadaanStats[$jenis]['total_pagu'] += $paguValue;
 
-        // Statistik per KLPD
         if (!isset($klpdStats[$klpd])) {
             $klpdStats[$klpd] = ['count' => 0, 'total_pagu' => 0];
         }
         $klpdStats[$klpd]['count']++;
         $klpdStats[$klpd]['total_pagu'] += $paguValue;
 
-        // Statistik per metode
         if (!isset($metodeStats[$metode])) {
             $metodeStats[$metode] = ['count' => 0, 'total_pagu' => 0];
         }
@@ -70,7 +91,6 @@ if ($data && isset($data['success']) && $data['success'] && count($data['data'])
         $metodeStats[$metode]['total_pagu'] += $paguValue;
     }
 
-    // Sort berdasarkan total pagu (descending)
     uasort($jenisPengadaanStats, function ($a, $b) {
         return $b['total_pagu'] - $a['total_pagu'];
     });
@@ -81,6 +101,9 @@ if ($data && isset($data['success']) && $data['success'] && count($data['data'])
         return $b['total_pagu'] - $a['total_pagu'];
     });
 }
+// =================================================================
+// == PERBAIKAN SELESAI ============================================
+// =================================================================
 
 // Set page title untuk header
 $page_title = "Data Pengadaan - SIP BANAR";
@@ -783,25 +806,16 @@ include '../../navbar/header.php';
         background: #f0f0f0;
     }
 
-    /*******************************************/
-    /********** CSS BARU UNTUK TOTAL ***********/
-    /*******************************************/
     .table-total-row {
         font-weight: 700;
-        /* Membuat teks tebal */
         background-color: #f8f9fa;
-        /* Warna latar belakang abu-abu muda */
         border-top: 3px solid #dc3545;
-        /* Garis pemisah tebal di atas */
         font-size: 15px;
     }
 
     .table-total-row td {
         color: #2c3e50;
-        /* Warna teks gelap */
     }
-    /*******************************************/
-    /*******************************************/
 
 
     /* Badge Styles */
@@ -1164,7 +1178,7 @@ include '../../navbar/header.php';
                         </div>
                         <?php if ($data && isset($data['success']) && $data['success']) : ?>
                             <div class="results-subtitle">
-                                <strong>Menampilkan <?= count($data['data']) ?> data pengadaan</strong>
+                                <strong>Menampilkan <?= count($data['data']) ?> dari <?= $totalPaket ?> total data pengadaan</strong>
                                 <?php if (!empty($_GET['tanggal_awal']) && !empty($_GET['tanggal_akhir'])) : ?>
                                     <br><small class="text-muted">
                                         <i class="fas fa-calendar"></i> Periode: <?= date('d/m/Y', strtotime($_GET['tanggal_awal'])) ?> - <?= date('d/m/Y', strtotime($_GET['tanggal_akhir'])) ?>
@@ -1280,10 +1294,17 @@ include '../../navbar/header.php';
                             </tbody>
                             <tfoot>
                                 <tr class="table-total-row">
-                                    <td><strong>TOTAL KESELURUHAN</strong></td>
-                                    <td class="price"><strong><?= $formattedTotalPagu ?? 'Rp 0' ?></strong></td>
+                                    <td><strong>TOTAL (Halaman Ini)</strong></td>
+                                    <?php
+                                    // Hitung total pagu khusus untuk halaman ini agar footer tabel tetap relevan
+                                    $pageTotalPagu = 0;
+                                    foreach ($data['data'] as $row) {
+                                        $pageTotalPagu += (int)preg_replace('/[^\d]/', '', $row['Pagu_Rp']);
+                                    }
+                                    ?>
+                                    <td class="price"><strong>Rp <?= number_format($pageTotalPagu, 0, ',', '.') ?></strong></td>
                                     <td colspan="7" style="text-align: left; padding-left: 15px;">
-                                        <strong>Menampilkan <?= number_format($totalPaket ?? 0, 0, ',', '.') ?> Paket</strong>
+                                        <strong>Menampilkan <?= count($data['data']) ?> Paket</strong>
                                     </td>
                                 </tr>
                             </tfoot>
@@ -1311,490 +1332,972 @@ include '../../navbar/header.php';
 
             </div>
         </div>
+    </div>
+</div>
 
-        <script>
-            function loadSummaryData() {
-                const form = document.getElementById('filterForm');
-                const formData = new FormData(form);
-                const params = new URLSearchParams(formData);
+<script>
+    // ... Seluruh JavaScript Anda dari kode sebelumnya tetap di sini ...
+    // Tidak ada yang perlu diubah di bagian JavaScript\
+    function loadSummaryData() {
 
-                // Add action parameter for summary endpoint
-                params.append('action', 'summary');
+        const form = document.getElementById('filterForm');
 
-                // Show loading state
-                document.getElementById('summarySection').style.display = 'block';
-                document.getElementById('summaryLoading').style.display = 'flex';
-                document.getElementById('summaryData').style.display = 'none';
+        const formData = new FormData(form);
 
-                // Make AJAX request
-                fetch('http://sipbanar-phpnative.id/api/pengadaan.php?' + params.toString())
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success && data.summary) {
-                            displaySummaryData(data.summary);
-                        } else {
-                            console.error('Failed to load summary data');
-                            document.getElementById('summarySection').style.display = 'none';
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error loading summary:', error);
-                        document.getElementById('summarySection').style.display = 'none';
-                    });
-            }
+        const params = new URLSearchParams(formData);
 
-            // Function to display summary data
-            function displaySummaryData(summary) {
-                const summaryDataDiv = document.getElementById('summaryData');
 
-                // Format numbers
-                const formatNumber = (num) => new Intl.NumberFormat('id-ID').format(num);
-                const formatRupiah = (num) => 'Rp ' + new Intl.NumberFormat('id-ID').format(num);
 
-                // Create summary cards HTML
-                let summaryHTML = `
-        <div class="summary-cards">
-            <div class="summary-card primary">
-                <div class="card-icon">
-                    <i class="fas fa-boxes"></i>
-                </div>
-                <div class="card-content">
-                    <div class="card-value">${formatNumber(summary.total_paket)}</div>
-                    <div class="card-label">Total Paket</div>
-                    <div class="card-subtitle">Pengadaan</div>
-                </div>
-            </div>
-            
-            <div class="summary-card success">
-                <div class="card-icon">
-                    <i class="fas fa-money-bill-wave"></i>
-                </div>
-                <div class="card-content">
-                    <div class="card-value">${formatRupiah(summary.total_pagu)}</div>
-                    <div class="card-label">Total Pagu</div>
-                    <div class="card-subtitle">Keseluruhan</div>
-                </div>
-            </div>
-            
-            <div class="summary-card info">
-                <div class="card-icon">
-                    <i class="fas fa-calculator"></i>
-                </div>
-                <div class="card-content">
-                    <div class="card-value">${formatRupiah(Math.round(summary.avg_pagu))}</div>
-                    <div class="card-label">Rata-rata Pagu</div>
-                    <div class="card-subtitle">Per Paket</div>
-                </div>
-            </div>
-            
-            <div class="summary-card warning">
-                <div class="card-icon">
-                    <i class="fas fa-building"></i>
-                </div>
-                <div class="card-content">
-                    <div class="card-value">${formatNumber(summary.total_klpd)}</div>
-                    <div class="card-label">KLPD Terlibat</div>
-                    <div class="card-subtitle">Instansi</div>
-                </div>
-            </div>
-        </div>
+        // Add action parameter for summary endpoint
 
-        <div class="stats-tables">`;
+        params.append('action', 'summary');
 
-                // Jenis Pengadaan table
-                if (summary.breakdown.jenis_pengadaan && Object.keys(summary.breakdown.jenis_pengadaan).length > 0) {
-                    summaryHTML += `
-            <div class="stats-table">
-                <h4><i class="fas fa-tags"></i> Berdasarkan Jenis Pengadaan</h4>
-                <div class="table-responsive">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Jenis Pengadaan</th>
-                                <th>Jumlah Paket</th>
-                                <th>Total Pagu</th>
-                                <th>Persentase</th>
-                            </tr>
-                        </thead>
-                        <tbody>`;
 
-                    for (const [jenis, stats] of Object.entries(summary.breakdown.jenis_pengadaan)) {
-                        const percentage = summary.total_pagu > 0 ? (stats.total_pagu / summary.total_pagu * 100).toFixed(1) : 0;
-                        summaryHTML += `
-                <tr>
-                    <td><span class="badge badge-primary">${jenis}</span></td>
-                    <td><strong>${formatNumber(stats.count)} paket</strong></td>
-                    <td class="price">${formatRupiah(stats.total_pagu)}</td>
-                    <td>
-                        <div class="progress-bar">
-                            <div class="progress-fill" style="width: ${percentage}%"></div>
-                            <span>${percentage}%</span>
-                        </div>
-                    </td>
-                </tr>`;
-                    }
 
-                    summaryHTML += `
-                        </tbody>
-                    </table>
-                </div>
-            </div>`;
+        // Show loading state
+
+        document.getElementById('summarySection').style.display = 'block';
+
+        document.getElementById('summaryLoading').style.display = 'flex';
+
+        document.getElementById('summaryData').style.display = 'none';
+
+
+
+        // Make AJAX request
+
+        fetch('http://sipbanar-phpnative.id/api/pengadaan.php?' + params.toString())
+
+            .then(response => response.json())
+
+            .then(data => {
+
+                if (data.success && data.summary) {
+
+                    displaySummaryData(data.summary);
+
+                } else {
+
+                    console.error('Failed to load summary data');
+
+                    document.getElementById('summarySection').style.display = 'none';
+
                 }
 
-                // KLPD table
-                if (summary.breakdown.klpd && Object.keys(summary.breakdown.klpd).length > 0) {
-                    summaryHTML += `
-            <div class="stats-table">
-                <h4><i class="fas fa-building"></i> Berdasarkan KLPD</h4>
-                <div class="table-responsive">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>KLPD</th>
-                                <th>Jumlah Paket</th>
-                                <th>Total Pagu</th>
-                                <th>Persentase</th>
-                            </tr>
-                        </thead>
-                        <tbody>`;
+            })
 
-                    for (const [klpd, stats] of Object.entries(summary.breakdown.klpd)) {
-                        const percentage = summary.total_pagu > 0 ? (stats.total_pagu / summary.total_pagu * 100).toFixed(1) : 0;
-                        summaryHTML += `
-                <tr>
-                    <td><strong>${klpd}</strong></td>
-                    <td>${formatNumber(stats.count)} paket</td>
-                    <td class="price">${formatRupiah(stats.total_pagu)}</td>
-                    <td>
-                        <div class="progress-bar">
-                            <div class="progress-fill success" style="width: ${percentage}%"></div>
-                            <span>${percentage}%</span>
-                        </div>
-                    </td>
-                </tr>`;
-                    }
+            .catch(error => {
 
-                    summaryHTML += `
-                        </tbody>
-                    </table>
-                </div>
-            </div>`;
-                }
+                console.error('Error loading summary:', error);
 
-                // Top 5 Metode table
-                if (summary.breakdown.metode && Object.keys(summary.breakdown.metode).length > 0) {
-                    const topMetode = Object.entries(summary.breakdown.metode).slice(0, 5);
-
-                    summaryHTML += `
-            <div class="stats-table">
-                <h4><i class="fas fa-cogs"></i> Top 5 Metode Pengadaan</h4>
-                <div class="table-responsive">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Metode</th>
-                                <th>Jumlah Paket</th>
-                                <th>Total Pagu</th>
-                                <th>Persentase</th>
-                            </tr>
-                        </thead>
-                        <tbody>`;
-
-                    for (const [metode, stats] of topMetode) {
-                        const percentage = summary.total_pagu > 0 ? (stats.total_pagu / summary.total_pagu * 100).toFixed(1) : 0;
-                        summaryHTML += `
-                <tr>
-                    <td>${metode}</td>
-                    <td>${formatNumber(stats.count)} paket</td>
-                    <td class="price">${formatRupiah(stats.total_pagu)}</td>
-                    <td>
-                        <div class="progress-bar">
-                            <div class="progress-fill info" style="width: ${percentage}%"></div>
-                            <span>${percentage}%</span>
-                        </div>
-                    </td>
-                </tr>`;
-                    }
-
-                    summaryHTML += `
-                        </tbody>
-                    </table>
-                </div>
-            </div>`;
-                }
-
-                summaryHTML += `</div>`;
-
-                // Hide loading and show data
-                document.getElementById('summaryLoading').style.display = 'none';
-                summaryDataDiv.innerHTML = summaryHTML;
-                summaryDataDiv.style.display = 'block';
-            }
-
-            // Load summary when page loads if there are filters applied
-            document.addEventListener('DOMContentLoaded', function() {
-                const urlParams = new URLSearchParams(window.location.search);
-                if (urlParams.toString()) {
-                    // If there are URL parameters, load summary
-                    setTimeout(() => {
-                        loadSummaryData();
-                    }, 1000);
-                }
-            });
-
-            // Form submission handler
-            document.getElementById('filterForm').addEventListener('submit', function(e) {
-                // Let the form submit normally first, then load summary
-                setTimeout(() => {
-                    loadSummaryData();
-                }, 500);
-            });
-
-            // Reset form function
-            function resetForm() {
-                const form = document.querySelector('form');
-                const inputs = form.querySelectorAll('input, select');
-
-                inputs.forEach(input => {
-                    if (input.type === 'text' || input.type === 'date') {
-                        input.value = '';
-                    } else if (input.tagName === 'SELECT') {
-                        input.selectedIndex = 0;
-                    }
-                });
-
-                // Hide summary section when reset
                 document.getElementById('summarySection').style.display = 'none';
 
-                // Optional: auto-submit after reset
-                // form.submit();
-            }
-            // JavaScript untuk interaktivitas - Diperbaiki
-            document.addEventListener('DOMContentLoaded', function() {
-                // Date range validation
-                const tanggalAwal = document.querySelector('input[name="tanggal_awal"]');
-                const tanggalAkhir = document.querySelector('input[name="tanggal_akhir"]');
-
-                if (tanggalAwal && tanggalAkhir) {
-                    tanggalAwal.addEventListener('change', function() {
-                        tanggalAkhir.min = this.value;
-                        if (tanggalAkhir.value && tanggalAkhir.value < this.value) {
-                            tanggalAkhir.value = this.value;
-                        }
-                    });
-
-                    tanggalAkhir.addEventListener('change', function() {
-                        tanggalAwal.max = this.value;
-                        if (tanggalAwal.value && tanggalAwal.value > this.value) {
-                            tanggalAwal.value = this.value;
-                        }
-                    });
-                }
-
-                // Set today's date as max for date inputs
-                const today = new Date().toISOString().split('T')[0];
-                if (tanggalAwal) tanggalAwal.max = today;
-                if (tanggalAkhir) tanggalAkhir.max = today;
-
-                // Auto-submit form when filter changes (optional)
-                const filterSelects = document.querySelectorAll('.filter-group select:not([name="limit"])');
-                filterSelects.forEach(select => {
-                    select.addEventListener('change', function() {
-                        // Optional: auto-submit form on filter change
-                        // this.form.submit();
-                    });
-                });
-
-                // Search input enter key
-                const searchInput = document.querySelector('input[name="search"]');
-                if (searchInput) {
-                    searchInput.addEventListener('keypress', function(e) {
-                        if (e.key === 'Enter') {
-                            this.form.submit();
-                        }
-                    });
-
-                    // Clear search icon functionality
-                    searchInput.addEventListener('input', function() {
-                        const wrapper = this.closest('.search-input-wrapper');
-                        const icon = wrapper.querySelector('i');
-                        if (this.value) {
-                            icon.className = 'fas fa-times';
-                            icon.style.cursor = 'pointer';
-                            icon.onclick = () => {
-                                this.value = '';
-                                icon.className = 'fas fa-search';
-                                icon.style.cursor = 'default';
-                                icon.onclick = null;
-                            };
-                        } else {
-                            icon.className = 'fas fa-search';
-                            icon.style.cursor = 'default';
-                            icon.onclick = null;
-                        }
-                    });
-                }
-
-                // Table row hover effects
-                const tableRows = document.querySelectorAll('tbody tr');
-                tableRows.forEach(row => {
-                    row.addEventListener('click', function() {
-                        // Optional: handle row click for details view
-                        console.log('Row clicked:', this);
-                    });
-
-                    // Add subtle hover animation
-                    row.addEventListener('mouseenter', function() {
-                        this.style.transform = 'translateY(-2px)';
-                    });
-
-                    row.addEventListener('mouseleave', function() {
-                        this.style.transform = 'translateY(0)';
-                    });
-                });
-
-                // Pagination buttons functionality
-                const paginationButtons = document.querySelectorAll('.pagination button');
-                paginationButtons.forEach((button, index) => {
-                    button.addEventListener('click', function() {
-                        if (!this.classList.contains('active')) {
-                            // Remove active class from all buttons
-                            paginationButtons.forEach(btn => btn.classList.remove('active'));
-                            // Add active class to clicked button (except nav buttons)
-                            if (!this.innerHTML.includes('fa-chevron')) {
-                                this.classList.add('active');
-                            }
-                            console.log('Pagination clicked:', this.textContent || 'Navigation');
-                        }
-                    });
-                });
-
-                // Format numbers in price columns
-                document.querySelectorAll('.price').forEach(priceCell => {
-                    const text = priceCell.textContent.trim();
-                    if (text && !isNaN(text.replace(/[^\d]/g, ''))) {
-                        const number = parseInt(text.replace(/[^\d]/g, ''));
-                        if (number > 0) {
-                            priceCell.innerHTML = '<i class="fas fa-rupiah-sign" style="font-size: 12px; margin-right: 3px;"></i>Rp ' + number.toLocaleString('id-ID');
-                        }
-                    }
-                });
             });
 
-            // Reset form function
-            function resetForm() {
-                const form = document.querySelector('form');
-                const inputs = form.querySelectorAll('input, select');
+    }
 
-                inputs.forEach(input => {
-                    if (input.type === 'text' || input.type === 'date') {
-                        input.value = '';
-                    } else if (input.tagName === 'SELECT') {
-                        input.selectedIndex = 0;
-                    }
-                });
 
-                // Reset search icon
-                const searchIcon = document.querySelector('.search-input-wrapper i');
-                if (searchIcon) {
-                    searchIcon.className = 'fas fa-search';
-                    searchIcon.style.cursor = 'default';
-                    searchIcon.onclick = null;
-                }
 
-                // Optional: auto-submit after reset
-                // form.submit();
+    // Function to display summary data
+
+    function displaySummaryData(summary) {
+
+        const summaryDataDiv = document.getElementById('summaryData');
+
+
+
+        // Format numbers
+
+        const formatNumber = (num) => new Intl.NumberFormat('id-ID').format(num);
+
+        const formatRupiah = (num) => 'Rp ' + new Intl.NumberFormat('id-ID').format(num);
+
+
+
+        // Create summary cards HTML
+
+        let summaryHTML = `
+
+        <div class="summary-cards">
+
+            <div class="summary-card primary">
+
+                <div class="card-icon">
+
+                    <i class="fas fa-boxes"></i>
+
+                </div>
+
+                <div class="card-content">
+
+                    <div class="card-value">${formatNumber(summary.total_paket)}</div>
+
+                    <div class="card-label">Total Paket</div>
+
+                    <div class="card-subtitle">Pengadaan</div>
+
+                </div>
+
+            </div>
+
+            
+
+            <div class="summary-card success">
+
+                <div class="card-icon">
+
+                    <i class="fas fa-money-bill-wave"></i>
+
+                </div>
+
+                <div class="card-content">
+
+                    <div class="card-value">${formatRupiah(summary.total_pagu)}</div>
+
+                    <div class="card-label">Total Pagu</div>
+
+                    <div class="card-subtitle">Keseluruhan</div>
+
+                </div>
+
+            </div>
+
+            
+
+            <div class="summary-card info">
+
+                <div class="card-icon">
+
+                    <i class="fas fa-calculator"></i>
+
+                </div>
+
+                <div class="card-content">
+
+                    <div class="card-value">${formatRupiah(Math.round(summary.avg_pagu))}</div>
+
+                    <div class="card-label">Rata-rata Pagu</div>
+
+                    <div class="card-subtitle">Per Paket</div>
+
+                </div>
+
+            </div>
+
+            
+
+            <div class="summary-card warning">
+
+                <div class="card-icon">
+
+                    <i class="fas fa-building"></i>
+
+                </div>
+
+                <div class="card-content">
+
+                    <div class="card-value">${formatNumber(summary.total_klpd)}</div>
+
+                    <div class="card-label">KLPD Terlibat</div>
+
+                    <div class="card-subtitle">Instansi</div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+        <div class="stats-tables">`;
+
+
+
+        // Jenis Pengadaan table
+
+        if (summary.breakdown.jenis_pengadaan && Object.keys(summary.breakdown.jenis_pengadaan).length > 0) {
+
+            summaryHTML += `
+
+            <div class="stats-table">
+
+                <h4><i class="fas fa-tags"></i> Berdasarkan Jenis Pengadaan</h4>
+
+                <div class="table-responsive">
+
+                    <table>
+
+                        <thead>
+
+                            <tr>
+
+                                <th>Jenis Pengadaan</th>
+
+                                <th>Jumlah Paket</th>
+
+                                <th>Total Pagu</th>
+
+                                <th>Persentase</th>
+
+                            </tr>
+
+                        </thead>
+
+                        <tbody>`;
+
+
+
+            for (const [jenis, stats] of Object.entries(summary.breakdown.jenis_pengadaan)) {
+
+                const percentage = summary.total_pagu > 0 ? (stats.total_pagu / summary.total_pagu * 100).toFixed(1) : 0;
+
+                summaryHTML += `
+
+                <tr>
+
+                    <td><span class="badge badge-primary">${jenis}</span></td>
+
+                    <td><strong>${formatNumber(stats.count)} paket</strong></td>
+
+                    <td class="price">${formatRupiah(stats.total_pagu)}</td>
+
+                    <td>
+
+                        <div class="progress-bar">
+
+                            <div class="progress-fill" style="width: ${percentage}%"></div>
+
+                            <span>${percentage}%</span>
+
+                        </div>
+
+                    </td>
+
+                </tr>`;
+
             }
 
-            // Form validation before submit
-            document.querySelector('form').addEventListener('submit', function(e) {
-                const tanggalAwal = document.querySelector('input[name="tanggal_awal"]').value;
-                const tanggalAkhir = document.querySelector('input[name="tanggal_akhir"]').value;
 
-                // Show loading state
-                const submitBtn = this.querySelector('.search-btn');
-                const originalText = submitBtn.innerHTML;
-                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mencari...';
-                submitBtn.disabled = true;
 
-                // Validate date range
-                if (tanggalAwal && tanggalAkhir && tanggalAwal > tanggalAkhir) {
+            summaryHTML += `
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>`;
+
+        }
+
+
+
+        // KLPD table
+
+        if (summary.breakdown.klpd && Object.keys(summary.breakdown.klpd).length > 0) {
+
+            summaryHTML += `
+
+            <div class="stats-table">
+
+                <h4><i class="fas fa-building"></i> Berdasarkan KLPD</h4>
+
+                <div class="table-responsive">
+
+                    <table>
+
+                        <thead>
+
+                            <tr>
+
+                                <th>KLPD</th>
+
+                                <th>Jumlah Paket</th>
+
+                                <th>Total Pagu</th>
+
+                                <th>Persentase</th>
+
+                            </tr>
+
+                        </thead>
+
+                        <tbody>`;
+
+
+
+            for (const [klpd, stats] of Object.entries(summary.breakdown.klpd)) {
+
+                const percentage = summary.total_pagu > 0 ? (stats.total_pagu / summary.total_pagu * 100).toFixed(1) : 0;
+
+                summaryHTML += `
+
+                <tr>
+
+                    <td><strong>${klpd}</strong></td>
+
+                    <td>${formatNumber(stats.count)} paket</td>
+
+                    <td class="price">${formatRupiah(stats.total_pagu)}</td>
+
+                    <td>
+
+                        <div class="progress-bar">
+
+                            <div class="progress-fill success" style="width: ${percentage}%"></div>
+
+                            <span>${percentage}%</span>
+
+                        </div>
+
+                    </td>
+
+                </tr>`;
+
+            }
+
+
+
+            summaryHTML += `
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>`;
+
+        }
+
+
+
+        // Top 5 Metode table
+
+        if (summary.breakdown.metode && Object.keys(summary.breakdown.metode).length > 0) {
+
+            const topMetode = Object.entries(summary.breakdown.metode).slice(0, 5);
+
+
+
+            summaryHTML += `
+
+            <div class="stats-table">
+
+                <h4><i class="fas fa-cogs"></i> Top 5 Metode Pengadaan</h4>
+
+                <div class="table-responsive">
+
+                    <table>
+
+                        <thead>
+
+                            <tr>
+
+                                <th>Metode</th>
+
+                                <th>Jumlah Paket</th>
+
+                                <th>Total Pagu</th>
+
+                                <th>Persentase</th>
+
+                            </tr>
+
+                        </thead>
+
+                        <tbody>`;
+
+
+
+            for (const [metode, stats] of topMetode) {
+
+                const percentage = summary.total_pagu > 0 ? (stats.total_pagu / summary.total_pagu * 100).toFixed(1) : 0;
+
+                summaryHTML += `
+
+                <tr>
+
+                    <td>${metode}</td>
+
+                    <td>${formatNumber(stats.count)} paket</td>
+
+                    <td class="price">${formatRupiah(stats.total_pagu)}</td>
+
+                    <td>
+
+                        <div class="progress-bar">
+
+                            <div class="progress-fill info" style="width: ${percentage}%"></div>
+
+                            <span>${percentage}%</span>
+
+                        </div>
+
+                    </td>
+
+                </tr>`;
+
+            }
+
+
+
+            summaryHTML += `
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>`;
+
+        }
+
+
+
+        summaryHTML += `</div>`;
+
+
+
+        // Hide loading and show data
+
+        document.getElementById('summaryLoading').style.display = 'none';
+
+        summaryDataDiv.innerHTML = summaryHTML;
+
+        summaryDataDiv.style.display = 'block';
+
+    }
+
+
+
+    // Load summary when page loads if there are filters applied
+
+    document.addEventListener('DOMContentLoaded', function() {
+
+        const urlParams = new URLSearchParams(window.location.search);
+
+        if (urlParams.toString()) {
+
+            // If there are URL parameters, load summary
+
+            setTimeout(() => {
+
+                loadSummaryData();
+
+            }, 1000);
+
+        }
+
+    });
+
+
+
+    // Form submission handler
+
+    document.getElementById('filterForm').addEventListener('submit', function(e) {
+
+        // Let the form submit normally first, then load summary
+
+        setTimeout(() => {
+
+            loadSummaryData();
+
+        }, 500);
+
+    });
+
+
+
+    // Reset form function
+
+    function resetForm() {
+
+        const form = document.querySelector('form');
+
+        const inputs = form.querySelectorAll('input, select');
+
+
+
+        inputs.forEach(input => {
+
+            if (input.type === 'text' || input.type === 'date') {
+
+                input.value = '';
+
+            } else if (input.tagName === 'SELECT') {
+
+                input.selectedIndex = 0;
+
+            }
+
+        });
+
+
+
+        // Hide summary section when reset
+
+        document.getElementById('summarySection').style.display = 'none';
+
+
+
+        // Optional: auto-submit after reset
+
+        // form.submit();
+
+    }
+
+    // JavaScript untuk interaktivitas - Diperbaiki
+
+    document.addEventListener('DOMContentLoaded', function() {
+
+        // Date range validation
+
+        const tanggalAwal = document.querySelector('input[name="tanggal_awal"]');
+
+        const tanggalAkhir = document.querySelector('input[name="tanggal_akhir"]');
+
+
+
+        if (tanggalAwal && tanggalAkhir) {
+
+            tanggalAwal.addEventListener('change', function() {
+
+                tanggalAkhir.min = this.value;
+
+                if (tanggalAkhir.value && tanggalAkhir.value < this.value) {
+
+                    tanggalAkhir.value = this.value;
+
+                }
+
+            });
+
+
+
+            tanggalAkhir.addEventListener('change', function() {
+
+                tanggalAwal.max = this.value;
+
+                if (tanggalAwal.value && tanggalAwal.value > this.value) {
+
+                    tanggalAwal.value = this.value;
+
+                }
+
+            });
+
+        }
+
+
+
+        // Set today's date as max for date inputs
+
+        const today = new Date().toISOString().split('T')[0];
+
+        if (tanggalAwal) tanggalAwal.max = today;
+
+        if (tanggalAkhir) tanggalAkhir.max = today;
+
+
+
+        // Auto-submit form when filter changes (optional)
+
+        const filterSelects = document.querySelectorAll('.filter-group select:not([name="limit"])');
+
+        filterSelects.forEach(select => {
+
+            select.addEventListener('change', function() {
+
+                // Optional: auto-submit form on filter change
+
+                // this.form.submit();
+
+            });
+
+        });
+
+
+
+        // Search input enter key
+
+        const searchInput = document.querySelector('input[name="search"]');
+
+        if (searchInput) {
+
+            searchInput.addEventListener('keypress', function(e) {
+
+                if (e.key === 'Enter') {
+
+                    this.form.submit();
+
+                }
+
+            });
+
+
+
+            // Clear search icon functionality
+
+            searchInput.addEventListener('input', function() {
+
+                const wrapper = this.closest('.search-input-wrapper');
+
+                const icon = wrapper.querySelector('i');
+
+                if (this.value) {
+
+                    icon.className = 'fas fa-times';
+
+                    icon.style.cursor = 'pointer';
+
+                    icon.onclick = () => {
+
+                        this.value = '';
+
+                        icon.className = 'fas fa-search';
+
+                        icon.style.cursor = 'default';
+
+                        icon.onclick = null;
+
+                    };
+
+                } else {
+
+                    icon.className = 'fas fa-search';
+
+                    icon.style.cursor = 'default';
+
+                    icon.onclick = null;
+
+                }
+
+            });
+
+        }
+
+
+
+        // Table row hover effects
+
+        const tableRows = document.querySelectorAll('tbody tr');
+
+        tableRows.forEach(row => {
+
+            row.addEventListener('click', function() {
+
+                // Optional: handle row click for details view
+
+                console.log('Row clicked:', this);
+
+            });
+
+
+
+            // Add subtle hover animation
+
+            row.addEventListener('mouseenter', function() {
+
+                this.style.transform = 'translateY(-2px)';
+
+            });
+
+
+
+            row.addEventListener('mouseleave', function() {
+
+                this.style.transform = 'translateY(0)';
+
+            });
+
+        });
+
+
+
+        // Pagination buttons functionality
+
+        const paginationButtons = document.querySelectorAll('.pagination button');
+
+        paginationButtons.forEach((button, index) => {
+
+            button.addEventListener('click', function() {
+
+                if (!this.classList.contains('active')) {
+
+                    // Remove active class from all buttons
+
+                    paginationButtons.forEach(btn => btn.classList.remove('active'));
+
+                    // Add active class to clicked button (except nav buttons)
+
+                    if (!this.innerHTML.includes('fa-chevron')) {
+
+                        this.classList.add('active');
+
+                    }
+
+                    console.log('Pagination clicked:', this.textContent || 'Navigation');
+
+                }
+
+            });
+
+        });
+
+
+
+        // Format numbers in price columns
+
+        document.querySelectorAll('.price').forEach(priceCell => {
+
+            const text = priceCell.textContent.trim();
+
+            if (text && !isNaN(text.replace(/[^\d]/g, ''))) {
+
+                const number = parseInt(text.replace(/[^\d]/g, ''));
+
+                if (number > 0) {
+
+                    priceCell.innerHTML = '<i class="fas fa-rupiah-sign" style="font-size: 12px; margin-right: 3px;"></i>Rp ' + number.toLocaleString('id-ID');
+
+                }
+
+            }
+
+        });
+
+    });
+
+
+
+    // Reset form function
+
+    function resetForm() {
+
+        const form = document.querySelector('form');
+
+        const inputs = form.querySelectorAll('input, select');
+
+
+
+        inputs.forEach(input => {
+
+            if (input.type === 'text' || input.type === 'date') {
+
+                input.value = '';
+
+            } else if (input.tagName === 'SELECT') {
+
+                input.selectedIndex = 0;
+
+            }
+
+        });
+
+
+
+        // Reset search icon
+
+        const searchIcon = document.querySelector('.search-input-wrapper i');
+
+        if (searchIcon) {
+
+            searchIcon.className = 'fas fa-search';
+
+            searchIcon.style.cursor = 'default';
+
+            searchIcon.onclick = null;
+
+        }
+
+
+
+        // Optional: auto-submit after reset
+
+        // form.submit();
+
+    }
+
+
+
+    // Form validation before submit
+
+    document.querySelector('form').addEventListener('submit', function(e) {
+
+        const tanggalAwal = document.querySelector('input[name="tanggal_awal"]').value;
+
+        const tanggalAkhir = document.querySelector('input[name="tanggal_akhir"]').value;
+
+
+
+        // Show loading state
+
+        const submitBtn = this.querySelector('.search-btn');
+
+        const originalText = submitBtn.innerHTML;
+
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mencari...';
+
+        submitBtn.disabled = true;
+
+
+
+        // Validate date range
+
+        if (tanggalAwal && tanggalAkhir && tanggalAwal > tanggalAkhir) {
+
+            e.preventDefault();
+
+            alert('Tanggal awal tidak boleh lebih besar dari tanggal akhir!');
+
+            submitBtn.innerHTML = originalText;
+
+            submitBtn.disabled = false;
+
+            return false;
+
+        }
+
+
+
+        // Check if date range is too wide (optional: limit to 1 year)
+
+        if (tanggalAwal && tanggalAkhir) {
+
+            const startDate = new Date(tanggalAwal);
+
+            const endDate = new Date(tanggalAkhir);
+
+            const diffTime = Math.abs(endDate - startDate);
+
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+
+
+            if (diffDays > 365) {
+
+                const confirm = window.confirm('Periode pencarian lebih dari 1 tahun. Ini mungkin membutuhkan waktu loading yang lama. Lanjutkan?');
+
+                if (!confirm) {
+
                     e.preventDefault();
-                    alert('Tanggal awal tidak boleh lebih besar dari tanggal akhir!');
+
                     submitBtn.innerHTML = originalText;
+
                     submitBtn.disabled = false;
+
                     return false;
+
                 }
 
-                // Check if date range is too wide (optional: limit to 1 year)
-                if (tanggalAwal && tanggalAkhir) {
-                    const startDate = new Date(tanggalAwal);
-                    const endDate = new Date(tanggalAkhir);
-                    const diffTime = Math.abs(endDate - startDate);
-                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            }
 
-                    if (diffDays > 365) {
-                        const confirm = window.confirm('Periode pencarian lebih dari 1 tahun. Ini mungkin membutuhkan waktu loading yang lama. Lanjutkan?');
-                        if (!confirm) {
-                            e.preventDefault();
-                            submitBtn.innerHTML = originalText;
-                            submitBtn.disabled = false;
-                            return false;
-                        }
-                    }
-                }
+        }
 
-                // Reset button state after a delay if form doesn't redirect
-                setTimeout(() => {
-                    submitBtn.innerHTML = originalText;
-                    submitBtn.disabled = false;
-                }, 5000);
+
+
+        // Reset button state after a delay if form doesn't redirect
+
+        setTimeout(() => {
+
+            submitBtn.innerHTML = originalText;
+
+            submitBtn.disabled = false;
+
+        }, 5000);
+
+    });
+
+
+
+    // Add smooth scrolling to results when form is submitted
+
+    window.addEventListener('load', function() {
+
+        const urlParams = new URLSearchParams(window.location.search);
+
+        if (urlParams.toString()) {
+
+            // If there are URL parameters, scroll to results
+
+            document.querySelector('.results-section').scrollIntoView({
+
+                behavior: 'smooth',
+
+                block: 'start'
+
             });
 
-            // Add smooth scrolling to results when form is submitted
-            window.addEventListener('load', function() {
-                const urlParams = new URLSearchParams(window.location.search);
-                if (urlParams.toString()) {
-                    // If there are URL parameters, scroll to results
-                    document.querySelector('.results-section').scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'start'
-                    });
-                }
-            });
+        }
 
-            // Add tooltips to badges
-            document.querySelectorAll('.badge').forEach(badge => {
-                badge.addEventListener('mouseenter', function() {
-                    const text = this.textContent;
-                    this.title = `Kategori: ${text}`;
+    });
+
+
+
+    // Add tooltips to badges
+
+    document.querySelectorAll('.badge').forEach(badge => {
+
+        badge.addEventListener('mouseenter', function() {
+
+            const text = this.textContent;
+
+            this.title = `Kategori: ${text}`;
+
+        });
+
+    });
+
+
+
+    // Add copy functionality to ID
+
+    document.querySelectorAll('.small-text').forEach(smallText => {
+
+        if (smallText.textContent.includes('ID:')) {
+
+            smallText.style.cursor = 'pointer';
+
+            smallText.title = 'Klik untuk copy ID';
+
+            smallText.addEventListener('click', function(e) {
+
+                e.stopPropagation();
+
+                const idText = this.textContent.replace('ID: ', '').trim();
+
+                navigator.clipboard.writeText(idText).then(() => {
+
+                    // Show temporary feedback
+
+                    const originalText = this.textContent;
+
+                    this.textContent = '✓ ID Copied!';
+
+                    this.style.color = '#27ae60';
+
+                    setTimeout(() => {
+
+                        this.textContent = originalText;
+
+                        this.style.color = '';
+
+                    }, 1500);
+
                 });
+
             });
 
-            // Add copy functionality to ID
-            document.querySelectorAll('.small-text').forEach(smallText => {
-                if (smallText.textContent.includes('ID:')) {
-                    smallText.style.cursor = 'pointer';
-                    smallText.title = 'Klik untuk copy ID';
-                    smallText.addEventListener('click', function(e) {
-                        e.stopPropagation();
-                        const idText = this.textContent.replace('ID: ', '').trim();
-                        navigator.clipboard.writeText(idText).then(() => {
-                            // Show temporary feedback
-                            const originalText = this.textContent;
-                            this.textContent = '✓ ID Copied!';
-                            this.style.color = '#27ae60';
-                            setTimeout(() => {
-                                this.textContent = originalText;
-                                this.style.color = '';
-                            }, 1500);
-                        });
-                    });
-                }
-            });
-        </script>
+        }
 
-        <?php
-        // Include footer
-        include '../../navbar/footer.php';
-        ?>
+    });
+</script>
+
+<?php
+// Include footer
+include '../../navbar/footer.php';
+?>
