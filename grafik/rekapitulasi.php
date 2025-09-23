@@ -470,13 +470,19 @@ $debug_info = [
 $page_title = "Dashboard Perencanaan";
 include '../navbar/header.php';
 ?>
+<script src="../../js/submenu.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 
 <style>
     body {
-        background-color: #f4f7f6;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: white;
+        min-height: 100vh;
+        font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
 
     .container {
@@ -486,141 +492,392 @@ include '../navbar/header.php';
     }
 
     .card {
-        background: white;
-        border-radius: 12px;
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.07);
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        border-radius: 20px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
         margin-bottom: 30px;
         overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        transition: all 0.3s ease;
+    }
+
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 30px 60px rgba(0, 0, 0, 0.15);
     }
 
     .card-header {
-        background: linear-gradient(135deg, #c82333 0%, #dc3545 100%);
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
         color: white;
-        padding: 18px 25px;
+        padding: 20px 25px;
         font-size: 18px;
-        font-weight: 600;
+        font-weight: 700;
         text-align: center;
         letter-spacing: 1px;
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 10px;
+        gap: 12px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .card-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+        transition: left 0.5s;
+    }
+
+    .card-header:hover::before {
+        left: 100%;
     }
 
     .table-container {
-        padding: 20px;
+        padding: 25px;
         overflow-x: auto;
+        position: relative;
+    }
+
+    .table-controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .btn-group {
+        display: flex;
+        gap: 8px;
+    }
+
+    .btn {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(220, 53, 69, 0.3);
+        color: white;
+        text-decoration: none;
+    }
+
+    .btn:active {
+        transform: translateY(0);
     }
 
     .styled-table {
         border-collapse: collapse;
         width: 100%;
         font-size: 14px;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        background: white;
     }
 
     .styled-table th,
     .styled-table td {
-        border: 1px solid #ddd;
-        padding: 12px 15px;
+        border: none;
+        padding: 15px;
         text-align: left;
+        border-bottom: 1px solid #f0f0f0;
+        position: relative;
     }
 
-    .styled-table thead {
-        background-color: #f2f2f2;
-        font-weight: bold;
+    .styled-table th {
+        background: linear-gradient(135deg, #fff5f5 0%, #fed7d7 100%);
+        font-weight: 700;
         text-align: center;
+        color: #c53030;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-size: 12px;
+    }
+
+    .styled-table tbody tr {
+        transition: all 0.3s ease;
+    }
+
+    .styled-table tbody tr:hover {
+        background: linear-gradient(135deg, #fff5f5 0%, #fed7d7 100%);
+        transform: scale(1.01);
     }
 
     .styled-table td:first-child,
     .styled-table td:nth-child(3) {
         text-align: center;
+        font-weight: 600;
     }
 
     .styled-table td:last-child {
         text-align: right;
+        font-weight: 600;
+        color: #2d3748;
     }
 
-    .summary-row {
-        font-weight: bold;
-        background-color: #f8f9fa;
-    }
-
-    .penyedia-row {
-        background-color: #e3f2fd;
-        font-weight: bold;
-    }
-
-    .swakelola-row {
-        background-color: #e8f5e8;
-        font-weight: bold;
+    .summary-row, .penyedia-row, .swakelola-row {
+        background: linear-gradient(135deg, #fed7d7 0%, #feb2b2 100%) !important;
+        font-weight: 700;
     }
 
     .total-row {
-        font-weight: bold;
-        background-color: #fff3cd;
-        border-top: 2px solid #dc3545;
+        background: linear-gradient(135deg, #fbb6ce 0%, #f687b3 100%) !important;
+        font-weight: 800;
+        border-top: 3px solid #dc3545;
+        color: #2d3748;
     }
 
     .chart-grid {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
-        gap: 25px;
-        padding: 25px;
+        gap: 30px;
+        padding: 30px;
     }
 
     .chart-item {
-        background: #fff;
-        border: 1px solid #f0f0f0;
-        border-radius: 10px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 20px;
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .chart-item:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+    }
+
+    .chart-item::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 4px;
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
     }
 
     .chart-item-header {
-        background: #f8f9fa;
-        color: #444;
-        padding: 12px;
-        font-weight: 600;
+        background: linear-gradient(135deg, #fff5f5 0%, #fed7d7 100%);
+        color: #c53030;
+        padding: 18px;
+        font-weight: 700;
         text-align: center;
-        border-bottom: 1px solid #eee;
-        font-size: 13px;
+        font-size: 14px;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        position: relative;
     }
 
     .chart-content {
-        padding: 15px;
+        padding: 25px;
+        position: relative;
     }
 
     .chart-wrapper {
         position: relative;
-        height: 320px;
+        height: 350px;
+    }
+
+    .chart-controls {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        z-index: 10;
+        display: flex;
+        gap: 5px;
+    }
+
+    .chart-btn {
+        background: rgba(220, 53, 69, 0.9);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 6px 8px;
+        font-size: 10px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    .chart-item:hover .chart-btn {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    .chart-btn:hover {
+        background: rgba(220, 53, 69, 1);
+        transform: scale(1.1);
     }
 
     .info-banner {
-        background: linear-gradient(135deg, #17a2b8, #138496);
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
         color: white;
-        padding: 12px 20px;
-        border-radius: 5px;
-        margin-bottom: 20px;
+        padding: 18px 25px;
+        border-radius: 15px;
+        margin-bottom: 25px;
         font-size: 14px;
         text-align: center;
+        font-weight: 500;
+        box-shadow: 0 8px 25px rgba(220, 53, 69, 0.3);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .info-banner::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+        animation: shimmer 2s infinite;
+    }
+
+    @keyframes shimmer {
+        0% { left: -100%; }
+        100% { left: 100%; }
     }
 
     .debug-info {
-        background: #f8f9fa;
-        border: 1px solid #dee2e6;
-        border-radius: 5px;
-        padding: 10px;
-        margin-bottom: 20px;
+        background: rgba(248, 250, 252, 0.9);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(226, 232, 240, 0.8);
+        border-radius: 12px;
+        padding: 15px;
+        margin-bottom: 25px;
         font-size: 12px;
-        color: #666;
+        color: #4a5568;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
     }
 
     .no-data {
         text-align: center;
-        padding: 50px;
-        color: #666;
+        padding: 60px;
+        color: #718096;
         font-style: italic;
+        background: linear-gradient(135deg, #fff5f5 0%, #fed7d7 100%);
+        border-radius: 12px;
+        margin: 20px 0;
     }
 
+    .no-data i {
+        font-size: 48px;
+        margin-bottom: 15px;
+        opacity: 0.5;
+    }
+
+    /* Modal Styles */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.8);
+        backdrop-filter: blur(5px);
+    }
+
+    .modal-content {
+        background: white;
+        margin: 5% auto;
+        padding: 0;
+        border-radius: 20px;
+        width: 90%;
+        max-width: 1000px;
+        max-height: 80vh;
+        overflow-y: auto;
+        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+        animation: modalSlideIn 0.3s ease-out;
+    }
+
+    @keyframes modalSlideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-50px) scale(0.8);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
+    .modal-header {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        color: white;
+        padding: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-radius: 20px 20px 0 0;
+    }
+
+    .close {
+        color: white;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .close:hover {
+        transform: scale(1.2);
+        opacity: 0.8;
+    }
+
+    .modal-body {
+        padding: 30px;
+    }
+
+    /* Loading Animation */
+    .loading {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 200px;
+    }
+
+    .spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid #f3f4f6;
+        border-top: 4px solid #dc3545;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    /* Responsive Design */
     @media (max-width: 1200px) {
         .chart-grid {
             grid-template-columns: 1fr;
@@ -628,22 +885,76 @@ include '../navbar/header.php';
     }
 
     @media (max-width: 768px) {
+        .container {
+            margin: 15px auto;
+            padding: 10px;
+        }
+
         .chart-grid {
             grid-template-columns: 1fr;
-            gap: 15px;
-            padding: 15px;
+            gap: 20px;
+            padding: 20px;
         }
         
         .chart-wrapper {
-            height: 250px;
+            height: 280px;
         }
         
         .chart-item-header {
             font-size: 12px;
-            padding: 10px;
+            padding: 15px;
+        }
+
+        .table-container {
+            padding: 15px;
+        }
+
+        .btn-group {
+            flex-direction: column;
+            width: 100%;
+        }
+
+        .btn {
+            justify-content: center;
+        }
+
+        .styled-table {
+            font-size: 12px;
+        }
+
+        .styled-table th,
+        .styled-table td {
+            padding: 10px 8px;
+        }
+    }
+
+    /* Print Styles */
+    @media print {
+        .chart-controls, .btn-group, .debug-info {
+            display: none !important;
+        }
+
+        .card {
+            box-shadow: none;
+            border: 1px solid #ddd;
         }
     }
 </style>
+
+<!-- Modal untuk Detail Chart -->
+<div id="chartModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-chart-line"></i> Detail Grafik</h3>
+            <span class="close">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div id="modalChartContainer">
+                <canvas id="modalChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
 
 <div class="container">
     <div class="info-banner">
@@ -678,10 +989,30 @@ include '../navbar/header.php';
     </div>
 
     <div class="card">
-        <div class="card-header"><i class="fas fa-table"></i> PERENCANAAN</div>
+        <div class="card-header">
+            <i class="fas fa-table"></i> PERENCANAAN PENGADAAN
+        </div>
         <div class="table-container">
+            <div class="table-controls">
+                <div>
+                    <strong>Total: <?= number_format($total_paket, 0, ',', '.') ?> Paket</strong> | 
+                    <strong>Rp <?= number_format($total_pagu, 0, ',', '.') ?></strong>
+                </div>
+                <div class="btn-group">
+                    <button class="btn" onclick="exportTableToCSV()">
+                        <i class="fas fa-download"></i> Export CSV
+                    </button>
+                    <button class="btn" onclick="printTable()">
+                        <i class="fas fa-print"></i> Print
+                    </button>
+                    <button class="btn" onclick="refreshData()">
+                        <i class="fas fa-refresh"></i> Refresh
+                    </button>
+                </div>
+            </div>
+
             <?php if (!empty($rekap_metode_display)): ?>
-            <table class="styled-table">
+            <table class="styled-table" id="mainTable">
                 <thead>
                     <tr>
                         <th>NO</th>
@@ -732,30 +1063,64 @@ include '../navbar/header.php';
     </div>
 
     <div class="card">
-        <div class="card-header"><i class="fas fa-chart-pie"></i> REKAP BERDASARKAN KATEGORI PENGADAAN</div>
+        <div class="card-header">
+            <i class="fas fa-chart-pie"></i> VISUALISASI DATA PENGADAAN
+        </div>
         <div class="chart-grid">
             <div class="chart-item">
                 <div class="chart-item-header">
-                    <i class="fas fa-chart-pie"></i> REKAP BERDASARKAN CARA PENGADAAN
+                    <i class="fas fa-chart-pie"></i> CARA PENGADAAN
                 </div>
                 <div class="chart-content">
-                    <div class="chart-wrapper"><canvas id="chartCara"></canvas></div>
+                    <div class="chart-controls">
+                        <button class="chart-btn" onclick="openModal('chartCara', 'Cara Pengadaan')">
+                            <i class="fas fa-expand"></i>
+                        </button>
+                        <button class="chart-btn" onclick="downloadChart('chartCara', 'cara-pengadaan')">
+                            <i class="fas fa-download"></i>
+                        </button>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="chartCara"></canvas>
+                    </div>
                 </div>
             </div>
+
             <div class="chart-item">
                 <div class="chart-item-header">
-                    <i class="fas fa-chart-doughnut"></i> REKAP BERDASARKAN JENIS PENGADAAN
+                    <i class="fas fa-chart-doughnut"></i> JENIS PENGADAAN
                 </div>
                 <div class="chart-content">
-                    <div class="chart-wrapper"><canvas id="chartJenis"></canvas></div>
+                    <div class="chart-controls">
+                        <button class="chart-btn" onclick="openModal('chartJenis', 'Jenis Pengadaan')">
+                            <i class="fas fa-expand"></i>
+                        </button>
+                        <button class="chart-btn" onclick="downloadChart('chartJenis', 'jenis-pengadaan')">
+                            <i class="fas fa-download"></i>
+                        </button>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="chartJenis"></canvas>
+                    </div>
                 </div>
             </div>
+
             <div class="chart-item">
                 <div class="chart-item-header">
-                    <i class="fas fa-chart-bar"></i> REKAP BERDASARKAN METODE PENGADAAN
+                    <i class="fas fa-chart-bar"></i> METODE PENGADAAN
                 </div>
                 <div class="chart-content">
-                    <div class="chart-wrapper"><canvas id="chartMetode"></canvas></div>
+                    <div class="chart-controls">
+                        <button class="chart-btn" onclick="openModal('chartMetode', 'Metode Pengadaan')">
+                            <i class="fas fa-expand"></i>
+                        </button>
+                        <button class="chart-btn" onclick="downloadChart('chartMetode', 'metode-pengadaan')">
+                            <i class="fas fa-download"></i>
+                        </button>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="chartMetode"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
@@ -763,162 +1128,345 @@ include '../navbar/header.php';
 </div>
 
 <script>
-    document.addEventListener("DOMContentLoaded", function() {
-        const commonOptions = {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: true,
-                    position: 'bottom',
-                    labels: {
-                        padding: 15,
-                        font: {
-                            size: 11
-                        },
-                        usePointStyle: true,
-                        pointStyle: 'circle'
-                    }
-                },
-                tooltip: {
-                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                    titleColor: '#fff',
-                    bodyColor: '#fff',
-                    borderColor: '#fff',
-                    borderWidth: 1,
-                    callbacks: {
-                        label: function(context) {
-                            const label = context.label || '';
-                            const value = context.parsed;
-                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) + '%' : '0%';
-                            const formattedValue = new Intl.NumberFormat('id-ID').format(value);
-                            return `${label}: Rp ${formattedValue} (${percentage})`;
+document.addEventListener("DOMContentLoaded", function() {
+    // Register Chart.js plugins
+    Chart.register(ChartDataLabels);
+
+    const commonOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: {
+            duration: 1500,
+            easing: 'easeInOutQuart'
+        },
+        plugins: {
+            legend: {
+                display: true,
+                position: 'bottom',
+                labels: {
+                    padding: 20,
+                    font: {
+                        size: 12,
+                        weight: '600'
+                    },
+                    usePointStyle: true,
+                    pointStyle: 'circle',
+                    generateLabels: function(chart) {
+                        const data = chart.data;
+                        if (data.labels.length && data.datasets.length) {
+                            const dataset = data.datasets[0];
+                            return data.labels.map((label, i) => {
+                                const value = dataset.data[i];
+                                const total = dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) + '%' : '0%';
+                                return {
+                                    text: `${label} (${percentage})`,
+                                    fillStyle: dataset.backgroundColor[i],
+                                    hidden: isNaN(dataset.data[i]) || chart.getDatasetMeta(0).data[i].hidden,
+                                    index: i
+                                };
+                            });
                         }
+                        return [];
+                    }
+                }
+            },
+            tooltip: {
+                backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                titleColor: '#fff',
+                bodyColor: '#fff',
+                borderColor: '#dc3545',
+                borderWidth: 2,
+                cornerRadius: 8,
+                displayColors: true,
+                callbacks: {
+                    label: function(context) {
+                        const label = context.label || '';
+                        const value = context.parsed;
+                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                        const percentage = total > 0 ? ((value / total) * 100).toFixed(1) + '%' : '0%';
+                        const formattedValue = new Intl.NumberFormat('id-ID').format(value);
+                        return `${label}: Rp ${formattedValue} (${percentage})`;
+                    }
+                }
+            },
+            datalabels: {
+                color: '#fff',
+                font: {
+                    weight: 'bold',
+                    size: 11
+                },
+                formatter: (value, context) => {
+                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                    const percentage = total > 0 ? ((value / total) * 100) : 0;
+                    return percentage > 5 ? percentage.toFixed(1) + '%' : '';
+                },
+                textAlign: 'center'
+            }
+        },
+        interaction: {
+            intersect: false,
+            mode: 'nearest'
+        }
+    };
+
+    // Enhanced color schemes with gradients simulation
+    const caraColors = ['#dc3545', '#c82333'];
+    const jenisColors = ['#dc3545', '#e74c3c', '#c0392b', '#a93226'];
+    const metodeColors = ['#dc3545', '#e74c3c', '#c0392b', '#a93226', '#922b21', '#7b241c', '#641e16', '#5b1a14'];
+
+    // Data dari PHP
+    const dataCara = <?= $chart_cara_json ?>;
+    const dataJenis = <?= $chart_jenis_json ?>;
+    const dataMetode = <?= $chart_metode_json ?>;
+
+    let charts = {};
+
+    // 1. Chart Cara Pengadaan (Penyedia vs Swakelola)
+    if (dataCara.data.some(val => val > 0)) {
+        charts.cara = new Chart(document.getElementById('chartCara'), {
+            type: 'doughnut',
+            data: {
+                labels: dataCara.labels,
+                datasets: [{
+                    data: dataCara.data,
+                    backgroundColor: caraColors,
+                    borderColor: '#fff',
+                    borderWidth: 4,
+                    hoverBorderWidth: 6,
+                    hoverOffset: 10
+                }]
+            },
+            options: {
+                ...commonOptions,
+                cutout: '60%',
+                plugins: {
+                    ...commonOptions.plugins,
+                    datalabels: {
+                        ...commonOptions.plugins.datalabels,
+                        display: true
                     }
                 }
             }
+        });
+    } else {
+        document.getElementById('chartCara').parentElement.innerHTML = '<div class="no-data"><i class="fas fa-chart-pie"></i><br>Tidak ada data</div>';
+    }
+
+    // 2. Chart Jenis Pengadaan
+    if (dataJenis.data.length > 0 && dataJenis.data.some(val => val > 0)) {
+        charts.jenis = new Chart(document.getElementById('chartJenis'), {
+            type: 'doughnut',
+            data: {
+                labels: dataJenis.labels,
+                datasets: [{
+                    data: dataJenis.data,
+                    backgroundColor: jenisColors.slice(0, dataJenis.labels.length),
+                    borderColor: '#fff',
+                    borderWidth: 3,
+                    hoverBorderWidth: 5,
+                    hoverOffset: 8
+                }]
+            },
+            options: {
+                ...commonOptions,
+                cutout: '55%',
+                plugins: {
+                    ...commonOptions.plugins,
+                    datalabels: {
+                        ...commonOptions.plugins.datalabels,
+                        display: true
+                    }
+                }
+            }
+        });
+    } else {
+        document.getElementById('chartJenis').parentElement.innerHTML = '<div class="no-data"><i class="fas fa-chart-doughnut"></i><br>Tidak ada data</div>';
+    }
+
+    // 3. Chart Metode Pengadaan (Detail)
+    if (dataMetode.data.length > 0) {
+        const filteredData = {
+            labels: [],
+            data: []
         };
-
-        // Color schemes
-        const caraColors = ['#5b9bd5', '#ff9900'];
-        const jenisColors = ['#5b9bd5', '#ffff00', '#a5a5a5', '#ff9900'];
-        const metodeColors = ['#ff9900', '#70ad47', '#5b9bd5', '#ffc000', '#c55a5a', '#843c0c', '#264478', '#9933cc'];
-
-        // Data dari PHP
-        const dataCara = <?= $chart_cara_json ?>;
-        const dataJenis = <?= $chart_jenis_json ?>;
-        const dataMetode = <?= $chart_metode_json ?>;
-
-        // 1. Chart Cara Pengadaan (Penyedia vs Swakelola)
-        if (dataCara.data.some(val => val > 0)) {
-            new Chart(document.getElementById('chartCara'), {
+        
+        dataMetode.labels.forEach((label, index) => {
+            if (dataMetode.data[index] > 0) {
+                filteredData.labels.push(label);
+                filteredData.data.push(dataMetode.data[index]);
+            }
+        });
+        
+        if (filteredData.data.length > 0) {
+            charts.metode = new Chart(document.getElementById('chartMetode'), {
                 type: 'doughnut',
                 data: {
-                    labels: dataCara.labels,
+                    labels: filteredData.labels,
                     datasets: [{
-                        data: dataCara.data,
-                        backgroundColor: caraColors,
+                        data: filteredData.data,
+                        backgroundColor: metodeColors.slice(0, filteredData.labels.length),
                         borderColor: '#fff',
                         borderWidth: 3,
-                        hoverBorderWidth: 5
+                        hoverBorderWidth: 5,
+                        hoverOffset: 6
                     }]
                 },
                 options: {
                     ...commonOptions,
-                    cutout: '50%'
-                }
-            });
-        } else {
-            document.getElementById('chartCara').parentElement.innerHTML = '<div class="no-data">Tidak ada data</div>';
-        }
-
-        // 2. Chart Jenis Pengadaan
-        if (dataJenis.data.length > 0 && dataJenis.data.some(val => val > 0)) {
-            new Chart(document.getElementById('chartJenis'), {
-                type: 'doughnut',
-                data: {
-                    labels: dataJenis.labels,
-                    datasets: [{
-                        data: dataJenis.data,
-                        backgroundColor: jenisColors.slice(0, dataJenis.labels.length),
-                        borderColor: '#fff',
-                        borderWidth: 2,
-                        hoverBorderWidth: 4
-                    }]
-                },
-                options: {
-                    ...commonOptions,
-                    cutout: '45%'
-                }
-            });
-        } else {
-            document.getElementById('chartJenis').parentElement.innerHTML = '<div class="no-data">Tidak ada data</div>';
-        }
-
-        // 3. Chart Metode Pengadaan (Detail) - tampilkan semua termasuk yang 0
-        if (dataMetode.data.length > 0) {
-            // Filter data untuk chart - hanya tampilkan yang > 0 di chart untuk kejelasan visual
-            const filteredData = {
-                labels: [],
-                data: []
-            };
-            
-            dataMetode.labels.forEach((label, index) => {
-                if (dataMetode.data[index] > 0) {
-                    filteredData.labels.push(label);
-                    filteredData.data.push(dataMetode.data[index]);
-                }
-            });
-            
-            if (filteredData.data.length > 0) {
-                new Chart(document.getElementById('chartMetode'), {
-                    type: 'doughnut',
-                    data: {
-                        labels: filteredData.labels,
-                        datasets: [{
-                            data: filteredData.data,
-                            backgroundColor: metodeColors.slice(0, filteredData.labels.length),
-                            borderColor: '#fff',
-                            borderWidth: 2
-                        }]
-                    },
-                    options: {
-                        ...commonOptions,
-                        plugins: {
-                            ...commonOptions.plugins,
-                            legend: {
-                                display: true,
-                                position: 'right',
-                                labels: {
-                                    padding: 8,
-                                    font: {
-                                        size: 9
-                                    },
-                                    usePointStyle: true,
-                                    pointStyle: 'circle'
+                    cutout: '50%',
+                    plugins: {
+                        ...commonOptions.plugins,
+                        legend: {
+                            display: true,
+                            position: 'right',
+                            labels: {
+                                padding: 12,
+                                font: {
+                                    size: 10,
+                                    weight: '600'
+                                },
+                                usePointStyle: true,
+                                pointStyle: 'circle',
+                                generateLabels: function(chart) {
+                                    const data = chart.data;
+                                    if (data.labels.length && data.datasets.length) {
+                                        const dataset = data.datasets[0];
+                                        return data.labels.map((label, i) => {
+                                            const value = dataset.data[i];
+                                            const total = dataset.data.reduce((a, b) => a + b, 0);
+                                            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) + '%' : '0%';
+                                            return {
+                                                text: `${label} (${percentage})`,
+                                                fillStyle: dataset.backgroundColor[i],
+                                                hidden: isNaN(dataset.data[i]) || chart.getDatasetMeta(0).data[i].hidden,
+                                                index: i
+                                            };
+                                        });
+                                    }
+                                    return [];
                                 }
+                            }
+                        },
+                        datalabels: {
+                            ...commonOptions.plugins.datalabels,
+                            display: function(context) {
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = total > 0 ? ((context.parsed / total) * 100) : 0;
+                                return percentage > 3;
                             }
                         }
                     }
-                });
-            } else {
-                document.getElementById('chartMetode').parentElement.innerHTML = '<div class="no-data">Tidak ada data dengan nilai > 0</div>';
-            }
+                }
+            });
         } else {
-            document.getElementById('chartMetode').parentElement.innerHTML = '<div class="no-data">Tidak ada data</div>';
+            document.getElementById('chartMetode').parentElement.innerHTML = '<div class="no-data"><i class="fas fa-chart-bar"></i><br>Tidak ada data dengan nilai > 0</div>';
         }
+    } else {
+        document.getElementById('chartMetode').parentElement.innerHTML = '<div class="no-data"><i class="fas fa-chart-bar"></i><br>Tidak ada data</div>';
+    }
 
-        // Console log untuk debugging
-        console.log('Dashboard Data Loaded from Database:');
-        console.log('Debug Info:', <?= json_encode($debug_info) ?>);
-        console.log('Cara Pengadaan:', dataCara);
-        console.log('Jenis Pengadaan:', dataJenis);
-        console.log('Metode Pengadaan:', dataMetode);
+    // Modal functionality
+    const modal = document.getElementById('chartModal');
+    const closeBtn = document.getElementsByClassName('close')[0];
+    let modalChart = null;
+
+    window.openModal = function(chartId, title) {
+        const originalChart = charts[chartId.replace('chart', '').toLowerCase()];
+        if (!originalChart) return;
+
+        document.querySelector('.modal-header h3').innerHTML = `<i class="fas fa-chart-line"></i> ${title}`;
+        modal.style.display = 'block';
         
-        const timestamp = new Date().toLocaleString('id-ID');
-        console.log('Data updated at:', timestamp);
-    });
+        setTimeout(() => {
+            const ctx = document.getElementById('modalChart');
+            if (modalChart) {
+                modalChart.destroy();
+            }
+            
+            modalChart = new Chart(ctx, {
+                type: originalChart.config.type,
+                data: JSON.parse(JSON.stringify(originalChart.config.data)),
+                options: {
+                    ...originalChart.config.options,
+                    plugins: {
+                        ...originalChart.config.options.plugins,
+                        legend: {
+                            ...originalChart.config.options.plugins.legend,
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }, 100);
+    };
+
+    closeBtn.onclick = function() {
+        modal.style.display = 'none';
+        if (modalChart) {
+            modalChart.destroy();
+            modalChart = null;
+        }
+    };
+
+    window.onclick = function(event) {
+        if (event.target == modal) {
+            modal.style.display = 'none';
+            if (modalChart) {
+                modalChart.destroy();
+                modalChart = null;
+            }
+        }
+    };
+
+    // Download chart functionality
+    window.downloadChart = function(chartId, filename) {
+        const canvas = document.getElementById(chartId);
+        const link = document.createElement('a');
+        link.download = filename + '.png';
+        link.href = canvas.toDataURL();
+        link.click();
+    };
+
+    // Export table to CSV
+    window.exportTableToCSV = function() {
+        const table = document.getElementById('mainTable');
+        let csv = '';
+        
+        for (let i = 0; i < table.rows.length; i++) {
+            let row = [];
+            for (let j = 0; j < table.rows[i].cells.length; j++) {
+                row.push('"' + table.rows[i].cells[j].innerText.replace(/"/g, '""') + '"');
+            }
+            csv += row.join(',') + '\n';
+        }
+        
+        const link = document.createElement('a');
+        link.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+        link.download = 'dashboard-perencanaan-' + new Date().toISOString().slice(0, 10) + '.csv';
+        link.click();
+    };
+
+    // Print table
+    window.printTable = function() {
+        window.print();
+    };
+
+    // Refresh data
+    window.refreshData = function() {
+        location.reload();
+    };
+
+    // Console log untuk debugging
+    console.log('Enhanced Dashboard Data Loaded from Database:');
+    console.log('Debug Info:', <?= json_encode($debug_info) ?>);
+    console.log('Cara Pengadaan:', dataCara);
+    console.log('Jenis Pengadaan:', dataJenis);
+    console.log('Metode Pengadaan:', dataMetode);
+    
+    const timestamp = new Date().toLocaleString('id-ID');
+    console.log('Data updated at:', timestamp);
+});
 </script>
 
-<?php include '../navbar/footer.php'; ?>    
+<?php include '../navbar/footer.php'; ?>
