@@ -21,11 +21,11 @@ try {
     $tables_stmt = $conn->prepare($show_tables_sql);
     $tables_stmt->execute();
     $available_tables = $tables_stmt->fetchAll(PDO::FETCH_COLUMN);
-    
+
     // Cari tabel yang cocok
     $possible_tables = ['rup_keseluruhan', 'rup_penyedia', 'procurement_data', 'pengadaan', 'rup'];
     $main_table = null;
-    
+
     foreach ($possible_tables as $table) {
         if (in_array($table, $available_tables)) {
             // Cek apakah tabel memiliki data
@@ -33,14 +33,14 @@ try {
             $check_stmt = $conn->prepare($check_data);
             $check_stmt->execute();
             $count = $check_stmt->fetch()['total'];
-            
+
             if ($count > 0) {
                 $main_table = $table;
                 break;
             }
         }
     }
-    
+
     // Jika tidak ada tabel yang cocok, ambil tabel pertama yang ada data
     if (!$main_table && !empty($available_tables)) {
         foreach ($available_tables as $table) {
@@ -49,7 +49,7 @@ try {
                 $check_stmt = $conn->prepare($check_data);
                 $check_stmt->execute();
                 $count = $check_stmt->fetch()['total'];
-                
+
                 if ($count > 0) {
                     $main_table = $table;
                     break;
@@ -59,7 +59,7 @@ try {
             }
         }
     }
-    
+
     if (!$main_table) {
         throw new Exception("Tidak ada tabel dengan data yang ditemukan");
     }
@@ -69,13 +69,13 @@ try {
     $describe_stmt = $conn->prepare($describe_sql);
     $describe_stmt->execute();
     $columns = $describe_stmt->fetchAll(PDO::FETCH_COLUMN);
-    
+
     // Tentukan kolom yang akan digunakan
     $metode_col = null;
     $pagu_col = null;
     $paket_col = null;
     $jenis_col = null;
-    
+
     // Cari kolom metode
     $metode_options = ['Metode', 'metode', 'cara_pengadaan', 'jenis_tender', 'pemilihan'];
     foreach ($metode_options as $col) {
@@ -84,7 +84,7 @@ try {
             break;
         }
     }
-    
+
     // Cari kolom pagu
     $pagu_options = ['Pagu_Rp', 'pagu_rp', 'pagu', 'nilai_kontrak', 'harga'];
     foreach ($pagu_options as $col) {
@@ -93,7 +93,7 @@ try {
             break;
         }
     }
-    
+
     // Cari kolom nama paket
     $paket_options = ['Paket', 'paket', 'nama_paket', 'judul', 'kegiatan'];
     foreach ($paket_options as $col) {
@@ -102,7 +102,7 @@ try {
             break;
         }
     }
-    
+
     // Cari kolom jenis
     $jenis_options = ['Jenis_Pengadaan', 'jenis_pengadaan', 'jenis', 'kategori', 'tipe'];
     foreach ($jenis_options as $col) {
@@ -111,7 +111,7 @@ try {
             break;
         }
     }
-    
+
     if (!$metode_col || !$pagu_col) {
         throw new Exception("Kolom metode atau pagu tidak ditemukan. Kolom tersedia: " . implode(', ', $columns));
     }
@@ -145,18 +145,18 @@ try {
 
     $stmt = $conn->prepare($sql_penyedia);
     $stmt->execute();
-    
+
     $total_penyedia_paket = 0;
     $total_penyedia_pagu = 0;
-    
+
     if ($stmt->rowCount() > 0) {
         $penyedia_data = $stmt->fetchAll();
-        
+
         foreach ($penyedia_data as $row) {
             $metode = trim($row['metode']);
             $paket = (int)$row['jumlah_paket'];
             $pagu = (float)$row['total_pagu'];
-            
+
             // Skip jika ini adalah swakelola (akan diproses terpisah)
             if (strtolower($metode) != 'swakelola') {
                 $rekap_metode[$metode] = ['paket' => $paket, 'pagu' => $pagu];
@@ -169,30 +169,30 @@ try {
             }
         }
     }
-    
+
     // Pastikan semua metode standar ada dalam rekap (dengan nilai 0 jika tidak ada data)
     $metode_standar = [
         'E-Purchasing',
-        'Pengadaan Langsung', 
+        'Pengadaan Langsung',
         'Penunjukan Langsung',
         'Seleksi',
         'Tender',
         'Tender Cepat',
         'Dikecualikan'
     ];
-    
+
     foreach ($metode_standar as $metode) {
         if (!isset($rekap_metode[$metode])) {
             $rekap_metode[$metode] = ['paket' => 0, 'pagu' => 0];
         }
     }
-    
+
     $rekap_cara['Penyedia'] = ['paket' => $total_penyedia_paket, 'pagu' => $total_penyedia_pagu];
 
     // Query untuk swakelola - cek apakah ada tabel terpisah atau dalam tabel utama
     $swakelola_tables = ['rup_swakelola', 'swakelola', 'procurement_swakelola'];
     $swakelola_found = false;
-    
+
     foreach ($swakelola_tables as $sw_table) {
         if (in_array($sw_table, $available_tables)) {
             try {
@@ -201,7 +201,7 @@ try {
                 $describe_sw_stmt = $conn->prepare($describe_sw_sql);
                 $describe_sw_stmt->execute();
                 $sw_columns = $describe_sw_stmt->fetchAll(PDO::FETCH_COLUMN);
-                
+
                 $sw_pagu_col = null;
                 foreach ($pagu_options as $col) {
                     if (in_array($col, $sw_columns)) {
@@ -209,7 +209,7 @@ try {
                         break;
                     }
                 }
-                
+
                 if ($sw_pagu_col) {
                     $sql_swakelola = "
                         SELECT 
@@ -221,7 +221,7 @@ try {
 
                     $stmt = $conn->prepare($sql_swakelola);
                     $stmt->execute();
-                    
+
                     if ($stmt->rowCount() > 0) {
                         $swakelola_data = $stmt->fetch();
                         $rekap_cara['Swakelola']['paket'] += (int)$swakelola_data['jumlah_paket'];
@@ -235,7 +235,7 @@ try {
             }
         }
     }
-    
+
     // Jika tidak ada tabel swakelola terpisah, cari di tabel utama berdasarkan metode
     if (!$swakelola_found) {
         $sql_swakelola_alt = "
@@ -244,7 +244,7 @@ try {
                 COALESCE(SUM(CAST(`$pagu_col` as DECIMAL(20,2))), 0) as total_pagu
             FROM `$main_table` 
             WHERE (LOWER(`$metode_col`) LIKE '%swakelola%'";
-        
+
         // Tambahkan kondisi jika ada kolom pemilihan
         $pemilihan_options = ['Pemilihan', 'pemilihan', 'cara_pemilihan'];
         foreach ($pemilihan_options as $col) {
@@ -253,13 +253,13 @@ try {
                 break;
             }
         }
-        
+
         $sql_swakelola_alt .= ") AND `$pagu_col` IS NOT NULL AND `$pagu_col` > 0";
-        
+
         try {
             $stmt = $conn->prepare($sql_swakelola_alt);
             $stmt->execute();
-            
+
             if ($stmt->rowCount() > 0) {
                 $swakelola_data = $stmt->fetch();
                 $rekap_cara['Swakelola']['paket'] += (int)$swakelola_data['jumlah_paket'];
@@ -292,14 +292,14 @@ try {
             GROUP BY jenis_kategori
             ORDER BY total_pagu DESC
         ";
-        
+
         try {
             $stmt = $conn->prepare($sql_jenis);
             $stmt->execute();
-            
+
             if ($stmt->rowCount() > 0) {
                 $jenis_data = $stmt->fetchAll();
-                
+
                 foreach ($jenis_data as $row) {
                     $jenis = trim($row['jenis_kategori']);
                     if ($jenis && $jenis != 'Lainnya' && $jenis != '') {
@@ -313,7 +313,7 @@ try {
             error_log("Jenis pengadaan query error: " . $e->getMessage());
         }
     }
-    
+
     // Fallback: analisis dari nama paket jika ada
     if (empty($rekap_jenis) && $paket_col) {
         try {
@@ -335,13 +335,13 @@ try {
                 GROUP BY jenis_kategori
                 ORDER BY total_pagu DESC
             ";
-            
+
             $stmt = $conn->prepare($sql_jenis_fallback);
             $stmt->execute();
-            
+
             if ($stmt->rowCount() > 0) {
                 $jenis_data = $stmt->fetchAll();
-                
+
                 foreach ($jenis_data as $row) {
                     $jenis = trim($row['jenis_kategori']);
                     $paket = (int)$row['jumlah_paket'];
@@ -359,13 +359,13 @@ try {
     $debug_stmt = $conn->prepare($debug_sql);
     $debug_stmt->execute();
     $total_records = $debug_stmt->fetch()['total'];
-    
+
     // Sample data untuk debugging
     $sample_sql = "SELECT * FROM `$main_table` LIMIT 5";
     $sample_stmt = $conn->prepare($sample_sql);
     $sample_stmt->execute();
     $sample_data = $sample_stmt->fetchAll();
-    
+
     error_log("Debug Info:");
     error_log("- Main table: $main_table");
     error_log("- Available tables: " . implode(', ', $available_tables));
@@ -377,15 +377,14 @@ try {
     error_log("- Total records in $main_table: " . $total_records);
     error_log("- Rekap Metode count: " . count($rekap_metode));
     error_log("- Rekap Jenis count: " . count($rekap_jenis));
-    
+
     if (!empty($sample_data)) {
         error_log("- Tender Cepat data: " . json_encode($rekap_metode['Tender Cepat'] ?? 'NOT SET'));
         error_log("- All metode data: " . json_encode($rekap_metode));
     }
-
 } catch (Exception $e) {
     error_log("Database error: " . $e->getMessage());
-    
+
     // Set data kosong jika error
     $rekap_metode = [];
     $rekap_jenis = [];
@@ -396,7 +395,7 @@ try {
 }
 
 // Filter out metode dengan 0 paket untuk tampilan tabel, KECUALI Tender Cepat
-$rekap_metode_display = array_filter($rekap_metode, function($data, $key) {
+$rekap_metode_display = array_filter($rekap_metode, function ($data, $key) {
     // Selalu tampilkan Tender Cepat meskipun 0 untuk kelengkapan
     return $data['paket'] > 0 || $key === 'Tender Cepat';
 }, ARRAY_FILTER_USE_BOTH);
@@ -404,7 +403,7 @@ $rekap_metode_display = array_filter($rekap_metode, function($data, $key) {
 // Urutkan ulang agar Tender Cepat muncul di posisi yang tepat
 $metode_order = [
     'E-Purchasing',
-    'Pengadaan Langsung', 
+    'Pengadaan Langsung',
     'Dikecualikan',
     'Tender',
     'Seleksi',
@@ -430,18 +429,18 @@ $rekap_metode_display = $rekap_metode_sorted;
 
 // Menyiapkan data untuk JavaScript (Charts)
 $chart_cara_json = json_encode([
-    'labels' => array_keys($rekap_cara), 
+    'labels' => array_keys($rekap_cara),
     'data' => array_column($rekap_cara, 'pagu')
 ]);
 
 // Menyiapkan data untuk JavaScript (Charts) - sertakan semua metode termasuk yang 0
 $chart_metode_json = json_encode([
-    'labels' => array_keys($rekap_metode_display), 
+    'labels' => array_keys($rekap_metode_display),
     'data' => array_column($rekap_metode_display, 'pagu')
 ]);
 
 $chart_jenis_json = json_encode([
-    'labels' => array_keys($rekap_jenis), 
+    'labels' => array_keys($rekap_jenis),
     'data' => array_column($rekap_jenis, 'pagu')
 ]);
 
@@ -459,7 +458,7 @@ $debug_info = [
     'available_columns' => $columns ?? [],
     'columns_found' => [
         'metode' => $metode_col ?? 'NOT FOUND',
-        'pagu' => $pagu_col ?? 'NOT FOUND', 
+        'pagu' => $pagu_col ?? 'NOT FOUND',
         'paket' => $paket_col ?? 'NOT FOUND',
         'jenis' => $jenis_col ?? 'NOT FOUND'
     ],
@@ -530,7 +529,7 @@ include '../navbar/header.php';
         left: -100%;
         width: 100%;
         height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
         transition: left 0.5s;
     }
 
@@ -634,7 +633,9 @@ include '../navbar/header.php';
         color: #2d3748;
     }
 
-    .summary-row, .penyedia-row, .swakelola-row {
+    .summary-row,
+    .penyedia-row,
+    .swakelola-row {
         background: linear-gradient(135deg, #fed7d7 0%, #feb2b2 100%) !important;
         font-weight: 700;
     }
@@ -754,13 +755,18 @@ include '../navbar/header.php';
         left: -100%;
         width: 100%;
         height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
         animation: shimmer 2s infinite;
     }
 
     @keyframes shimmer {
-        0% { left: -100%; }
-        100% { left: 100%; }
+        0% {
+            left: -100%;
+        }
+
+        100% {
+            left: 100%;
+        }
     }
 
     .debug-info {
@@ -822,6 +828,7 @@ include '../navbar/header.php';
             opacity: 0;
             transform: translateY(-50px) scale(0.8);
         }
+
         to {
             opacity: 1;
             transform: translateY(0) scale(1);
@@ -873,8 +880,13 @@ include '../navbar/header.php';
     }
 
     @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
+        0% {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
     }
 
     /* Responsive Design */
@@ -895,11 +907,11 @@ include '../navbar/header.php';
             gap: 20px;
             padding: 20px;
         }
-        
+
         .chart-wrapper {
             height: 280px;
         }
-        
+
         .chart-item-header {
             font-size: 12px;
             padding: 15px;
@@ -930,7 +942,10 @@ include '../navbar/header.php';
 
     /* Print Styles */
     @media print {
-        .chart-controls, .btn-group, .debug-info {
+
+        .chart-controls,
+        .btn-group,
+        .debug-info {
             display: none !important;
         }
 
@@ -964,27 +979,27 @@ include '../navbar/header.php';
     <!-- Debug Information -->
     <div class="debug-info" style="font-size: 11px; line-height: 1.4;">
         <strong>Debug Info:</strong><br>
-        <strong>Database:</strong> <?= $debug_info['table_used'] ?> | 
-        <strong>Records:</strong> <?= $debug_info['total_records'] ?> | 
-        <strong>Metode Found:</strong> <?= $debug_info['metode_count'] ?> | 
+        <strong>Database:</strong> <?= $debug_info['table_used'] ?> |
+        <strong>Records:</strong> <?= $debug_info['total_records'] ?> |
+        <strong>Metode Found:</strong> <?= $debug_info['metode_count'] ?> |
         <strong>Jenis Found:</strong> <?= $debug_info['jenis_count'] ?><br>
-        
+
         <strong>Available Tables:</strong> <?= implode(', ', $debug_info['available_tables']) ?><br>
-        
+
         <strong>Columns Found:</strong>
-        Metode: <code><?= $debug_info['columns_found']['metode'] ?></code> | 
-        Pagu: <code><?= $debug_info['columns_found']['pagu'] ?></code> | 
-        Paket: <code><?= $debug_info['columns_found']['paket'] ?></code> | 
+        Metode: <code><?= $debug_info['columns_found']['metode'] ?></code> |
+        Pagu: <code><?= $debug_info['columns_found']['pagu'] ?></code> |
+        Paket: <code><?= $debug_info['columns_found']['paket'] ?></code> |
         Jenis: <code><?= $debug_info['columns_found']['jenis'] ?></code><br>
-        
+
         <?php if ($debug_info['sample_data']): ?>
-        <strong>Sample Data:</strong> 
-        <details style="margin-top: 10px;">
-            <summary>Click to expand</summary>
-            <pre style="background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; font-size: 10px;">
+            <strong>Sample Data:</strong>
+            <details style="margin-top: 10px;">
+                <summary>Click to expand</summary>
+                <pre style="background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; font-size: 10px;">
 <?= json_encode($debug_info['sample_data'], JSON_PRETTY_PRINT) ?>
             </pre>
-        </details>
+            </details>
         <?php endif; ?>
     </div>
 
@@ -995,13 +1010,13 @@ include '../navbar/header.php';
         <div class="table-container">
             <div class="table-controls">
                 <div>
-                    <strong>Total: <?= number_format($total_paket, 0, ',', '.') ?> Paket</strong> | 
+                    <strong>Total: <?= number_format($total_paket, 0, ',', '.') ?> Paket</strong> |
                     <strong>Rp <?= number_format($total_pagu, 0, ',', '.') ?></strong>
                 </div>
                 <div class="btn-group">
-                    <button class="btn" onclick="exportTableToCSV()">
-                        <i class="fas fa-download"></i> Export CSV
-                    </button>
+                    <a href="export_excel.php" class="btn">
+                        <i class="fas fa-file-excel"></i> Export Excel
+                    </a>
                     <button class="btn" onclick="printTable()">
                         <i class="fas fa-print"></i> Print
                     </button>
@@ -1012,52 +1027,52 @@ include '../navbar/header.php';
             </div>
 
             <?php if (!empty($rekap_metode_display)): ?>
-            <table class="styled-table" id="mainTable">
-                <thead>
-                    <tr>
-                        <th>NO</th>
-                        <th>METODE PENGADAAN</th>
-                        <th>JUMLAH PAKET RUP</th>
-                        <th>PAGU</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php $no = 1; ?>
-                    <?php foreach ($rekap_metode_display as $metode => $stats): ?>
-                        <tr <?= ($stats['paket'] == 0) ? 'style="opacity: 0.6; font-style: italic;"' : '' ?>>
-                            <td><?= $no++ ?></td>
-                            <td>
-                                <?= htmlspecialchars($metode) ?>
-                                <?= ($stats['paket'] == 0) ? ' <small>(belum ada data)</small>' : '' ?>
-                            </td>
-                            <td><?= number_format($stats['paket'], 0, ',', '.') ?></td>
-                            <td>Rp <?= number_format($stats['pagu'], 0, ',', '.') ?></td>
+                <table class="styled-table" id="mainTable">
+                    <thead>
+                        <tr>
+                            <th>NO</th>
+                            <th>METODE PENGADAAN</th>
+                            <th>JUMLAH PAKET RUP</th>
+                            <th>PAGU</th>
                         </tr>
-                    <?php endforeach; ?>
-                    
-                    <tr class="penyedia-row">
-                        <td colspan="2"><strong>Penyedia</strong></td>
-                        <td><strong><?= number_format($rekap_cara['Penyedia']['paket'], 0, ',', '.') ?></strong></td>
-                        <td><strong>Rp <?= number_format($rekap_cara['Penyedia']['pagu'], 0, ',', '.') ?></strong></td>
-                    </tr>
-                    <tr class="swakelola-row">
-                        <td colspan="2"><strong>Swakelola</strong></td>
-                        <td><strong><?= number_format($rekap_cara['Swakelola']['paket'], 0, ',', '.') ?></strong></td>
-                        <td><strong>Rp <?= number_format($rekap_cara['Swakelola']['pagu'], 0, ',', '.') ?></strong></td>
-                    </tr>
-                    <tr class="total-row">
-                        <td colspan="2"><strong>TOTAL</strong></td>
-                        <td><strong><?= number_format($total_paket, 0, ',', '.') ?></strong></td>
-                        <td><strong>Rp <?= number_format($total_pagu, 0, ',', '.') ?></strong></td>
-                    </tr>
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        <?php $no = 1; ?>
+                        <?php foreach ($rekap_metode_display as $metode => $stats): ?>
+                            <tr <?= ($stats['paket'] == 0) ? 'style="opacity: 0.6; font-style: italic;"' : '' ?>>
+                                <td><?= $no++ ?></td>
+                                <td>
+                                    <?= htmlspecialchars($metode) ?>
+                                    <?= ($stats['paket'] == 0) ? ' <small>(belum ada data)</small>' : '' ?>
+                                </td>
+                                <td><?= number_format($stats['paket'], 0, ',', '.') ?></td>
+                                <td>Rp <?= number_format($stats['pagu'], 0, ',', '.') ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+
+                        <tr class="penyedia-row">
+                            <td colspan="2"><strong>Penyedia</strong></td>
+                            <td><strong><?= number_format($rekap_cara['Penyedia']['paket'], 0, ',', '.') ?></strong></td>
+                            <td><strong>Rp <?= number_format($rekap_cara['Penyedia']['pagu'], 0, ',', '.') ?></strong></td>
+                        </tr>
+                        <tr class="swakelola-row">
+                            <td colspan="2"><strong>Swakelola</strong></td>
+                            <td><strong><?= number_format($rekap_cara['Swakelola']['paket'], 0, ',', '.') ?></strong></td>
+                            <td><strong>Rp <?= number_format($rekap_cara['Swakelola']['pagu'], 0, ',', '.') ?></strong></td>
+                        </tr>
+                        <tr class="total-row">
+                            <td colspan="2"><strong>TOTAL</strong></td>
+                            <td><strong><?= number_format($total_paket, 0, ',', '.') ?></strong></td>
+                            <td><strong>Rp <?= number_format($total_pagu, 0, ',', '.') ?></strong></td>
+                        </tr>
+                    </tbody>
+                </table>
             <?php else: ?>
-            <div class="no-data">
-                <i class="fas fa-exclamation-triangle"></i><br>
-                Tidak ada data ditemukan dalam database.<br>
-                <small>Periksa koneksi database dan struktur tabel.</small>
-            </div>
+                <div class="no-data">
+                    <i class="fas fa-exclamation-triangle"></i><br>
+                    Tidak ada data ditemukan dalam database.<br>
+                    <small>Periksa koneksi database dan struktur tabel.</small>
+                </div>
             <?php endif; ?>
         </div>
     </div>
@@ -1128,345 +1143,345 @@ include '../navbar/header.php';
 </div>
 
 <script>
-document.addEventListener("DOMContentLoaded", function() {
-    // Register Chart.js plugins
-    Chart.register(ChartDataLabels);
+    document.addEventListener("DOMContentLoaded", function() {
+        // Register Chart.js plugins
+        Chart.register(ChartDataLabels);
 
-    const commonOptions = {
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: {
-            duration: 1500,
-            easing: 'easeInOutQuart'
-        },
-        plugins: {
-            legend: {
-                display: true,
-                position: 'bottom',
-                labels: {
-                    padding: 20,
-                    font: {
-                        size: 12,
-                        weight: '600'
-                    },
-                    usePointStyle: true,
-                    pointStyle: 'circle',
-                    generateLabels: function(chart) {
-                        const data = chart.data;
-                        if (data.labels.length && data.datasets.length) {
-                            const dataset = data.datasets[0];
-                            return data.labels.map((label, i) => {
-                                const value = dataset.data[i];
-                                const total = dataset.data.reduce((a, b) => a + b, 0);
-                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) + '%' : '0%';
-                                return {
-                                    text: `${label} (${percentage})`,
-                                    fillStyle: dataset.backgroundColor[i],
-                                    hidden: isNaN(dataset.data[i]) || chart.getDatasetMeta(0).data[i].hidden,
-                                    index: i
-                                };
-                            });
+        const commonOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: {
+                duration: 1500,
+                easing: 'easeInOutQuart'
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'bottom',
+                    labels: {
+                        padding: 20,
+                        font: {
+                            size: 12,
+                            weight: '600'
+                        },
+                        usePointStyle: true,
+                        pointStyle: 'circle',
+                        generateLabels: function(chart) {
+                            const data = chart.data;
+                            if (data.labels.length && data.datasets.length) {
+                                const dataset = data.datasets[0];
+                                return data.labels.map((label, i) => {
+                                    const value = dataset.data[i];
+                                    const total = dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = total > 0 ? ((value / total) * 100).toFixed(1) + '%' : '0%';
+                                    return {
+                                        text: `${label} (${percentage})`,
+                                        fillStyle: dataset.backgroundColor[i],
+                                        hidden: isNaN(dataset.data[i]) || chart.getDatasetMeta(0).data[i].hidden,
+                                        index: i
+                                    };
+                                });
+                            }
+                            return [];
                         }
-                        return [];
                     }
-                }
-            },
-            tooltip: {
-                backgroundColor: 'rgba(0, 0, 0, 0.9)',
-                titleColor: '#fff',
-                bodyColor: '#fff',
-                borderColor: '#dc3545',
-                borderWidth: 2,
-                cornerRadius: 8,
-                displayColors: true,
-                callbacks: {
-                    label: function(context) {
-                        const label = context.label || '';
-                        const value = context.parsed;
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                    titleColor: '#fff',
+                    bodyColor: '#fff',
+                    borderColor: '#dc3545',
+                    borderWidth: 2,
+                    cornerRadius: 8,
+                    displayColors: true,
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.parsed;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) + '%' : '0%';
+                            const formattedValue = new Intl.NumberFormat('id-ID').format(value);
+                            return `${label}: Rp ${formattedValue} (${percentage})`;
+                        }
+                    }
+                },
+                datalabels: {
+                    color: '#fff',
+                    font: {
+                        weight: 'bold',
+                        size: 11
+                    },
+                    formatter: (value, context) => {
                         const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                        const percentage = total > 0 ? ((value / total) * 100).toFixed(1) + '%' : '0%';
-                        const formattedValue = new Intl.NumberFormat('id-ID').format(value);
-                        return `${label}: Rp ${formattedValue} (${percentage})`;
-                    }
+                        const percentage = total > 0 ? ((value / total) * 100) : 0;
+                        return percentage > 5 ? percentage.toFixed(1) + '%' : '';
+                    },
+                    textAlign: 'center'
                 }
             },
-            datalabels: {
-                color: '#fff',
-                font: {
-                    weight: 'bold',
-                    size: 11
-                },
-                formatter: (value, context) => {
-                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                    const percentage = total > 0 ? ((value / total) * 100) : 0;
-                    return percentage > 5 ? percentage.toFixed(1) + '%' : '';
-                },
-                textAlign: 'center'
+            interaction: {
+                intersect: false,
+                mode: 'nearest'
             }
-        },
-        interaction: {
-            intersect: false,
-            mode: 'nearest'
-        }
-    };
-
-    // Enhanced color schemes with gradients simulation
-    const caraColors = ['#dc3545', '#c82333'];
-    const jenisColors = ['#dc3545', '#e74c3c', '#c0392b', '#a93226'];
-    const metodeColors = ['#dc3545', '#e74c3c', '#c0392b', '#a93226', '#922b21', '#7b241c', '#641e16', '#5b1a14'];
-
-    // Data dari PHP
-    const dataCara = <?= $chart_cara_json ?>;
-    const dataJenis = <?= $chart_jenis_json ?>;
-    const dataMetode = <?= $chart_metode_json ?>;
-
-    let charts = {};
-
-    // 1. Chart Cara Pengadaan (Penyedia vs Swakelola)
-    if (dataCara.data.some(val => val > 0)) {
-        charts.cara = new Chart(document.getElementById('chartCara'), {
-            type: 'doughnut',
-            data: {
-                labels: dataCara.labels,
-                datasets: [{
-                    data: dataCara.data,
-                    backgroundColor: caraColors,
-                    borderColor: '#fff',
-                    borderWidth: 4,
-                    hoverBorderWidth: 6,
-                    hoverOffset: 10
-                }]
-            },
-            options: {
-                ...commonOptions,
-                cutout: '60%',
-                plugins: {
-                    ...commonOptions.plugins,
-                    datalabels: {
-                        ...commonOptions.plugins.datalabels,
-                        display: true
-                    }
-                }
-            }
-        });
-    } else {
-        document.getElementById('chartCara').parentElement.innerHTML = '<div class="no-data"><i class="fas fa-chart-pie"></i><br>Tidak ada data</div>';
-    }
-
-    // 2. Chart Jenis Pengadaan
-    if (dataJenis.data.length > 0 && dataJenis.data.some(val => val > 0)) {
-        charts.jenis = new Chart(document.getElementById('chartJenis'), {
-            type: 'doughnut',
-            data: {
-                labels: dataJenis.labels,
-                datasets: [{
-                    data: dataJenis.data,
-                    backgroundColor: jenisColors.slice(0, dataJenis.labels.length),
-                    borderColor: '#fff',
-                    borderWidth: 3,
-                    hoverBorderWidth: 5,
-                    hoverOffset: 8
-                }]
-            },
-            options: {
-                ...commonOptions,
-                cutout: '55%',
-                plugins: {
-                    ...commonOptions.plugins,
-                    datalabels: {
-                        ...commonOptions.plugins.datalabels,
-                        display: true
-                    }
-                }
-            }
-        });
-    } else {
-        document.getElementById('chartJenis').parentElement.innerHTML = '<div class="no-data"><i class="fas fa-chart-doughnut"></i><br>Tidak ada data</div>';
-    }
-
-    // 3. Chart Metode Pengadaan (Detail)
-    if (dataMetode.data.length > 0) {
-        const filteredData = {
-            labels: [],
-            data: []
         };
-        
-        dataMetode.labels.forEach((label, index) => {
-            if (dataMetode.data[index] > 0) {
-                filteredData.labels.push(label);
-                filteredData.data.push(dataMetode.data[index]);
-            }
-        });
-        
-        if (filteredData.data.length > 0) {
-            charts.metode = new Chart(document.getElementById('chartMetode'), {
+
+        // Enhanced color schemes with gradients simulation
+        const caraColors = ['#dc3545', '#c82333'];
+        const jenisColors = ['#dc3545', '#e74c3c', '#c0392b', '#a93226'];
+        const metodeColors = ['#dc3545', '#e74c3c', '#c0392b', '#a93226', '#922b21', '#7b241c', '#641e16', '#5b1a14'];
+
+        // Data dari PHP
+        const dataCara = <?= $chart_cara_json ?>;
+        const dataJenis = <?= $chart_jenis_json ?>;
+        const dataMetode = <?= $chart_metode_json ?>;
+
+        let charts = {};
+
+        // 1. Chart Cara Pengadaan (Penyedia vs Swakelola)
+        if (dataCara.data.some(val => val > 0)) {
+            charts.cara = new Chart(document.getElementById('chartCara'), {
                 type: 'doughnut',
                 data: {
-                    labels: filteredData.labels,
+                    labels: dataCara.labels,
                     datasets: [{
-                        data: filteredData.data,
-                        backgroundColor: metodeColors.slice(0, filteredData.labels.length),
+                        data: dataCara.data,
+                        backgroundColor: caraColors,
                         borderColor: '#fff',
-                        borderWidth: 3,
-                        hoverBorderWidth: 5,
-                        hoverOffset: 6
+                        borderWidth: 4,
+                        hoverBorderWidth: 6,
+                        hoverOffset: 10
                     }]
                 },
                 options: {
                     ...commonOptions,
-                    cutout: '50%',
+                    cutout: '60%',
                     plugins: {
                         ...commonOptions.plugins,
-                        legend: {
-                            display: true,
-                            position: 'right',
-                            labels: {
-                                padding: 12,
-                                font: {
-                                    size: 10,
-                                    weight: '600'
-                                },
-                                usePointStyle: true,
-                                pointStyle: 'circle',
-                                generateLabels: function(chart) {
-                                    const data = chart.data;
-                                    if (data.labels.length && data.datasets.length) {
-                                        const dataset = data.datasets[0];
-                                        return data.labels.map((label, i) => {
-                                            const value = dataset.data[i];
-                                            const total = dataset.data.reduce((a, b) => a + b, 0);
-                                            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) + '%' : '0%';
-                                            return {
-                                                text: `${label} (${percentage})`,
-                                                fillStyle: dataset.backgroundColor[i],
-                                                hidden: isNaN(dataset.data[i]) || chart.getDatasetMeta(0).data[i].hidden,
-                                                index: i
-                                            };
-                                        });
-                                    }
-                                    return [];
-                                }
-                            }
-                        },
                         datalabels: {
                             ...commonOptions.plugins.datalabels,
-                            display: function(context) {
-                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                const percentage = total > 0 ? ((context.parsed / total) * 100) : 0;
-                                return percentage > 3;
-                            }
+                            display: true
                         }
                     }
                 }
             });
         } else {
-            document.getElementById('chartMetode').parentElement.innerHTML = '<div class="no-data"><i class="fas fa-chart-bar"></i><br>Tidak ada data dengan nilai > 0</div>';
+            document.getElementById('chartCara').parentElement.innerHTML = '<div class="no-data"><i class="fas fa-chart-pie"></i><br>Tidak ada data</div>';
         }
-    } else {
-        document.getElementById('chartMetode').parentElement.innerHTML = '<div class="no-data"><i class="fas fa-chart-bar"></i><br>Tidak ada data</div>';
-    }
 
-    // Modal functionality
-    const modal = document.getElementById('chartModal');
-    const closeBtn = document.getElementsByClassName('close')[0];
-    let modalChart = null;
-
-    window.openModal = function(chartId, title) {
-        const originalChart = charts[chartId.replace('chart', '').toLowerCase()];
-        if (!originalChart) return;
-
-        document.querySelector('.modal-header h3').innerHTML = `<i class="fas fa-chart-line"></i> ${title}`;
-        modal.style.display = 'block';
-        
-        setTimeout(() => {
-            const ctx = document.getElementById('modalChart');
-            if (modalChart) {
-                modalChart.destroy();
-            }
-            
-            modalChart = new Chart(ctx, {
-                type: originalChart.config.type,
-                data: JSON.parse(JSON.stringify(originalChart.config.data)),
+        // 2. Chart Jenis Pengadaan
+        if (dataJenis.data.length > 0 && dataJenis.data.some(val => val > 0)) {
+            charts.jenis = new Chart(document.getElementById('chartJenis'), {
+                type: 'doughnut',
+                data: {
+                    labels: dataJenis.labels,
+                    datasets: [{
+                        data: dataJenis.data,
+                        backgroundColor: jenisColors.slice(0, dataJenis.labels.length),
+                        borderColor: '#fff',
+                        borderWidth: 3,
+                        hoverBorderWidth: 5,
+                        hoverOffset: 8
+                    }]
+                },
                 options: {
-                    ...originalChart.config.options,
+                    ...commonOptions,
+                    cutout: '55%',
                     plugins: {
-                        ...originalChart.config.options.plugins,
-                        legend: {
-                            ...originalChart.config.options.plugins.legend,
-                            position: 'bottom'
+                        ...commonOptions.plugins,
+                        datalabels: {
+                            ...commonOptions.plugins.datalabels,
+                            display: true
                         }
                     }
                 }
             });
-        }, 100);
-    };
-
-    closeBtn.onclick = function() {
-        modal.style.display = 'none';
-        if (modalChart) {
-            modalChart.destroy();
-            modalChart = null;
+        } else {
+            document.getElementById('chartJenis').parentElement.innerHTML = '<div class="no-data"><i class="fas fa-chart-doughnut"></i><br>Tidak ada data</div>';
         }
-    };
 
-    window.onclick = function(event) {
-        if (event.target == modal) {
+        // 3. Chart Metode Pengadaan (Detail)
+        if (dataMetode.data.length > 0) {
+            const filteredData = {
+                labels: [],
+                data: []
+            };
+
+            dataMetode.labels.forEach((label, index) => {
+                if (dataMetode.data[index] > 0) {
+                    filteredData.labels.push(label);
+                    filteredData.data.push(dataMetode.data[index]);
+                }
+            });
+
+            if (filteredData.data.length > 0) {
+                charts.metode = new Chart(document.getElementById('chartMetode'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: filteredData.labels,
+                        datasets: [{
+                            data: filteredData.data,
+                            backgroundColor: metodeColors.slice(0, filteredData.labels.length),
+                            borderColor: '#fff',
+                            borderWidth: 3,
+                            hoverBorderWidth: 5,
+                            hoverOffset: 6
+                        }]
+                    },
+                    options: {
+                        ...commonOptions,
+                        cutout: '50%',
+                        plugins: {
+                            ...commonOptions.plugins,
+                            legend: {
+                                display: true,
+                                position: 'right',
+                                labels: {
+                                    padding: 12,
+                                    font: {
+                                        size: 10,
+                                        weight: '600'
+                                    },
+                                    usePointStyle: true,
+                                    pointStyle: 'circle',
+                                    generateLabels: function(chart) {
+                                        const data = chart.data;
+                                        if (data.labels.length && data.datasets.length) {
+                                            const dataset = data.datasets[0];
+                                            return data.labels.map((label, i) => {
+                                                const value = dataset.data[i];
+                                                const total = dataset.data.reduce((a, b) => a + b, 0);
+                                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) + '%' : '0%';
+                                                return {
+                                                    text: `${label} (${percentage})`,
+                                                    fillStyle: dataset.backgroundColor[i],
+                                                    hidden: isNaN(dataset.data[i]) || chart.getDatasetMeta(0).data[i].hidden,
+                                                    index: i
+                                                };
+                                            });
+                                        }
+                                        return [];
+                                    }
+                                }
+                            },
+                            datalabels: {
+                                ...commonOptions.plugins.datalabels,
+                                display: function(context) {
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = total > 0 ? ((context.parsed / total) * 100) : 0;
+                                    return percentage > 3;
+                                }
+                            }
+                        }
+                    }
+                });
+            } else {
+                document.getElementById('chartMetode').parentElement.innerHTML = '<div class="no-data"><i class="fas fa-chart-bar"></i><br>Tidak ada data dengan nilai > 0</div>';
+            }
+        } else {
+            document.getElementById('chartMetode').parentElement.innerHTML = '<div class="no-data"><i class="fas fa-chart-bar"></i><br>Tidak ada data</div>';
+        }
+
+        // Modal functionality
+        const modal = document.getElementById('chartModal');
+        const closeBtn = document.getElementsByClassName('close')[0];
+        let modalChart = null;
+
+        window.openModal = function(chartId, title) {
+            const originalChart = charts[chartId.replace('chart', '').toLowerCase()];
+            if (!originalChart) return;
+
+            document.querySelector('.modal-header h3').innerHTML = `<i class="fas fa-chart-line"></i> ${title}`;
+            modal.style.display = 'block';
+
+            setTimeout(() => {
+                const ctx = document.getElementById('modalChart');
+                if (modalChart) {
+                    modalChart.destroy();
+                }
+
+                modalChart = new Chart(ctx, {
+                    type: originalChart.config.type,
+                    data: JSON.parse(JSON.stringify(originalChart.config.data)),
+                    options: {
+                        ...originalChart.config.options,
+                        plugins: {
+                            ...originalChart.config.options.plugins,
+                            legend: {
+                                ...originalChart.config.options.plugins.legend,
+                                position: 'bottom'
+                            }
+                        }
+                    }
+                });
+            }, 100);
+        };
+
+        closeBtn.onclick = function() {
             modal.style.display = 'none';
             if (modalChart) {
                 modalChart.destroy();
                 modalChart = null;
             }
-        }
-    };
+        };
 
-    // Download chart functionality
-    window.downloadChart = function(chartId, filename) {
-        const canvas = document.getElementById(chartId);
-        const link = document.createElement('a');
-        link.download = filename + '.png';
-        link.href = canvas.toDataURL();
-        link.click();
-    };
-
-    // Export table to CSV
-    window.exportTableToCSV = function() {
-        const table = document.getElementById('mainTable');
-        let csv = '';
-        
-        for (let i = 0; i < table.rows.length; i++) {
-            let row = [];
-            for (let j = 0; j < table.rows[i].cells.length; j++) {
-                row.push('"' + table.rows[i].cells[j].innerText.replace(/"/g, '""') + '"');
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                modal.style.display = 'none';
+                if (modalChart) {
+                    modalChart.destroy();
+                    modalChart = null;
+                }
             }
-            csv += row.join(',') + '\n';
-        }
-        
-        const link = document.createElement('a');
-        link.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
-        link.download = 'dashboard-perencanaan-' + new Date().toISOString().slice(0, 10) + '.csv';
-        link.click();
-    };
+        };
 
-    // Print table
-    window.printTable = function() {
-        window.print();
-    };
+        // Download chart functionality
+        window.downloadChart = function(chartId, filename) {
+            const canvas = document.getElementById(chartId);
+            const link = document.createElement('a');
+            link.download = filename + '.png';
+            link.href = canvas.toDataURL();
+            link.click();
+        };
 
-    // Refresh data
-    window.refreshData = function() {
-        location.reload();
-    };
+        // Export table to CSV
+        window.exportTableToCSV = function() {
+            const table = document.getElementById('mainTable');
+            let csv = '';
 
-    // Console log untuk debugging
-    console.log('Enhanced Dashboard Data Loaded from Database:');
-    console.log('Debug Info:', <?= json_encode($debug_info) ?>);
-    console.log('Cara Pengadaan:', dataCara);
-    console.log('Jenis Pengadaan:', dataJenis);
-    console.log('Metode Pengadaan:', dataMetode);
-    
-    const timestamp = new Date().toLocaleString('id-ID');
-    console.log('Data updated at:', timestamp);
-});
+            for (let i = 0; i < table.rows.length; i++) {
+                let row = [];
+                for (let j = 0; j < table.rows[i].cells.length; j++) {
+                    row.push('"' + table.rows[i].cells[j].innerText.replace(/"/g, '""') + '"');
+                }
+                csv += row.join(',') + '\n';
+            }
+
+            const link = document.createElement('a');
+            link.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+            link.download = 'dashboard-perencanaan-' + new Date().toISOString().slice(0, 10) + '.csv';
+            link.click();
+        };
+
+        // Print table
+        window.printTable = function() {
+            window.print();
+        };
+
+        // Refresh data
+        window.refreshData = function() {
+            location.reload();
+        };
+
+        // Console log untuk debugging
+        console.log('Enhanced Dashboard Data Loaded from Database:');
+        console.log('Debug Info:', <?= json_encode($debug_info) ?>);
+        console.log('Cara Pengadaan:', dataCara);
+        console.log('Jenis Pengadaan:', dataJenis);
+        console.log('Metode Pengadaan:', dataMetode);
+
+        const timestamp = new Date().toLocaleString('id-ID');
+        console.log('Data updated at:', timestamp);
+    });
 </script>
 
 <?php include '../navbar/footer.php'; ?>
