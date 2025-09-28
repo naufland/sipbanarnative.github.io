@@ -1057,8 +1057,6 @@ include '../../navbar/header.php';
                         <tr>
                             <th style="width: 250px;"><i class="fas fa-box"></i> Paket Tender</th>
                             <th style="width: 130px;"><i class="fas fa-file-contract"></i> Nilai Kontrak (Rp)</th>
-                            <th style="width: 130px;"><i class="fas fa-money-check"></i> Nilai Realisasi (Rp)</th>
-                            <th style="width: 140px;"><i class="fas fa-chart-line"></i> Persentase Realisasi</th>
                             <th style="width: 120px;"><i class="fas fa-tags"></i> Jenis Pengadaan</th>
                             <th style="width: 100px;"><i class="fas fa-cogs"></i> Metode</th>
                             <th style="width: 120px;"><i class="fas fa-building"></i> KLPD</th>

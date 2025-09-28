@@ -16,7 +16,8 @@ try {
     $database = new Database();
     $db = $database->getConnection();
     
-    $table_name = 'realisasi_tender'; // Sesuaikan dengan nama tabel Anda
+    // Sesuaikan nama tabel - PENTING: Ganti dengan nama tabel yang benar
+    $table_name = 'realisasi_tender'; 
 
     $method = $_SERVER['REQUEST_METHOD'];
     $action = $_GET['action'] ?? 'list';
@@ -25,34 +26,12 @@ try {
         case 'GET':
             switch ($action) {
                 case 'list':
-                    // Get filters from query parameters
-                    $filters = [];
+                    // Build base query
+                    $baseQuery = "FROM " . $table_name;
                     $whereConditions = [];
                     $params = [];
 
-                    // Build base query
-                    $query = "SELECT 
-                        id,
-                        Tahun_Anggaran,
-                        Kode_Tender,
-                        Nama_Paket,
-                        Kode_RUP,
-                        KLPD,
-                        Nama_Satker,
-                        Jenis_Pengadaan,
-                        Metode_Pengadaan,
-                        Nilai_Pagu,
-                        Nilai_HPS,
-                        Nama_Pemenang,
-                        Nilai_Kontrak,
-                        Nilai_PDN,
-                        Nilai_UMK,
-                        Sumber_Dana,
-                        Jenis_Kontrak,
-                        Tahap
-                    FROM " . $table_name;
-
-                    // Apply filters
+                    // Apply filters dengan named parameters
                     if (!empty($_GET['tahun'])) {
                         $whereConditions[] = "Tahun_Anggaran = :tahun";
                         $params[':tahun'] = $_GET['tahun'];
@@ -74,71 +53,67 @@ try {
                     }
 
                     if (!empty($_GET['search'])) {
-                        $whereConditions[] = "(Nama_Paket LIKE :search OR KLPD LIKE :search2 OR Nama_Satker LIKE :search3)";
+                        $whereConditions[] = "(Nama_Paket LIKE :search OR KLPD LIKE :search OR Nama_Satker LIKE :search)";
                         $params[':search'] = '%' . $_GET['search'] . '%';
-                        $params[':search2'] = '%' . $_GET['search'] . '%';
-                        $params[':search3'] = '%' . $_GET['search'] . '%';
                     }
 
+                    $whereClause = "";
                     if (!empty($whereConditions)) {
-                        $query .= " WHERE " . implode(" AND ", $whereConditions);
+                        $whereClause = " WHERE " . implode(" AND ", $whereConditions);
                     }
 
-                    // Pagination
-                    $page = intval($_GET['page'] ?? 1);
-                    $limit = intval($_GET['limit'] ?? 100);
-                    $offset = ($page - 1) * $limit;
-
-                    $query .= " ORDER BY id DESC LIMIT :limit OFFSET :offset";
-
-                    $stmt = $db->prepare($query);
-                    
-                    foreach ($params as $key => $value) {
-                        $stmt->bindValue($key, $value);
-                    }
-                    
-                    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
-                    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
-
-                    $stmt->execute();   
-                    $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-                    // Get total count
-                    $countQuery = "SELECT COUNT(*) as total FROM " . $table_name;
-                    if (!empty($whereConditions)) {
-                        $countQuery .= " WHERE " . implode(" AND ", $whereConditions);
-                    }
-
+                    // Get total count first
+                    $countQuery = "SELECT COUNT(*) as total " . $baseQuery . $whereClause;
                     $countStmt = $db->prepare($countQuery);
                     foreach ($params as $key => $value) {
-                        if ($key !== ':limit' && $key !== ':offset') {
-                            $countStmt->bindValue($key, $value);
-                        }
+                        $countStmt->bindValue($key, $value);
                     }
                     $countStmt->execute();
                     $totalResult = $countStmt->fetch(PDO::FETCH_ASSOC);
                     $total = $totalResult['total'];
+
+                    // Pagination
+                    $page = max(1, intval($_GET['page'] ?? 1));
+                    $limit = max(1, min(1000, intval($_GET['limit'] ?? 100))); // Max 1000 per page
+                    $offset = ($page - 1) * $limit;
                     $totalPages = ceil($total / $limit);
+
+                    // Main data query
+                    $dataQuery = "SELECT 
+                        Tahun_Anggaran,
+                        Kode_Tender,
+                        Nama_Paket,
+                        Kode_RUP,
+                        KLPD,
+                        Nama_Satker,
+                        Jenis_Pengadaan,
+                        Metode_Pengadaan,
+                        Nilai_Pagu,
+                        Nilai_HPS,
+                        Nama_Pemenang,
+                        Nilai_Kontrak,
+                        Nilai_PDN,
+                        Nilai_UMK,
+                        Sumber_Dana,
+                        Jenis_Kontrak,
+                        Tahap
+                    " . $baseQuery . $whereClause . " LIMIT " . intval($limit) . " OFFSET " . intval($offset);
+
+                    $stmt = $db->prepare($dataQuery);
+                    foreach ($params as $key => $value) {
+                        $stmt->bindValue($key, $value);
+                    }
+                    $stmt->execute();
+                    $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
                     // Add row numbers and format currency
                     foreach ($data as $key => $row) {
                         $data[$key]['No'] = $offset + $key + 1;
                         
-                        // Format currency values safely
-                        if (isset($row['Nilai_Pagu']) && !empty($row['Nilai_Pagu'])) {
-                            $paguValue = preg_replace('/[^\d]/', '', $row['Nilai_Pagu']);
-                            $data[$key]['Nilai_Pagu_Formatted'] = 'Rp ' . number_format(intval($paguValue), 0, ',', '.');
-                        }
-                        
-                        if (isset($row['Nilai_HPS']) && !empty($row['Nilai_HPS'])) {
-                            $hpsValue = preg_replace('/[^\d]/', '', $row['Nilai_HPS']);
-                            $data[$key]['Nilai_HPS_Formatted'] = 'Rp ' . number_format(intval($hpsValue), 0, ',', '.');
-                        }
-                        
-                        if (isset($row['Nilai_Kontrak']) && !empty($row['Nilai_Kontrak'])) {
-                            $kontrakValue = preg_replace('/[^\d]/', '', $row['Nilai_Kontrak']);
-                            $data[$key]['Nilai_Kontrak_Formatted'] = 'Rp ' . number_format(intval($kontrakValue), 0, ',', '.');
-                        }
+                        // Format currency values
+                        $data[$key]['Nilai_Pagu_Formatted'] = formatCurrency($row['Nilai_Pagu'] ?? '0');
+                        $data[$key]['Nilai_HPS_Formatted'] = formatCurrency($row['Nilai_HPS'] ?? '0');
+                        $data[$key]['Nilai_Kontrak_Formatted'] = formatCurrency($row['Nilai_Kontrak'] ?? '0');
                     }
 
                     echo json_encode([
@@ -156,41 +131,46 @@ try {
                     break;
 
                 case 'options':
-                    // Get distinct values for dropdowns
                     $options = [];
                     
-                    // Get Jenis Pengadaan
-                    $stmt = $db->prepare("SELECT DISTINCT Jenis_Pengadaan FROM " . $table_name . " WHERE Jenis_Pengadaan IS NOT NULL ORDER BY Jenis_Pengadaan");
-                    $stmt->execute();
-                    $options['jenis_pengadaan'] = $stmt->fetchAll(PDO::FETCH_COLUMN);
+                    try {
+                        // Get Jenis Pengadaan
+                        $stmt = $db->query("SELECT DISTINCT Jenis_Pengadaan FROM " . $table_name . " WHERE Jenis_Pengadaan IS NOT NULL AND Jenis_Pengadaan != '' ORDER BY Jenis_Pengadaan LIMIT 50");
+                        $options['jenis_pengadaan'] = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
-                    // Get KLPD
-                    $stmt = $db->prepare("SELECT DISTINCT KLPD FROM " . $table_name . " WHERE KLPD IS NOT NULL ORDER BY KLPD");
-                    $stmt->execute();
-                    $options['klpd'] = $stmt->fetchAll(PDO::FETCH_COLUMN);
+                        // Get KLPD (limit untuk performance)
+                        $stmt = $db->query("SELECT DISTINCT KLPD FROM " . $table_name . " WHERE KLPD IS NOT NULL AND KLPD != '' ORDER BY KLPD LIMIT 100");
+                        $options['klpd'] = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
-                    // Get Metode
-                    $stmt = $db->prepare("SELECT DISTINCT Metode_Pengadaan FROM " . $table_name . " WHERE Metode_Pengadaan IS NOT NULL ORDER BY Metode_Pengadaan");
-                    $stmt->execute();
-                    $options['metode'] = $stmt->fetchAll(PDO::FETCH_COLUMN);
+                        // Get Metode
+                        $stmt = $db->query("SELECT DISTINCT Metode_Pengadaan FROM " . $table_name . " WHERE Metode_Pengadaan IS NOT NULL AND Metode_Pengadaan != '' ORDER BY Metode_Pengadaan LIMIT 50");
+                        $options['metode'] = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
-                    // Get Years
-                    $stmt = $db->prepare("SELECT DISTINCT Tahun_Anggaran FROM " . $table_name . " WHERE Tahun_Anggaran IS NOT NULL ORDER BY Tahun_Anggaran DESC");
-                    $stmt->execute();
-                    $options['years'] = $stmt->fetchAll(PDO::FETCH_COLUMN);
+                        // Get Years
+                        $stmt = $db->query("SELECT DISTINCT Tahun_Anggaran FROM " . $table_name . " WHERE Tahun_Anggaran IS NOT NULL ORDER BY Tahun_Anggaran DESC LIMIT 10");
+                        $options['years'] = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
-                    echo json_encode([
-                        'success' => true,
-                        'options' => $options
-                    ]);
+                        // Get Jenis Kontrak
+                        $stmt = $db->query("SELECT DISTINCT Jenis_Kontrak FROM " . $table_name . " WHERE Jenis_Kontrak IS NOT NULL AND Jenis_Kontrak != '' ORDER BY Jenis_Kontrak LIMIT 20");
+                        $options['jenis_kontrak'] = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+                        echo json_encode([
+                            'success' => true,
+                            'options' => $options
+                        ]);
+                    } catch (Exception $e) {
+                        echo json_encode([
+                            'success' => false,
+                            'message' => 'Error getting options: ' . $e->getMessage()
+                        ]);
+                    }
                     break;
 
                 case 'summary':
-                    $filters = [];
                     $whereConditions = [];
                     $params = [];
 
-                    // Apply same filters as list
+                    // Apply filters
                     if (!empty($_GET['tahun'])) {
                         $whereConditions[] = "Tahun_Anggaran = :tahun";
                         $params[':tahun'] = $_GET['tahun'];
@@ -209,92 +189,95 @@ try {
                     $whereClause = !empty($whereConditions) ? " WHERE " . implode(" AND ", $whereConditions) : "";
 
                     // Get basic statistics
-                    $query = "SELECT 
+                    $basicQuery = "SELECT 
                         COUNT(*) as total_paket,
                         COUNT(DISTINCT KLPD) as total_klpd,
                         COUNT(DISTINCT Nama_Satker) as total_satker
                     FROM " . $table_name . $whereClause;
 
-                    $stmt = $db->prepare($query);
+                    $stmt = $db->prepare($basicQuery);
                     foreach ($params as $key => $value) {
                         $stmt->bindValue($key, $value);
                     }
                     $stmt->execute();
                     $basicStats = $stmt->fetch(PDO::FETCH_ASSOC);
 
-                    // Get all data for detailed calculations
-                    $dataQuery = "SELECT Nilai_Pagu, Jenis_Pengadaan, KLPD, Metode_Pengadaan 
-                                  FROM " . $table_name . $whereClause;
+                    // Get sample data for value calculations (limit to avoid memory issues)
+                    $sampleQuery = "SELECT 
+                        Nilai_Pagu, Nilai_HPS, Nilai_Kontrak, 
+                        Jenis_Pengadaan, KLPD, Metode_Pengadaan 
+                    FROM " . $table_name . $whereClause . " LIMIT 3000";
                     
-                    $dataStmt = $db->prepare($dataQuery);
+                    $sampleStmt = $db->prepare($sampleQuery);
                     foreach ($params as $key => $value) {
-                        $dataStmt->bindValue($key, $value);
+                        $sampleStmt->bindValue($key, $value);
                     }
-                    $dataStmt->execute();
-                    $allData = $dataStmt->fetchAll(PDO::FETCH_ASSOC);
+                    $sampleStmt->execute();
+                    $sampleData = $sampleStmt->fetchAll(PDO::FETCH_ASSOC);
 
                     $totalPagu = 0;
+                    $totalHPS = 0;
+                    $totalKontrak = 0;
+                    $validPaguCount = 0;
                     $jenisPengadaanStats = [];
                     $klpdStats = [];
                     $metodeStats = [];
 
-                    foreach ($allData as $row) {
-                        // Calculate pagu
-                        if (!empty($row['Nilai_Pagu'])) {
-                            $paguValue = preg_replace('/[^\d]/', '', $row['Nilai_Pagu']);
-                            $paguValue = intval($paguValue);
+                    foreach ($sampleData as $row) {
+                        $paguValue = parseNumericValue($row['Nilai_Pagu'] ?? '0');
+                        $hpsValue = parseNumericValue($row['Nilai_HPS'] ?? '0');
+                        $kontrakValue = parseNumericValue($row['Nilai_Kontrak'] ?? '0');
+                        
+                        if ($paguValue > 0) {
                             $totalPagu += $paguValue;
-
-                            // Group by Jenis Pengadaan
-                            $jenis = $row['Jenis_Pengadaan'] ?? 'Tidak Diketahui';
-                            if (!isset($jenisPengadaanStats[$jenis])) {
-                                $jenisPengadaanStats[$jenis] = ['count' => 0, 'total_pagu' => 0];
-                            }
-                            $jenisPengadaanStats[$jenis]['count']++;
-                            $jenisPengadaanStats[$jenis]['total_pagu'] += $paguValue;
-
-                            // Group by KLPD
-                            $klpd = $row['KLPD'] ?? 'Tidak Diketahui';
-                            if (!isset($klpdStats[$klpd])) {
-                                $klpdStats[$klpd] = ['count' => 0, 'total_pagu' => 0];
-                            }
-                            $klpdStats[$klpd]['count']++;
-                            $klpdStats[$klpd]['total_pagu'] += $paguValue;
-
-                            // Group by Metode
-                            $metode = $row['Metode_Pengadaan'] ?? 'Tidak Diketahui';
-                            if (!isset($metodeStats[$metode])) {
-                                $metodeStats[$metode] = ['count' => 0, 'total_pagu' => 0];
-                            }
-                            $metodeStats[$metode]['count']++;
-                            $metodeStats[$metode]['total_pagu'] += $paguValue;
+                            $validPaguCount++;
                         }
+                        $totalHPS += $hpsValue;
+                        $totalKontrak += $kontrakValue;
+
+                        // Group statistics
+                        $jenis = $row['Jenis_Pengadaan'] ?? 'Tidak Diketahui';
+                        if (!isset($jenisPengadaanStats[$jenis])) {
+                            $jenisPengadaanStats[$jenis] = ['count' => 0, 'total_pagu' => 0];
+                        }
+                        $jenisPengadaanStats[$jenis]['count']++;
+                        $jenisPengadaanStats[$jenis]['total_pagu'] += $paguValue;
+
+                        $klpd = $row['KLPD'] ?? 'Tidak Diketahui';
+                        if (!isset($klpdStats[$klpd])) {
+                            $klpdStats[$klpd] = ['count' => 0, 'total_pagu' => 0];
+                        }
+                        $klpdStats[$klpd]['count']++;
+                        $klpdStats[$klpd]['total_pagu'] += $paguValue;
+
+                        $metode = $row['Metode_Pengadaan'] ?? 'Tidak Diketahui';
+                        if (!isset($metodeStats[$metode])) {
+                            $metodeStats[$metode] = ['count' => 0, 'total_pagu' => 0];
+                        }
+                        $metodeStats[$metode]['count']++;
+                        $metodeStats[$metode]['total_pagu'] += $paguValue;
                     }
 
-                    // Sort by total pagu descending
-                    uasort($jenisPengadaanStats, function($a, $b) {
-                        return $b['total_pagu'] - $a['total_pagu'];
-                    });
-                    uasort($klpdStats, function($a, $b) {
-                        return $b['total_pagu'] - $a['total_pagu'];
-                    });
-                    uasort($metodeStats, function($a, $b) {
-                        return $b['total_pagu'] - $a['total_pagu'];
-                    });
+                    // Sort by total pagu
+                    uasort($jenisPengadaanStats, function($a, $b) { return $b['total_pagu'] - $a['total_pagu']; });
+                    uasort($klpdStats, function($a, $b) { return $b['total_pagu'] - $a['total_pagu']; });
+                    uasort($metodeStats, function($a, $b) { return $b['total_pagu'] - $a['total_pagu']; });
 
-                    $avgPagu = $basicStats['total_paket'] > 0 ? $totalPagu / $basicStats['total_paket'] : 0;
+                    $avgPagu = $validPaguCount > 0 ? $totalPagu / $validPaguCount : 0;
 
                     echo json_encode([
                         'success' => true,
                         'summary' => [
-                            'total_paket' => $basicStats['total_paket'],
+                            'total_paket' => intval($basicStats['total_paket']),
                             'total_pagu' => $totalPagu,
+                            'total_hps' => $totalHPS,
+                            'total_kontrak' => $totalKontrak,
                             'avg_pagu' => $avgPagu,
-                            'total_klpd' => $basicStats['total_klpd'],
-                            'total_satker' => $basicStats['total_satker'],
+                            'total_klpd' => intval($basicStats['total_klpd']),
+                            'total_satker' => intval($basicStats['total_satker']),
                             'breakdown' => [
                                 'jenis_pengadaan' => $jenisPengadaanStats,
-                                'klpd' => array_slice($klpdStats, 0, 10, true), // Top 10
+                                'klpd' => array_slice($klpdStats, 0, 15, true),
                                 'metode' => $metodeStats
                             ]
                         ]
@@ -302,7 +285,6 @@ try {
                     break;
 
                 case 'export':
-                    // Simple export functionality
                     $whereConditions = [];
                     $params = [];
 
@@ -311,11 +293,14 @@ try {
                         $params[':tahun'] = $_GET['tahun'];
                     }
 
-                    $query = "SELECT * FROM " . $table_name;
-                    if (!empty($whereConditions)) {
-                        $query .= " WHERE " . implode(" AND ", $whereConditions);
+                    if (!empty($_GET['klpd'])) {
+                        $whereConditions[] = "KLPD LIKE :klpd";
+                        $params[':klpd'] = '%' . $_GET['klpd'] . '%';
                     }
-                    $query .= " ORDER BY id DESC LIMIT 1000";
+
+                    $whereClause = !empty($whereConditions) ? " WHERE " . implode(" AND ", $whereConditions) : "";
+                    
+                    $query = "SELECT * FROM " . $table_name . $whereClause . " LIMIT 1000";
 
                     $stmt = $db->prepare($query);
                     foreach ($params as $key => $value) {
@@ -325,16 +310,13 @@ try {
                     $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
                     header('Content-Type: text/csv; charset=utf-8');
-                    header('Content-Disposition: attachment; filename="data_pengadaan_' . date('Y-m-d') . '.csv"');
+                    header('Content-Disposition: attachment; filename="realisasi_tender_' . date('Y-m-d') . '.csv"');
 
                     $output = fopen('php://output', 'w');
                     fprintf($output, chr(0xEF) . chr(0xBB) . chr(0xBF));
 
                     if (!empty($data)) {
-                        // Headers
                         fputcsv($output, array_keys($data[0]));
-                        
-                        // Data
                         foreach ($data as $row) {
                             fputcsv($output, $row);
                         }
@@ -344,10 +326,23 @@ try {
                     exit;
                     break;
 
+                case 'test':
+                    // Test endpoint untuk debugging
+                    $result = $db->query("SELECT COUNT(*) as count FROM " . $table_name . " LIMIT 1");
+                    $count = $result->fetch(PDO::FETCH_ASSOC);
+                    
+                    echo json_encode([
+                        'success' => true,
+                        'message' => 'Connection successful',
+                        'table_name' => $table_name,
+                        'record_count' => $count['count']
+                    ]);
+                    break;
+
                 default:
                     echo json_encode([
                         'success' => false,
-                        'message' => 'Invalid action'
+                        'message' => 'Invalid action. Available: list, options, summary, export, test'
                     ]);
                     break;
             }
@@ -367,5 +362,35 @@ try {
         'message' => 'Server error: ' . $e->getMessage(),
         'error_details' => $e->getFile() . ':' . $e->getLine()
     ]);
+}
+
+// Helper functions
+function parseNumericValue($value) {
+    if (empty($value) || $value === null) return 0;
+    
+    // Remove all non-numeric characters except dots and commas
+    $cleanValue = preg_replace('/[^\d.,]/', '', strval($value));
+    
+    if (empty($cleanValue)) return 0;
+    
+    // Handle Indonesian number format
+    $cleanValue = str_replace(',', '.', $cleanValue);
+    
+    // Remove extra dots (keep only the last one as decimal separator)
+    $parts = explode('.', $cleanValue);
+    if (count($parts) > 2) {
+        $integer = implode('', array_slice($parts, 0, -1));
+        $decimal = end($parts);
+        $cleanValue = $integer . '.' . $decimal;
+    }
+    
+    return floatval($cleanValue);
+}
+
+function formatCurrency($value) {
+    $numericValue = parseNumericValue($value);
+    if ($numericValue == 0) return 'Rp 0';
+    
+    return 'Rp ' . number_format($numericValue, 0, ',', '.');
 }
 ?>
