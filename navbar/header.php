@@ -12,16 +12,12 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title><?= htmlspecialchars($page_title) ?></title>
     
-        <!-- Bootstrap CSS -->
         <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
 
-        <!-- Font Awesome -->
         <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 
-        <!-- Google Fonts -->
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-        <!-- Custom CSS untuk Header -->
         <style>
             * {
                 font-family: 'Inter', sans-serif;
@@ -93,19 +89,6 @@
                 white-space: nowrap;
                 min-width: fit-content;
                 border-bottom: 2px solid transparent;
-            }
-
-            .nav-item .nav-link:hover {
-                background: transparent;
-                color: white !important;
-                border-bottom-color: rgba(255, 255, 255, 0.5);
-            }
-
-            .nav-item .nav-link.active {
-                background: transparent;
-                color: white !important;
-                font-weight: 600;
-                border-bottom-color: white;
             }
 
             .nav-item .nav-link:hover {
@@ -414,33 +397,28 @@
     </head>
 
     <body>
-        <!-- Main Header -->
         <header class="main-header">
             <nav class="navbar navbar-expand-lg">
                 <div class="container">
-                    <!-- Brand -->
                     <a class="navbar-brand" href="<?= $_SERVER['REQUEST_SCHEME'] ?>://<?= $_SERVER['HTTP_HOST'] ?>">
                         <i class="fas fa-database"></i>
                         <span>SIP BANAR</span>
                     </a>
 
-                    <!-- Mobile Toggle Button -->
                     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
                         aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                         <span class="navbar-toggler-icon"></span>
                     </button>
 
-                    <!-- Navigation Menu -->
                     <div class="collapse navbar-collapse" id="navbarNav">
                         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" id="rekapDropdown" role="button"
                                     data-bs-toggle="dropdown" aria-expanded="false">
                                     <i class="fas fa-chart-line"></i>
-                                    Rekap Pengadaan
+                                    Penyedia
                                 </a>
                                 <ul class="dropdown-menu" aria-labelledby="rekapDropdown">
-                                    <!-- Submenu RUP -->
                                     <li class="dropdown-submenu">
                                         <a class="dropdown-item" href="#" role="button">
                                             <i class="fas fa-folder-open"></i>
@@ -461,8 +439,19 @@
                                             </li>
                                         </ul>
                                     </li>
-                                    <!-- End submenu RUP -->
-
+                                    <li class="dropdown-submenu">
+                                        <a class="dropdown-item" href="#" role="button">
+                                            <i class="fas fa-folder"></i>
+                                            Realisasi
+                                        </a>
+                                        <ul class="dropdown-menu">
+                                            <li><a class="dropdown-item" href=""<?= $_SERVER['REQUEST_SCHEME'] ?>://<?= $_SERVER['HTTP_HOST'] ?>/rekappengadaan/realisasi/tender.php""><i class="fas fa-file-alt"></i>Tender</a></li>
+                                            <li><a class="dropdown-item" href="#"><i class="fas fa-file-alt"></i> Item Submenu 2</a></li>
+                                            <li><a class="dropdown-item" href="#"><i class="fas fa-file-alt"></i> Item Submenu 3</a></li>
+                                            <li><a class="dropdown-item" href="#"><i class="fas fa-file-alt"></i> Item Submenu 4</a></li>
+                                            <li><a class="dropdown-item" href="#"><i class="fas fa-file-alt"></i> Item Submenu 5</a></li>
+                                        </ul>
+                                    </li>
                                     <li>
                                         <hr class="dropdown-divider">
                                     </li>
@@ -471,7 +460,6 @@
                                             <i class="fas fa-chart-pie"></i>
                                             Grafik
                                         </a>
-                                        
                                     </li>
                                 </ul>
                             </li>
@@ -571,14 +559,12 @@
                             </li>
                         </ul>
 
-                        <!-- Tentang dan Search Form dalam satu kontainer -->
                         <div class="d-flex align-items-center">
                             <a class="nav-link me-3" href="<?= $_SERVER['REQUEST_SCHEME'] ?>://<?= $_SERVER['HTTP_HOST'] ?>/tentang" style="color: rgba(255, 255, 255, 0.9); font-weight: 500; font-size: 14px; padding: 8px 0; display: flex; align-items: center; gap: 6px; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.3s ease;">
                                 <i class="fas fa-info-circle"></i>
                                 Tentang
                             </a>
                             
-                            <!-- Search Form -->
                             <form class="search-form d-flex" method="GET" action="<?= $_SERVER['REQUEST_SCHEME'] ?>://<?= $_SERVER['HTTP_HOST'] ?>/pencarian">
                                 <div class="position-relative">
                                     <input class="form-control" type="search" name="q" placeholder="Cari data..."
@@ -594,12 +580,8 @@
             </nav>
         </header>
 
-        <!-- Content Wrapper -->
         <div class="content-wrapper">
-            <!-- Content dari file lain akan dimuat di sini -->
-
-        <!-- Bootstrap JS -->
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
         
         <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -608,7 +590,6 @@
             
             dropdownSubmenus.forEach(function(submenu) {
                 const submenuLink = submenu.querySelector('.dropdown-item');
-                const submenuDropdown = submenu.querySelector('.dropdown-menu');
                 
                 // Mobile behavior - toggle on click
                 submenuLink.addEventListener('click', function(e) {
@@ -616,8 +597,9 @@
                         e.preventDefault();
                         e.stopPropagation();
                         
-                        // Close other submenus
-                        dropdownSubmenus.forEach(function(otherSubmenu) {
+                        // Close other submenus at the same level
+                        const parentUl = submenu.parentElement;
+                        parentUl.querySelectorAll('.dropdown-submenu').forEach(function(otherSubmenu) {
                             if (otherSubmenu !== submenu) {
                                 otherSubmenu.classList.remove('active');
                             }
@@ -629,9 +611,9 @@
                 });
             });
             
-            // Close submenus when clicking outside
+            // Close all active submenus when clicking outside of any dropdown
             document.addEventListener('click', function(e) {
-                if (!e.target.closest('.dropdown-submenu')) {
+                if (!e.target.closest('.nav-item.dropdown')) {
                     dropdownSubmenus.forEach(function(submenu) {
                         submenu.classList.remove('active');
                     });

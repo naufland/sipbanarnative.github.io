@@ -1,4 +1,5 @@
 <?php
+// File: includes/RealisasiTenderModel.php
 
 class RealisasiTenderModel
 {
@@ -10,124 +11,83 @@ class RealisasiTenderModel
         $this->conn = $db;
     }
 
-    /**
-     * Get Realisasi Tender data with filters and pagination.
-     * @param array $filters
-     * @param int $limit
-     * @param int $offset
-     * @return array
-     */
-    public function getRealisasiTenderData($filters = [], $limit = 50, $offset = 0)
+    private function buildWhereClause($filters)
     {
-        $sql = "SELECT * FROM " . $this->table_name . " WHERE 1=1";
+        $whereClause = " WHERE 1=1";
         $params = [];
 
-        if (!empty($filters['tahun'])) {
-            $sql .= " AND Tahun_Anggaran = :tahun";
-            $params[':tahun'] = $filters['tahun'];
+        // Pastikan Anda memiliki kolom tanggal di tabel 'realisasi_tender', misalnya 'Tanggal_Kontrak'.
+        if (!empty($filters['tanggal_awal'])) {
+            $whereClause .= " AND Tanggal_Kontrak >= :tanggal_awal";
+            $params[':tanggal_awal'] = $filters['tanggal_awal'];
+        }
+        if (!empty($filters['tanggal_akhir'])) {
+            $whereClause .= " AND Tanggal_Kontrak <= :tanggal_akhir";
+            $params[':tanggal_akhir'] = $filters['tanggal_akhir'];
         }
         if (!empty($filters['jenis_pengadaan'])) {
-            $sql .= " AND Jenis_Pengadaan = :jenis_pengadaan";
+            $whereClause .= " AND Jenis_Pengadaan = :jenis_pengadaan";
             $params[':jenis_pengadaan'] = $filters['jenis_pengadaan'];
         }
         if (!empty($filters['klpd'])) {
-            $sql .= " AND KLPD = :klpd";
+            $whereClause .= " AND KLPD = :klpd";
             $params[':klpd'] = $filters['klpd'];
         }
         if (!empty($filters['metode_pengadaan'])) {
-            $sql .= " AND Metode_Pengadaan = :metode_pengadaan";
+            $whereClause .= " AND Metode_Pengadaan = :metode_pengadaan";
             $params[':metode_pengadaan'] = $filters['metode_pengadaan'];
         }
-        if (!empty($filters['sumber_dana'])) {
-            $sql .= " AND Sumber_Dana = :sumber_dana";
-            $params[':sumber_dana'] = $filters['sumber_dana'];
-        }
         if (!empty($filters['search'])) {
-            $sql .= " AND (Nama_Paket LIKE :search OR Nama_Pemenang LIKE :search OR Nama_Satker LIKE :search)";
+            $whereClause .= " AND (Nama_Paket LIKE :search OR Nama_Pemenang LIKE :search OR Nama_Satker LIKE :search)";
             $params[':search'] = "%" . $filters['search'] . "%";
         }
+        
+        return [$whereClause, $params];
+    }
 
-        $sql .= " ORDER BY ID DESC LIMIT :limit OFFSET :offset";
+    public function getRealisasiTenderData($filters = [], $limit = 50, $offset = 0)
+    {
+        list($whereClause, $params) = $this->buildWhereClause($filters);
+        $sql = "SELECT * FROM " . $this->table_name . $whereClause . " ORDER BY No DESC LIMIT :limit OFFSET :offset";
         $stmt = $this->conn->prepare($sql);
-
-        foreach ($params as $key => $value) {
-            $stmt->bindValue($key, $value);
-        }
-
+        foreach ($params as $key => $value) { $stmt->bindValue($key, $value); }
         $stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);
         $stmt->bindValue(':offset', (int)$offset, PDO::PARAM_INT);
-
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    /**
-     * Count total data for pagination.
-     * @param array $filters
-     * @return int
-     */
     public function getTotalCount($filters = [])
     {
-        $sql = "SELECT COUNT(*) as total FROM " . $this->table_name . " WHERE 1=1";
-        $params = [];
-
-        if (!empty($filters['tahun'])) {
-            $sql .= " AND Tahun_Anggaran = :tahun";
-            $params[':tahun'] = $filters['tahun'];
-        }
-        if (!empty($filters['jenis_pengadaan'])) {
-            $sql .= " AND Jenis_Pengadaan = :jenis_pengadaan";
-            $params[':jenis_pengadaan'] = $filters['jenis_pengadaan'];
-        }
-        if (!empty($filters['klpd'])) {
-            $sql .= " AND KLPD = :klpd";
-            $params[':klpd'] = $filters['klpd'];
-        }
-        if (!empty($filters['metode_pengadaan'])) {
-            $sql .= " AND Metode_Pengadaan = :metode_pengadaan";
-            $params[':metode_pengadaan'] = $filters['metode_pengadaan'];
-        }
-        if (!empty($filters['sumber_dana'])) {
-            $sql .= " AND Sumber_Dana = :sumber_dana";
-            $params[':sumber_dana'] = $filters['sumber_dana'];
-        }
-        if (!empty($filters['search'])) {
-            $sql .= " AND (Nama_Paket LIKE :search OR Nama_Pemenang LIKE :search OR Nama_Satker LIKE :search)";
-            $params[':search'] = "%" . $filters['search'] . "%";
-        }
-
+        list($whereClause, $params) = $this->buildWhereClause($filters);
+        $sql = "SELECT COUNT(No) as total FROM " . $this->table_name . $whereClause;
         $stmt = $this->conn->prepare($sql);
-        foreach ($params as $key => $value) {
-            $stmt->bindValue($key, $value);
-        }
-        $stmt->execute();
+        $stmt->execute($params);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
-
         return $row['total'] ?? 0;
     }
 
-    /**
-     * Get distinct values for dropdown filters.
-     * @param string $column
-     * @return array
-     */
+    public function getAllDataForSummary($filters = []) {
+        list($whereClause, $params) = $this->buildWhereClause($filters);
+        $sql = "SELECT Jenis_Pengadaan, KLPD, Metode_Pengadaan, Nilai_Pagu, Nilai_HPS, Nilai_Kontrak FROM " . $this->table_name . $whereClause;
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
     public function getDistinctValues($column)
     {
-        // Sanitize column name to prevent SQL injection
-        $allowedColumns = ['Jenis_Pengadaan', 'KLPD', 'Metode_Pengadaan', 'Sumber_Dana', 'Jenis_Kontrak', 'Tahap'];
-        if (!in_array($column, $allowedColumns)) {
-            return []; // Return empty array if column is not allowed
-        }
-
+        $allowedColumns = ['Jenis_Pengadaan', 'KLPD', 'Metode_Pengadaan', 'Sumber_Dana'];
+        if (!in_array($column, $allowedColumns)) return [];
         $sql = "SELECT DISTINCT $column FROM " . $this->table_name . " WHERE $column IS NOT NULL AND $column != '' ORDER BY $column ASC";
         $stmt = $this->conn->prepare($sql);
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_COLUMN);
     }
-
+    
     /**
-     * Get available years.
-     * @return array
+     * FUNGSI INI WAJIB ADA UNTUK MENGHILANGKAN ERROR
+     * Ini akan mengambil semua tahun unik dari kolom Tahun_Anggaran
      */
     public function getAvailableYears()
     {
@@ -136,31 +96,4 @@ class RealisasiTenderModel
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_COLUMN);
     }
-
-    /**
-     * Get simple statistics.
-     * @param array $filters
-     * @return array
-     */
-    public function getStatistics($filters = [])
-    {
-        $sql = "SELECT Jenis_Pengadaan, COUNT(*) as total, SUM(Nilai_Kontrak) as total_nilai FROM " . $this->table_name . " WHERE 1=1";
-        $params = [];
-
-        if (!empty($filters['tahun'])) {
-            $sql .= " AND Tahun_Anggaran = :tahun";
-            $params[':tahun'] = $filters['tahun'];
-        }
-
-        $sql .= " GROUP BY Jenis_Pengadaan ORDER BY total DESC";
-        $stmt = $this->conn->prepare($sql);
-
-        foreach ($params as $key => $value) {
-            $stmt->bindValue($key, $value);
-        }
-
-        $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
 }
-
