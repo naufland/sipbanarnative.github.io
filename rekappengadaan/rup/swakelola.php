@@ -4,7 +4,7 @@
 // =================================================================
 
 // 1. SETUP API URLS
-$apiBaseUrl = "http://sipbanar-phpnative.id/api/swakelola.php";
+$apiBaseUrl = "http://sipbanarnative.id/api/swakelola.php";
 
 // 2. GET PARAMETERS FROM URL
 $currentPage = isset($_GET['page']) ? (int)$_GET['page'] : 1;

@@ -4,7 +4,7 @@
 // =================================================================
 
 // URL API dasar
-$apiBaseUrl = "http://sipbanar-phpnative.id/api/pengadaan.php";
+$apiBaseUrl = "http://sipbanarnative.id/api/pengadaan.php";
 
 // 1. Dapatkan parameter dari URL, termasuk halaman saat ini
 $currentPage = isset($_GET['page']) ? (int)$_GET['page'] : 1;
