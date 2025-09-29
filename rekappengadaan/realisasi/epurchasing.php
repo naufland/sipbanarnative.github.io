@@ -1,457 +1,517 @@
 <?php
 // =================================================================
-// == FIXED VERSION WITH PROPER ERROR HANDLING ===================
+// == DASHBOARD EPURCHASING DENGAN PERBAIKAN ====================
 // =================================================================
 
-// Enable error reporting for debugging (remove in production)
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-
-// Define database configuration variables BEFORE including the config
-$host = "localhost";
-$dbname = "sipbanar";
-$username = "root";
-$password = "";
-
-// Alternative: Include config file if it exists
-if (file_exists('../../config/database.php')) {
-    include '../../config/database.php';
-}
-
-// Create database connection with error handling
-try {
-    $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
-} catch (PDOException $e) {
-    die("
-    <div style='background: #f8d7da; color: #721c24; padding: 20px; border: 1px solid #f5c6cb; border-radius: 5px; margin: 20px; font-family: Arial, sans-serif;'>
-        <h3>Database Connection Error</h3>
-        <p><strong>Error:</strong> " . htmlspecialchars($e->getMessage()) . "</p>
-        <p><strong>Possible solutions:</strong></p>
-        <ul>
-            <li>Check if your database server (XAMPP/WAMP) is running</li>
-            <li>Verify database name: <code>$dbname</code></li>
-            <li>Check username: <code>$username</code></li>
-            <li>Verify password: <code>" . (empty($password) ? '(empty)' : '(hidden)') . "</code></li>
-            <li>Make sure the database 'sipbanar' exists</li>
-        </ul>
-    </div>");
-}
-
-// 1. Get parameters from URL
-$currentPage = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-$limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 100;
-
-// 2. Prepare WHERE conditions based on filters
-$whereConditions = [];
-$params = [];
-
-// Date filter
-if (!empty($_GET['tanggal_awal']) && !empty($_GET['tanggal_akhir'])) {
-    $whereConditions[] = "tanggal_buat_paket BETWEEN :tanggal_awal AND :tanggal_akhir";
-    $params['tanggal_awal'] = $_GET['tanggal_awal'];
-    $params['tanggal_akhir'] = $_GET['tanggal_akhir'];
-} elseif (!empty($_GET['tanggal_awal'])) {
-    $whereConditions[] = "tanggal_buat_paket >= :tanggal_awal";
-    $params['tanggal_awal'] = $_GET['tanggal_awal'];
-} elseif (!empty($_GET['tanggal_akhir'])) {
-    $whereConditions[] = "tanggal_buat_paket <= :tanggal_akhir";
-    $params['tanggal_akhir'] = $_GET['tanggal_akhir'];
-}
-
-// Type filter
-if (!empty($_GET['jenis_pengadaan'])) {
-    $whereConditions[] = "jnt_jenis_produk = :jenis_pengadaan";
-    $params['jenis_pengadaan'] = $_GET['jenis_pengadaan'];
-}
-
-// KLPD filter
-if (!empty($_GET['klpd'])) {
-    $whereConditions[] = "kd_klpd = :klpd";
-    $params['klpd'] = $_GET['klpd'];
-}
-
-// Method filter
-if (!empty($_GET['metode'])) {
-    $whereConditions[] = "nama_sumber_dana = :metode";
-    $params['metode'] = $_GET['metode'];
-}
-
-// Search filter
-if (!empty($_GET['search'])) {
-    $whereConditions[] = "(nama_paket LIKE :search OR deskripsi LIKE :search)";
-    $params['search'] = '%' . $_GET['search'] . '%';
-}
-
-// Build WHERE clause
-$whereClause = '';
-if (!empty($whereConditions)) {
-    $whereClause = 'WHERE ' . implode(' AND ', $whereConditions);
-}
-
-// 3. Check if table exists and get total records
-$totalRecords = 0;
-$totalPages = 1;
-try {
-    $countSql = "SELECT COUNT(*) as total FROM realisasi_epurchasing $whereClause";
-    $countStmt = $pdo->prepare($countSql);
-    $countStmt->execute($params);
-    $totalRecords = $countStmt->fetchColumn();
-    $totalPages = ceil($totalRecords / $limit);
-} catch (PDOException $e) {
-    echo "<div class='alert alert-danger'>Error counting records: " . htmlspecialchars($e->getMessage()) . "</div>";
-}
-
-// 4. Get data with pagination
-$data = [];
-$offset = ($currentPage - 1) * $limit;
+// Include model dan config dengan error handling
+$configLoaded = false;
+$modelLoaded = false;
 
 try {
-    $dataSql = "SELECT 
-        id,
-        tahun_anggaran,
-        kd_klpd,
-        satker_id,
-        nama_satker,
-        kd_paket,
-        no_paket,
-        nama_paket,
-        kd_rup,
-        nama_sumber_dana,
-        kd_komoditas,
-        kd_produk,
-        jnt_penyedia_distributor,
-        jnt_jenis_produk,
-        kuantitas,
-        harga_satuan,
-        ongkos_kirim,
-        total_harga,
-        user_ppk,
-        no_telp_user_ppkja,
-        email_user_ppkja,
-        kd_user_ppk,
-        nip,
-        jabatan_ppk,
-        tanggal_buat_paket,
-        tanggal_edit_paket,
-        deskripsi,
-        status_paket,
-        paket_status_str,
-        catatan_produk,
-        kd_kabupaten_wilayah_harga
-        FROM realisasi_epurchasing 
-        $whereClause 
-        ORDER BY tanggal_buat_paket DESC 
-        LIMIT :limit OFFSET :offset";
-
-    $dataStmt = $pdo->prepare($dataSql);
-    foreach ($params as $key => $value) {
-        $dataStmt->bindValue($key, $value);
+    // Coba include config database
+    if (file_exists(__DIR__ . '../config/database.php')) {
+        require_once __DIR__ . '/config/database.php';
+        $configLoaded = true;
+    } elseif (file_exists(__DIR__ . '/../config/database.php')) {
+        require_once __DIR__ . '../../config/database.php';
+        $configLoaded = true;
     }
-    $dataStmt->bindValue(':limit', $limit, PDO::PARAM_INT);
-    $dataStmt->bindValue(':offset', $offset, PDO::PARAM_INT);
-    $dataStmt->execute();
-    $data = $dataStmt->fetchAll();
-} catch (PDOException $e) {
-    echo "<div class='alert alert-danger'>Error fetching data: " . htmlspecialchars($e->getMessage()) . "</div>";
+    
+    // Coba include model
+    if (file_exists(__DIR__ . '/RealisasiEpurchasingModel.php')) {
+        require_once __DIR__ . '/RealisasiEpurchasingModel.php';
+        $modelLoaded = true;
+    } elseif (file_exists(__DIR__ . '../includes/RealisasiEpurchasingModel.php')) {
+        require_once __DIR__ . '/../includes/RealisasiEpurchasingModel.php';
+        $modelLoaded = true;
+    }
+} catch (Exception $e) {
+    error_log("Include error: " . $e->getMessage());
 }
 
-// 5. Get statistics
-$totalPaket = 0;
+// Set page title untuk header
+$page_title = "Dashboard E-Purchasing - SIP BANAR";
+
+// Include header jika ada
+if (file_exists('../../navbar/header.php')) {
+    include '../../navbar/header.php';
+}
+
+// Helper classes yang diperlukan
+if (!class_exists('InputValidator')) {
+    class InputValidator {
+        public static function sanitizeFilters($input) {
+            $filters = [];
+            if (isset($input['tahun_anggaran'])) $filters['tahun_anggaran'] = intval($input['tahun_anggaran']);
+            if (isset($input['kd_klpd'])) $filters['kd_klpd'] = htmlspecialchars(trim($input['kd_klpd']));
+            if (isset($input['status_paket'])) $filters['status_paket'] = htmlspecialchars(trim($input['status_paket']));
+            if (isset($input['search'])) $filters['search'] = htmlspecialchars(trim($input['search']));
+            if (isset($input['tanggal_awal'])) $filters['tanggal_awal'] = $input['tanggal_awal'];
+            if (isset($input['tanggal_akhir'])) $filters['tanggal_akhir'] = $input['tanggal_akhir'];
+            if (isset($input['min_total'])) $filters['min_total'] = floatval($input['min_total']);
+            if (isset($input['max_total'])) $filters['max_total'] = floatval($input['max_total']);
+            return $filters;
+        }
+        
+        public static function sanitizePagination($input) {
+            return [
+                'page' => max(1, intval($input['page'] ?? 1)),
+                'limit' => min(500, max(10, intval($input['limit'] ?? 100)))
+            ];
+        }
+    }
+}
+
+// Simple PengadaanModel jika tidak ada
+if (!class_exists('PengadaanModel')) {
+    class PengadaanModel {
+        private $pdo;
+        
+        public function __construct(PDO $pdo) {
+            $this->pdo = $pdo;
+        }
+        
+        public function getPaginatedData($filters = [], $page = 1, $limit = 100) {
+            try {
+                $offset = ($page - 1) * $limit;
+                
+                // Build WHERE clause
+                $whereConditions = ['1=1']; // Always true condition
+                $params = [];
+                
+                if (!empty($filters['tahun_anggaran'])) {
+                    $whereConditions[] = "tahun_anggaran = :tahun_anggaran";
+                    $params[':tahun_anggaran'] = $filters['tahun_anggaran'];
+                }
+                
+                if (!empty($filters['kd_klpd'])) {
+                    $whereConditions[] = "kd_klpd = :kd_klpd";
+                    $params[':kd_klpd'] = $filters['kd_klpd'];
+                }
+                
+                if (!empty($filters['status_paket'])) {
+                    $whereConditions[] = "status_paket = :status_paket";
+                    $params[':status_paket'] = $filters['status_paket'];
+                }
+                
+                if (!empty($filters['search'])) {
+                    $whereConditions[] = "(nama_paket LIKE :search OR no_paket LIKE :search OR kode_anggaran LIKE :search)";
+                    $params[':search'] = '%' . $filters['search'] . '%';
+                }
+                
+                if (!empty($filters['tanggal_awal'])) {
+                    $whereConditions[] = "tanggal_buat >= :tanggal_awal";
+                    $params[':tanggal_awal'] = $filters['tanggal_awal'];
+                }
+                
+                if (!empty($filters['tanggal_akhir'])) {
+                    $whereConditions[] = "tanggal_buat <= :tanggal_akhir";
+                    $params[':tanggal_akhir'] = $filters['tanggal_akhir'];
+                }
+                
+                if (!empty($filters['min_total'])) {
+                    $whereConditions[] = "total_harga >= :min_total";
+                    $params[':min_total'] = $filters['min_total'];
+                }
+                
+                if (!empty($filters['max_total'])) {
+                    $whereConditions[] = "total_harga <= :max_total";
+                    $params[':max_total'] = $filters['max_total'];
+                }
+                
+                $whereClause = 'WHERE ' . implode(' AND ', $whereConditions);
+                
+                // Count total records
+                $countSql = "SELECT COUNT(*) as total FROM pengadaan $whereClause";
+                $countStmt = $this->pdo->prepare($countSql);
+                $countStmt->execute($params);
+                $totalRecords = $countStmt->fetch()['total'];
+                
+                // Get data with formatting
+                $dataSql = "SELECT 
+                                *,
+                                CONCAT('Rp ', FORMAT(total_harga, 0, 'id_ID')) as formatted_total_harga,
+                                DATE_FORMAT(tanggal_buat, '%d/%m/%Y') as formatted_tanggal_buat
+                            FROM pengadaan 
+                            $whereClause 
+                            ORDER BY tanggal_buat DESC, id DESC 
+                            LIMIT :limit OFFSET :offset";
+                
+                $dataStmt = $this->pdo->prepare($dataSql);
+                
+                foreach ($params as $key => $value) {
+                    $dataStmt->bindValue($key, $value);
+                }
+                $dataStmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+                $dataStmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+                
+                $dataStmt->execute();
+                $data = $dataStmt->fetchAll();
+                
+                $totalPages = ceil($totalRecords / $limit);
+                
+                return [
+                    'data' => $data,
+                    'pagination' => [
+                        'current_page' => $page,
+                        'total_pages' => $totalPages,
+                        'total_records' => $totalRecords,
+                        'limit' => $limit,
+                        'has_next' => $page < $totalPages,
+                        'has_prev' => $page > 1
+                    ]
+                ];
+                
+            } catch (Exception $e) {
+                error_log("Error in getPaginatedData: " . $e->getMessage());
+                return [
+                    'data' => [],
+                    'pagination' => [
+                        'current_page' => 1,
+                        'total_pages' => 0,
+                        'total_records' => 0,
+                        'limit' => $limit,
+                        'has_next' => false,
+                        'has_prev' => false
+                    ]
+                ];
+            }
+        }
+        
+        public function getSummary($filters = []) {
+            try {
+                // Build WHERE clause sama seperti di getPaginatedData
+                $whereConditions = ['1=1'];
+                $params = [];
+                
+                if (!empty($filters['tahun_anggaran'])) {
+                    $whereConditions[] = "tahun_anggaran = :tahun_anggaran";
+                    $params[':tahun_anggaran'] = $filters['tahun_anggaran'];
+                }
+                
+                if (!empty($filters['kd_klpd'])) {
+                    $whereConditions[] = "kd_klpd = :kd_klpd";
+                    $params[':kd_klpd'] = $filters['kd_klpd'];
+                }
+                
+                if (!empty($filters['status_paket'])) {
+                    $whereConditions[] = "status_paket = :status_paket";
+                    $params[':status_paket'] = $filters['status_paket'];
+                }
+                
+                if (!empty($filters['search'])) {
+                    $whereConditions[] = "(nama_paket LIKE :search OR no_paket LIKE :search OR kode_anggaran LIKE :search)";
+                    $params[':search'] = '%' . $filters['search'] . '%';
+                }
+                
+                if (!empty($filters['tanggal_awal'])) {
+                    $whereConditions[] = "tanggal_buat >= :tanggal_awal";
+                    $params[':tanggal_awal'] = $filters['tanggal_awal'];
+                }
+                
+                if (!empty($filters['tanggal_akhir'])) {
+                    $whereConditions[] = "tanggal_buat <= :tanggal_akhir";
+                    $params[':tanggal_akhir'] = $filters['tanggal_akhir'];
+                }
+                
+                if (!empty($filters['min_total'])) {
+                    $whereConditions[] = "total_harga >= :min_total";
+                    $params[':min_total'] = $filters['min_total'];
+                }
+                
+                if (!empty($filters['max_total'])) {
+                    $whereConditions[] = "total_harga <= :max_total";
+                    $params[':max_total'] = $filters['max_total'];
+                }
+                
+                $whereClause = 'WHERE ' . implode(' AND ', $whereConditions);
+                
+                $sql = "SELECT 
+                            COUNT(*) as total_paket,
+                            COALESCE(SUM(total_harga), 0) as total_pagu,
+                            COALESCE(AVG(total_harga), 0) as avg_pagu,
+                            COUNT(DISTINCT kd_klpd) as total_klpd
+                        FROM pengadaan $whereClause";
+                
+                $stmt = $this->pdo->prepare($sql);
+                $stmt->execute($params);
+                
+                return $stmt->fetch();
+                
+            } catch (Exception $e) {
+                error_log("Error in getSummary: " . $e->getMessage());
+                return [
+                    'total_paket' => 0,
+                    'total_pagu' => 0,
+                    'avg_pagu' => 0,
+                    'total_klpd' => 0
+                ];
+            }
+        }
+        
+        public function getFilterOptions() {
+            try {
+                $options = [];
+                
+                // Get unique years
+                $yearStmt = $this->pdo->query("SELECT DISTINCT tahun_anggaran FROM pengadaan WHERE tahun_anggaran IS NOT NULL ORDER BY tahun_anggaran DESC");
+                $options['tahun_anggaran'] = $yearStmt ? $yearStmt->fetchAll(PDO::FETCH_COLUMN) : [];
+                
+                // Get unique KLPD
+                $klpdStmt = $this->pdo->query("SELECT DISTINCT kd_klpd FROM pengadaan WHERE kd_klpd IS NOT NULL AND kd_klpd != '' ORDER BY kd_klpd");
+                $options['kd_klpd'] = $klpdStmt ? $klpdStmt->fetchAll(PDO::FETCH_COLUMN) : [];
+                
+                // Get unique status
+                $statusStmt = $this->pdo->query("SELECT DISTINCT status_paket FROM pengadaan WHERE status_paket IS NOT NULL AND status_paket != '' ORDER BY status_paket");
+                $options['status_paket'] = $statusStmt ? $statusStmt->fetchAll(PDO::FETCH_COLUMN) : [];
+                
+                return $options;
+                
+            } catch (Exception $e) {
+                error_log("Error in getFilterOptions: " . $e->getMessage());
+                return [
+                    'tahun_anggaran' => [],
+                    'kd_klpd' => [],
+                    'status_paket' => []
+                ];
+            }
+        }
+    }
+}
+
+// Inisialisasi model dengan handling yang tepat
+$pengadaanModel = null;
+if ($configLoaded) {
+    try {
+        // Gunakan class Database (sesuai config Anda)
+        if (class_exists('Database')) {
+            $database = new Database();
+            $pdo = $database->getConnection();
+            $pengadaanModel = new PengadaanModel($pdo);
+        }
+    } catch (Exception $e) {
+        error_log("Database connection error: " . $e->getMessage());
+        $pengadaanModel = null;
+    }
+}
+
+// URL API dasar - disesuaikan dengan struktur Anda
+$apiBaseUrl = "api/epurchasing.php";
+
+// 1. Dapatkan parameter dari URL, termasuk halaman saat ini
+$currentPage = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+$limit = isset($_GET['limit']) ? max(10, min(500, (int)$_GET['limit'])) : 100;
+
+// 2. Siapkan parameter query untuk API
+$queryParams = array_filter($_GET, function ($value) {
+    return $value !== '' && $value !== null;
+});
+$queryParams['page'] = $currentPage;
+$queryParams['limit'] = $limit;
+$queryParams['action'] = 'list'; // Tambahkan action untuk API
+
+$queryString = http_build_query($queryParams);
+$apiUrl = $apiBaseUrl . '?' . $queryString;
+
+// 3. Siapkan parameter untuk summary
+$summaryParams = $queryParams;
+unset($summaryParams['page'], $summaryParams['limit']);
+$summaryParams['action'] = 'summary';
+
+$summaryQueryString = http_build_query($summaryParams);
+$apiSummaryUrl = $apiBaseUrl . '?' . $summaryQueryString;
+
+// 4. Ambil data dari API atau model (fallback)
+$data = null;
+$summaryData = null;
+
+// Coba ambil data dari API dulu (jika diperlukan)
+// Untuk saat ini, gunakan model langsung karena lebih reliable
+
+if ($pengadaanModel) {
+    try {
+        $filters = InputValidator::sanitizeFilters($_GET);
+        $pagination = InputValidator::sanitizePagination($_GET);
+        
+        $result = $pengadaanModel->getPaginatedData($filters, $pagination['page'], $pagination['limit']);
+        $data = [
+            'success' => true,
+            'data' => $result['data'],
+            'pagination' => $result['pagination']
+        ];
+        
+        $summary = $pengadaanModel->getSummary($filters);
+        $summaryData = [
+            'success' => true,
+            'summary' => $summary
+        ];
+    } catch (Exception $e) {
+        error_log("Model error: " . $e->getMessage());
+        $data = ['success' => false, 'data' => []];
+        $summaryData = ['success' => false, 'summary' => []];
+    }
+} else {
+    // Jika model tidak tersedia, coba API
+    if (function_exists('curl_init')) {
+        $data = fetchDataWithCurl($apiUrl);
+        $summaryData = fetchDataWithCurl($apiSummaryUrl);
+    } else {
+        $response = @file_get_contents($apiUrl);
+        $data = $response ? json_decode($response, true) : null;
+        
+        $summaryResponse = @file_get_contents($apiSummaryUrl);
+        $summaryData = $summaryResponse ? json_decode($summaryResponse, true) : null;
+    }
+}
+
+// 5. Inisialisasi variabel statistik dengan nilai default
 $totalPagu = 0;
+$totalPaket = 0;
+$formattedTotalPagu = 'Rp 0';
 $avgPagu = 0;
+$formattedAvgPagu = 'Rp 0';
+$totalKlpd = 0;
 
-try {
-    $summarySql = "SELECT 
-        COUNT(*) as total_paket,
-        COALESCE(SUM(total_harga), 0) as total_pagu,
-        COALESCE(AVG(total_harga), 0) as avg_pagu
-        FROM realisasi_epurchasing 
-        $whereClause";
-
-    $summaryStmt = $pdo->prepare($summarySql);
-    $summaryStmt->execute($params);
-    $summary = $summaryStmt->fetch();
+// 6. Proses data statistik dari summary
+if ($summaryData && isset($summaryData['success']) && $summaryData['success'] && isset($summaryData['summary'])) {
+    $summary = $summaryData['summary'];
 
     $totalPaket = $summary['total_paket'] ?? 0;
     $totalPagu = $summary['total_pagu'] ?? 0;
     $avgPagu = $summary['avg_pagu'] ?? 0;
-} catch (PDOException $e) {
-    echo "<div class='alert alert-warning'>Error getting statistics: " . htmlspecialchars($e->getMessage()) . "</div>";
+    $totalKlpd = $summary['total_klpd'] ?? 0;
+
+    // Format nilai untuk ditampilkan
+    $formattedTotalPagu = 'Rp ' . number_format($totalPagu, 0, ',', '.');
+    $formattedAvgPagu = 'Rp ' . number_format($avgPagu, 0, ',', '.');
 }
 
-// Format values
-$formattedTotalPagu = 'Rp ' . number_format($totalPagu, 0, ',', '.');
-$formattedAvgPagu = 'Rp ' . number_format($avgPagu, 0, ',', '.');
+// 7. Siapkan variabel untuk paginasi
+$totalPages = 1;
+$totalRecords = 0;
 
-// 6. Get breakdown statistics
-$breakdown = [];
-$breakdownQueries = [
-    'jenis_pengadaan' => "SELECT jnt_jenis_produk, COUNT(*) as count, COALESCE(SUM(total_harga), 0) as total_pagu FROM realisasi_epurchasing $whereClause GROUP BY jnt_jenis_produk",
-    'klpd' => "SELECT kd_klpd, COUNT(*) as count, COALESCE(SUM(total_harga), 0) as total_pagu FROM realisasi_epurchasing $whereClause GROUP BY kd_klpd",
-    'metode' => "SELECT nama_sumber_dana, COUNT(*) as count, COALESCE(SUM(total_harga), 0) as total_pagu FROM realisasi_epurchasing $whereClause GROUP BY nama_sumber_dana ORDER BY total_pagu DESC"
-];
+if ($data && isset($data['pagination'])) {
+    $totalPages = $data['pagination']['total_pages'] ?? 1;
+    $totalRecords = $data['pagination']['total_records'] ?? 0;
+}
 
-foreach ($breakdownQueries as $key => $sql) {
-    try {
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute($params);
-        $breakdown[$key] = $stmt->fetchAll();
-    } catch (PDOException $e) {
-        $breakdown[$key] = [];
-        error_log("Error in breakdown query $key: " . $e->getMessage());
+// Jika summary memberikan total paket, gunakan itu karena lebih akurat
+if ($totalPaket > 0 && $totalRecords == 0) {
+    $totalRecords = $totalPaket;
+}
+
+// Function untuk cURL request
+function fetchDataWithCurl($url, $timeout = 10) {
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_USERAGENT, 'SIP-BANAR Dashboard/1.0');
+    
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    
+    if (curl_errno($ch) || $httpCode !== 200) {
+        curl_close($ch);
+        return null;
     }
+    
+    curl_close($ch);
+    return json_decode($response, true);
 }
 
-// Set page title
-$page_title = "Data Pengadaan - SIP BANAR";
-
-// Include header if exists
-if (file_exists('../../navbar/header.php')) {
-    include '../../navbar/header.php';
-} else {
-    echo '<!DOCTYPE html><html><head><title>' . $page_title . '</title><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"></head><body>';
+// Ambil filter options
+$filterOptions = [];
+if ($pengadaanModel) {
+    try {
+        $filterOptions = $pengadaanModel->getFilterOptions();
+    } catch (Exception $e) {
+        error_log("Filter options error: " . $e->getMessage());
+    }
 }
 
 ?>
 
-<script src="../../js/submenu.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+
 <style>
-    /* All your existing CSS styles here - keeping them exactly the same */
-    .container {
-        max-width: 1400px;
-        margin: 0 auto;
-        padding: 20px;
+    :root {
+        --primary-color: #dc3545;
+        --secondary-color: #6c757d;
+        --success-color: #28a745;
+        --info-color: #17a2b8;
+        --warning-color: #ffc107;
+        --light-bg: #f8f9fa;
+        --dark-text: #2c3e50;
     }
 
-    .alert {
-        padding: 15px;
-        margin-bottom: 20px;
-        border: 1px solid transparent;
-        border-radius: 4px;
+    body {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        min-height: 100vh;
     }
 
-    .alert-danger {
-        color: #721c24;
-        background-color: #f8d7da;
-        border-color: #f5c6cb;
+    .main-header {
+        background: linear-gradient(135deg, var(--primary-color) 0%, #c82333 100%);
+        color: white;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 20px rgba(220, 53, 69, 0.3);
     }
 
-    .alert-warning {
-        color: #856404;
-        background-color: #fff3cd;
-        border-color: #ffecb5;
+    .main-header h1 {
+        font-weight: 700;
+        margin: 0;
+        letter-spacing: 1px;
     }
 
-    /* Filter Section Styles */
-    .filter-section {
+    .main-header p {
+        margin: 0.5rem 0 0 0;
+        opacity: 0.9;
+    }
+
+    .filter-card {
         background: white;
         border-radius: 15px;
-        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
-        margin-bottom: 30px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        margin-bottom: 2rem;
+        border: none;
         overflow: hidden;
-        border: 1px solid #e9ecef;
     }
 
     .filter-header {
-        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        background: linear-gradient(135deg, var(--primary-color) 0%, #c82333 100%);
         color: white;
-        padding: 20px 25px;
-        display: flex;
-        align-items: center;
-        gap: 12px;
+        padding: 1.5rem;
+        border: none;
     }
 
     .filter-header h3 {
         margin: 0;
-        font-size: 18px;
         font-weight: 600;
-    }
-
-    .filter-content {
-        padding: 30px 25px;
-    }
-
-    .filter-row {
-        display: grid;
-        gap: 25px;
-        margin-bottom: 25px;
-    }
-
-    .filter-row:nth-child(1) {
-        grid-template-columns: 2fr 1fr;
-    }
-
-    .filter-row:nth-child(2) {
-        grid-template-columns: 1fr 1fr 1fr;
-    }
-
-    .filter-row:nth-child(3) {
-        grid-template-columns: 300px 1fr;
-    }
-
-    .filter-group label {
-        display: block;
-        margin-bottom: 10px;
-        font-weight: 600;
-        color: #2c3e50;
-        font-size: 14px;
-    }
-
-    .filter-group select,
-    .filter-group input[type="text"] {
-        width: 100%;
-        padding: 14px 16px;
-        border: 2px solid #e9ecef;
-        border-radius: 10px;
-        font-size: 14px;
-        background: white;
-        transition: all 0.3s ease;
-        color: #2c3e50;
-    }
-
-    .date-range-group label {
-        display: block;
-        margin-bottom: 10px;
-        font-weight: 600;
-        color: #2c3e50;
-        font-size: 14px;
-    }
-
-    .date-range-container {
-        display: grid;
-        grid-template-columns: 1fr auto 1fr;
-        align-items: center;
-        gap: 15px;
-        background: #f8f9fa;
-        padding: 8px 20px;
-        border-radius: 10px;
-        border: 2px solid #e9ecef;
-    }
-
-    .date-range-container input[type="date"] {
-        border: none;
-        background: transparent;
-        padding: 10px 12px;
-        font-size: 14px;
-        color: #2c3e50;
-        border-radius: 6px;
-        min-width: 140px;
-    }
-
-    .date-separator {
-        color: #dc3545;
-        font-weight: 700;
-        font-size: 14px;
-        padding: 8px 12px;
-        background: white;
-        border-radius: 20px;
-        border: 2px solid #dc3545;
-        text-align: center;
-    }
-
-    .search-input-wrapper {
-        position: relative;
-    }
-
-    .search-input-wrapper i {
-        position: absolute;
-        left: 16px;
-        top: 50%;
-        transform: translateY(-50%);
-        color: #6c757d;
-        font-size: 16px;
-        z-index: 2;
-    }
-
-    .search-input-wrapper input[type="text"] {
-        padding-left: 45px !important;
-    }
-
-    .search-row {
-        display: flex;
-        justify-content: flex-end;
-        align-items: center;
-        padding-top: 25px;
-        border-top: 2px solid #f1f3f4;
-        gap: 15px;
-    }
-
-    .search-btn,
-    .reset-btn {
-        padding: 14px 30px;
-        border-radius: 10px;
-        font-weight: 600;
-        font-size: 14px;
-        cursor: pointer;
         display: flex;
         align-items: center;
-        gap: 8px;
-        transition: all 0.3s ease;
-        min-width: 140px;
-        justify-content: center;
-    }
-
-    .search-btn {
-        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
-        color: white;
-        border: none;
-    }
-
-    .reset-btn {
-        background: transparent;
-        color: #6c757d;
-        border: 2px solid #e9ecef;
-    }
-
-    /* Summary section */
-    .summary-section {
-        background: white;
-        border-radius: 15px;
-        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
-        margin-bottom: 30px;
-        overflow: hidden;
-        border: 1px solid #e9ecef;
-    }
-
-    .summary-header {
-        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
-        color: white;
-        padding: 20px 25px;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-
-    .summary-header h3 {
-        margin: 0;
-        font-size: 18px;
-        font-weight: 600;
-    }
-
-    .summary-content {
-        padding: 30px 25px;
+        gap: 0.75rem;
     }
 
     .summary-cards {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 20px;
-        margin-bottom: 30px;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
     }
 
     .summary-card {
         background: white;
-        border-radius: 12px;
-        padding: 25px;
-        display: flex;
-        align-items: center;
-        gap: 20px;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        border-radius: 15px;
+        padding: 1.5rem;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
         position: relative;
         overflow: hidden;
+        transition: all 0.3s ease;
     }
 
     .summary-card::before {
@@ -463,711 +523,575 @@ if (file_exists('../../navbar/header.php')) {
         height: 4px;
     }
 
-    .summary-card.primary::before {
-        background: #3498db;
+    .summary-card.primary::before { background: var(--info-color); }
+    .summary-card.success::before { background: var(--success-color); }
+    .summary-card.info::before { background: var(--warning-color); }
+    .summary-card.warning::before { background: var(--primary-color); }
+
+    .summary-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
     }
 
-    .summary-card.success::before {
-        background: #27ae60;
-    }
-
-    .summary-card.info::before {
-        background: #17a2b8;
-    }
-
-    .card-icon {
+    .summary-card .icon {
         width: 60px;
         height: 60px;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
+        font-size: 24px;
         color: white;
-        font-size: 24px;
+        margin-bottom: 1rem;
     }
 
-    .summary-card.primary .card-icon {
-        background: linear-gradient(135deg, #3498db, #5dade2);
-    }
+    .summary-card.primary .icon { background: linear-gradient(135deg, var(--info-color), #5dccda); }
+    .summary-card.success .icon { background: linear-gradient(135deg, var(--success-color), #58d68d); }
+    .summary-card.info .icon { background: linear-gradient(135deg, var(--warning-color), #f8c471); }
+    .summary-card.warning .icon { background: linear-gradient(135deg, var(--primary-color), #e74c3c); }
 
-    .summary-card.success .card-icon {
-        background: linear-gradient(135deg, #27ae60, #58d68d);
-    }
-
-    .summary-card.info .card-icon {
-        background: linear-gradient(135deg, #17a2b8, #5dccda);
-    }
-
-    .card-content {
-        flex: 1;
-    }
-
-    .card-value {
-        font-size: 24px;
+    .summary-card .value {
+        font-size: 2rem;
         font-weight: 700;
-        color: #2c3e50;
-        margin-bottom: 5px;
-        line-height: 1;
+        color: var(--dark-text);
+        margin-bottom: 0.5rem;
     }
 
-    .card-label {
-        font-size: 14px;
+    .summary-card .label {
+        font-size: 1.1rem;
         font-weight: 600;
-        color: #2c3e50;
-        margin-bottom: 2px;
+        color: var(--dark-text);
+        margin-bottom: 0.25rem;
     }
 
-    .card-subtitle {
-        font-size: 12px;
-        color: #6c757d;
+    .summary-card .subtitle {
+        font-size: 0.875rem;
+        color: var(--secondary-color);
     }
 
-    /* Results section */
-    .results-section {
+    .data-table {
         background: white;
         border-radius: 15px;
-        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
         overflow: hidden;
-        border: 1px solid #e9ecef;
     }
 
-    .results-header {
-        background: #f8f9fa;
-        padding: 25px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
+    .table-header {
+        background: var(--light-bg);
+        padding: 1.5rem;
         border-bottom: 2px solid #e9ecef;
     }
 
-    .results-title {
-        font-size: 20px;
-        font-weight: 700;
-        color: #2c3e50;
-        margin-bottom: 8px;
-    }
-
-    .results-subtitle {
-        font-size: 14px;
-        color: #6c757d;
-    }
-
-    .table-container {
-        overflow-x: auto;
-    }
-
-    table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 14px;
-    }
-
-    table th {
-        background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
-        color: white;
-        padding: 18px 15px;
-        text-align: left;
+    .table-header h3 {
+        margin: 0;
+        color: var(--dark-text);
         font-weight: 600;
-        font-size: 13px;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .table-responsive {
+        max-height: 600px;
+        overflow-y: auto;
+    }
+
+    .table {
+        margin: 0;
+        font-size: 0.875rem;
+    }
+
+    .table thead th {
+        background: linear-gradient(135deg, var(--dark-text) 0%, #34495e 100%);
+        color: white;
+        border: none;
+        font-weight: 600;
+        padding: 1rem 0.75rem;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        font-size: 0.8rem;
         text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
 
-    table td {
-        padding: 18px 15px;
+    .table tbody tr:hover {
+        background-color: rgba(220, 53, 69, 0.05);
+        transform: translateY(-1px);
+        transition: all 0.2s ease;
+    }
+
+    .table td {
+        padding: 1rem 0.75rem;
+        vertical-align: middle;
         border-bottom: 1px solid #f1f1f1;
-        vertical-align: top;
-    }
-
-    table tr:hover {
-        background: #f8f9fa;
     }
 
     .badge {
-        display: inline-block;
-        padding: 6px 12px;
-        font-size: 11px;
-        font-weight: 600;
-        text-transform: uppercase;
+        font-size: 0.75rem;
+        padding: 0.5rem 0.75rem;
         border-radius: 20px;
-        white-space: nowrap;
-    }
-
-    .badge-primary {
-        background: #3498db;
-        color: white;
-    }
-
-    .badge-success {
-        background: #27ae60;
-        color: white;
     }
 
     .price {
         font-weight: 700;
-        color: #27ae60;
+        color: var(--success-color);
         white-space: nowrap;
-        font-size: 15px;
     }
 
-    .small-text {
-        font-size: 12px;
-        color: #6c757d;
-        margin-top: 4px;
+    .btn-filter {
+        background: linear-gradient(135deg, var(--primary-color) 0%, #c82333 100%);
+        border: none;
+        border-radius: 10px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .btn-filter:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(220, 53, 69, 0.3);
+    }
+
+    .btn-reset {
+        background: transparent;
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+        color: var(--secondary-color);
+        transition: all 0.3s ease;
+    }
+
+    .btn-reset:hover {
+        border-color: var(--primary-color);
+        color: var(--primary-color);
+        background: rgba(220, 53, 69, 0.05);
+    }
+
+    .pagination {
+        justify-content: center;
+        margin-top: 1.5rem;
+    }
+
+    .page-link {
+        border: none;
+        border-radius: 8px;
+        margin: 0 2px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .page-link:hover {
+        background: var(--primary-color);
+        color: white;
+        transform: translateY(-1px);
+    }
+
+    .page-item.active .page-link {
+        background: var(--primary-color);
+        border-color: var(--primary-color);
     }
 
     .empty-state {
-        padding: 60px 40px;
         text-align: center;
-        color: #6c757d;
+        padding: 3rem;
+        color: var(--secondary-color);
     }
 
     .empty-state i {
-        font-size: 64px;
-        margin-bottom: 20px;
+        font-size: 4rem;
+        margin-bottom: 1rem;
         opacity: 0.3;
-        color: #dc3545;
     }
 
-    .empty-state p {
-        font-size: 18px;
-        margin: 0;
+    .alert-warning {
+        border-radius: 15px;
+        border: none;
+        box-shadow: 0 4px 15px rgba(255, 193, 7, 0.2);
     }
 
-    /* Responsive */
-    @media (max-width: 992px) {
+    .form-control, .form-select {
+        border-radius: 10px;
+        border: 2px solid #e9ecef;
+        padding: 0.75rem;
+        transition: all 0.3s ease;
+    }
 
-        .filter-row:nth-child(1),
-        .filter-row:nth-child(2),
-        .filter-row:nth-child(3) {
-            grid-template-columns: 1fr;
+    .form-control:focus, .form-select:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.15);
+    }
+
+    @media (max-width: 768px) {
+        .main-header {
+            padding: 1rem 0;
+            margin-bottom: 1rem;
         }
-
-        .results-header {
-            flex-direction: column;
-            gap: 15px;
+        .summary-cards {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+        .table-responsive {
+            max-height: 400px;
+        }
+        .table {
+            font-size: 0.75rem;
         }
     }
 </style>
 
+<div class="main-header">
+    <div class="container">
+        <h1><i class="fas fa-chart-line"></i> Dashboard E-Purchasing</h1>
+        <p>Sistem Informasi Pengadaan Barang dan Jasa</p>
+    </div>
+</div>
+
 <div class="container">
-    <div class="filter-section">
-        <div class="filter-header">
-            <i class="fas fa-filter"></i>
-            <h3>Filter Data Pengadaan</h3>
+    <?php if (!$pengadaanModel): ?>
+    <div class="alert alert-warning" role="alert">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        <strong>Peringatan:</strong> Model database tidak dapat diinisialisasi. 
+        <?php if (!$configLoaded): ?>
+            File config database tidak ditemukan.
+        <?php else: ?>
+            Koneksi database bermasalah.
+        <?php endif; ?>
+        Beberapa fitur mungkin tidak berfungsi dengan optimal.
+        <details class="mt-2">
+            <summary>Detail Error</summary>
+            <small>
+                Config loaded: <?= $configLoaded ? 'Yes' : 'No' ?><br>
+                Model loaded: <?= $modelLoaded ? 'Yes' : 'No' ?><br>
+                Database class available: <?= class_exists('Database') ? 'Yes' : 'No' ?>
+            </small>
+        </details>
+    </div>
+    <?php endif; ?>
+
+    <!-- Filter Section -->
+    <div class="card filter-card">
+        <div class="card-header filter-header">
+            <h3><i class="fas fa-filter"></i> Filter Data E-Purchasing</h3>
         </div>
-        <div class="filter-content">
+        <div class="card-body">
             <form method="GET" action="">
-                <div class="filter-row">
-                    <div class="date-range-group">
-                        <label><i class="fas fa-calendar-alt"></i> Periode Tanggal</label>
-                        <div class="date-range-container">
-                            <input type="date" name="tanggal_awal" value="<?= htmlspecialchars($_GET['tanggal_awal'] ?? '') ?>">
-                            <span class="date-separator">S/D</span>
-                            <input type="date" name="tanggal_akhir" value="<?= htmlspecialchars($_GET['tanggal_akhir'] ?? '') ?>">
-                        </div>
-                    </div>
-
-                    <div class="filter-group">
-                        <label><i class="fas fa-tags"></i> Jenis Pengadaan</label>
-                        <select name="jenis_pengadaan">
-                            <option value="">Semua Jenis</option>
-                            <?php
-                            try {
-                                $jenisStmt = $pdo->query("SELECT DISTINCT jnt_jenis_produk FROM realisasi_epurchasing WHERE jnt_jenis_produk IS NOT NULL ORDER BY jnt_jenis_produk");
-                                while ($row = $jenisStmt->fetch()) {
-                                    $selected = ($_GET['jenis_pengadaan'] ?? '') == $row['jnt_jenis_produk'] ? 'selected' : '';
-                                    echo "<option value=\"{$row['jnt_jenis_produk']}\" $selected>{$row['jnt_jenis_produk']}</option>";
-                                }
-                            } catch (PDOException $e) {
-                                echo "<option value=''>Error loading options</option>";
-                            }
-                            ?>
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label"><i class="fas fa-calendar"></i> Tahun Anggaran</label>
+                        <select class="form-select" name="tahun_anggaran">
+                            <option value="">Semua Tahun</option>
+                            <?php if (!empty($filterOptions['tahun_anggaran'])): ?>
+                                <?php foreach ($filterOptions['tahun_anggaran'] as $year): ?>
+                                    <option value="<?= htmlspecialchars($year) ?>" 
+                                            <?= ($_GET['tahun_anggaran'] ?? '') == $year ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($year) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <option value="2024" <?= ($_GET['tahun_anggaran'] ?? '') == '2024' ? 'selected' : '' ?>>2024</option>
+                                <option value="2023" <?= ($_GET['tahun_anggaran'] ?? '') == '2023' ? 'selected' : '' ?>>2023</option>
+                                <option value="2022" <?= ($_GET['tahun_anggaran'] ?? '') == '2022' ? 'selected' : '' ?>>2022</option>
+                            <?php endif; ?>
                         </select>
                     </div>
-                </div>
-
-                <div class="filter-row">
-                    <div class="filter-group">
-                        <label><i class="fas fa-building"></i> KLPD</label>
-                        <select name="klpd">
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label"><i class="fas fa-building"></i> KLPD</label>
+                        <select class="form-select" name="kd_klpd">
                             <option value="">Semua KLPD</option>
-                            <?php
-                            try {
-                                $klpdStmt = $pdo->query("SELECT DISTINCT kd_klpd FROM realisasi_epurchasing WHERE kd_klpd IS NOT NULL ORDER BY kd_klpd");
-                                while ($row = $klpdStmt->fetch()) {
-                                    $selected = ($_GET['klpd'] ?? '') == $row['kd_klpd'] ? 'selected' : '';
-                                    echo "<option value=\"{$row['kd_klpd']}\" $selected>{$row['kd_klpd']}</option>";
-                                }
-                            } catch (PDOException $e) {
-                                echo "<option value=''>Error loading options</option>";
-                            }
-                            ?>
+                            <?php if (!empty($filterOptions['kd_klpd'])): ?>
+                                <?php foreach ($filterOptions['kd_klpd'] as $klpd): ?>
+                                    <option value="<?= htmlspecialchars($klpd) ?>" 
+                                            <?= ($_GET['kd_klpd'] ?? '') == $klpd ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($klpd) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
                         </select>
                     </div>
-                    <div class="filter-group">
-                        <label><i class="fas fa-cogs"></i> Metode</label>
-                        <select name="metode">
-                            <option value="">Semua Metode</option>
-                            <?php
-                            try {
-                                $metodeStmt = $pdo->query("SELECT DISTINCT nama_sumber_dana FROM realisasi_epurchasing WHERE nama_sumber_dana IS NOT NULL ORDER BY nama_sumber_dana");
-                                while ($row = $metodeStmt->fetch()) {
-                                    $selected = ($_GET['metode'] ?? '') == $row['nama_sumber_dana'] ? 'selected' : '';
-                                    echo "<option value=\"{$row['nama_sumber_dana']}\" $selected>{$row['nama_sumber_dana']}</option>";
-                                }
-                            } catch (PDOException $e) {
-                                echo "<option value=''>Error loading options</option>";
-                            }
-                            ?>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label"><i class="fas fa-tags"></i> Status Paket</label>
+                        <select class="form-select" name="status_paket">
+                            <option value="">Semua Status</option>
+                            <?php if (!empty($filterOptions['status_paket'])): ?>
+                                <?php foreach ($filterOptions['status_paket'] as $status): ?>
+                                    <option value="<?= htmlspecialchars($status) ?>" 
+                                            <?= ($_GET['status_paket'] ?? '') == $status ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($status) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
                         </select>
                     </div>
-                    <div class="filter-group">
-                        <label><i class="fas fa-search"></i> Pencarian Paket</label>
-                        <div class="search-input-wrapper">
-                            <i class="fas fa-search"></i>
-                            <input type="text" name="search" placeholder="Cari nama paket..." value="<?= htmlspecialchars($_GET['search'] ?? '') ?>">
-                        </div>
-                    </div>
-                </div>
-
-                <div class="filter-row">
-                    <div class="filter-group">
-                        <label><i class="fas fa-list"></i> Limit Data</label>
-                        <select name="limit">
-                            <option value="10" <?= ($limit == 10) ? 'selected' : '' ?>>10 Data</option>
-                            <option value="25" <?= ($limit == 25) ? 'selected' : '' ?>>25 Data</option>
-                            <option value="50" <?= ($limit == 50) ? 'selected' : '' ?>>50 Data</option>
-                            <option value="100" <?= ($limit == 100) ? 'selected' : '' ?>>100 Data</option>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label"><i class="fas fa-list"></i> Limit Data</label>
+                        <select class="form-select" name="limit">
+                            <option value="25" <?= $limit == 25 ? 'selected' : '' ?>>25 Data</option>
+                            <option value="50" <?= $limit == 50 ? 'selected' : '' ?>>50 Data</option>
+                            <option value="100" <?= $limit == 100 ? 'selected' : '' ?>>100 Data</option>
+                            <option value="200" <?= $limit == 200 ? 'selected' : '' ?>>200 Data</option>
                         </select>
                     </div>
                 </div>
-
-                <div class="search-row">
-                    <button type="button" class="reset-btn" onclick="window.location.href=window.location.pathname">
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label"><i class="fas fa-calendar-alt"></i> Tanggal Awal</label>
+                        <input type="date" class="form-control" name="tanggal_awal" 
+                               value="<?= htmlspecialchars($_GET['tanggal_awal'] ?? '') ?>">
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label"><i class="fas fa-calendar-alt"></i> Tanggal Akhir</label>
+                        <input type="date" class="form-control" name="tanggal_akhir" 
+                               value="<?= htmlspecialchars($_GET['tanggal_akhir'] ?? '') ?>">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label"><i class="fas fa-search"></i> Pencarian</label>
+                        <input type="text" class="form-control" name="search" 
+                               placeholder="Cari nama paket, kode anggaran, atau nomor paket..." 
+                               value="<?= htmlspecialchars($_GET['search'] ?? '') ?>">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label"><i class="fas fa-money-bill"></i> Total Harga (Min)</label>
+                        <input type="number" class="form-control" name="min_total" 
+                               placeholder="Minimal total harga" 
+                               value="<?= htmlspecialchars($_GET['min_total'] ?? '') ?>">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label"><i class="fas fa-money-bill"></i> Total Harga (Max)</label>
+                        <input type="number" class="form-control" name="max_total" 
+                               placeholder="Maksimal total harga" 
+                               value="<?= htmlspecialchars($_GET['max_total'] ?? '') ?>">
+                    </div>
+                </div>
+                <div class="d-flex gap-2 justify-content-end">
+                    <a href="<?= strtok($_SERVER["REQUEST_URI"], '?') ?>" class="btn btn-reset">
                         <i class="fas fa-undo"></i> Reset Filter
-                    </button>
-                    <button type="submit" class="search-btn">
-                        <i class="fas fa-search"></i> Cari Data
+                    </a>
+                    <button type="submit" class="btn btn-primary btn-filter">
+                        <i class="fas fa-search"></i> Terapkan Filter
                     </button>
                 </div>
             </form>
         </div>
     </div>
 
-    <div class="summary-section">
-        <div class="summary-header">
-            <i class="fas fa-chart-bar"></i>
-            <h3>Ringkasan Data Pengadaan</h3>
-        </div>
-        <div class="summary-content">
-            <div class="summary-cards">
-                <div class="summary-card primary">
-                    <div class="card-icon">
-                        <i class="fas fa-boxes"></i>
-                    </div>
-                    <div class="card-content">
-                        <div class="card-value"><?= number_format($totalPaket, 0, ',', '.') ?></div>
-                        <div class="card-label">Total Paket</div>
-                        <div class="card-subtitle">Pengadaan</div>
-                    </div>
-                </div>
-
-                <div class="summary-card success">
-                    <div class="card-icon">
-                        <i class="fas fa-money-bill-wave"></i>
-                    </div>
-                    <div class="card-content">
-                        <div class="card-value"><?= $formattedTotalPagu ?></div>
-                        <div class="card-label">Total Pagu</div>
-                        <div class="card-subtitle">Keseluruhan</div>
-                    </div>
-                </div>
-
-                <div class="summary-card info">
-                    <div class="card-icon">
-                        <i class="fas fa-calculator"></i>
-                    </div>
-                    <div class="card-content">
-                        <div class="card-value"><?= $formattedAvgPagu ?></div>
-                        <div class="card-label">Rata-rata Pagu</div>
-                        <div class="card-subtitle">Per Paket</div>
-                    </div>
-                </div>
+    <!-- Summary Cards -->
+    <?php if ($totalPaket > 0 || array_filter($_GET)): ?>
+    <div class="summary-cards">
+        <div class="summary-card primary">
+            <div class="icon">
+                <i class="fas fa-boxes"></i>
             </div>
+            <div class="value"><?= number_format($totalPaket, 0, ',', '.') ?></div>
+            <div class="label">Total Paket</div>
+            <div class="subtitle">E-Purchasing</div>
+        </div>
 
-            <!-- Statistics Tables -->
-            <?php if (!empty($breakdown['jenis_pengadaan']) || !empty($breakdown['klpd']) || !empty($breakdown['metode'])): ?>
-                <div class="stats-tables">
-                    <?php if (!empty($breakdown['jenis_pengadaan'])): ?>
-                        <div class="stats-table">
-                            <h4><i class="fas fa-tags"></i> Berdasarkan Jenis Pengadaan</h4>
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>Jenis Pengadaan</th>
-                                        <th>Jumlah Paket</th>
-                                        <th>Total Pagu</th>
-                                        <th>Persentase</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php foreach ($breakdown['jenis_pengadaan'] as $item): ?>
-                                        <?php $percentage = $totalPagu > 0 ? ($item['total_pagu'] / $totalPagu * 100) : 0; ?>
-                                        <tr>
-                                            <td><span class="badge badge-primary"><?= htmlspecialchars($item['jnt_jenis_produk']) ?></span></td>
-                                            <td><strong><?= number_format($item['count'], 0, ',', '.') ?> paket</strong></td>
-                                            <td class="price">Rp <?= number_format($item['total_pagu'], 0, ',', '.') ?></td>
-                                            <td><?= number_format($percentage, 1) ?>%</td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                    <?php endif; ?>
+        <div class="summary-card success">
+            <div class="icon">
+                <i class="fas fa-money-bill-wave"></i>
+            </div>
+            <div class="value"><?= $formattedTotalPagu ?></div>
+            <div class="label">Total Pagu</div>
+            <div class="subtitle">Keseluruhan</div>
+        </div>
 
-                    <?php if (!empty($breakdown['klpd'])): ?>
-                        <div class="stats-table">
-                            <h4><i class="fas fa-building"></i> Berdasarkan KLPD</h4>
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>KLPD</th>
-                                        <th>Jumlah Paket</th>
-                                        <th>Total Pagu</th>
-                                        <th>Persentase</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php foreach ($breakdown['klpd'] as $item): ?>
-                                        <?php $percentage = $totalPagu > 0 ? ($item['total_pagu'] / $totalPagu * 100) : 0; ?>
-                                        <tr>
-                                            <td><strong><?= htmlspecialchars($item['kd_klpd']) ?></strong></td>
-                                            <td><?= number_format($item['count'], 0, ',', '.') ?> paket</td>
-                                            <td class="price">Rp <?= number_format($item['total_pagu'], 0, ',', '.') ?></td>
-                                            <td><?= number_format($percentage, 1) ?>%</td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                    <?php endif; ?>
+        <div class="summary-card info">
+            <div class="icon">
+                <i class="fas fa-calculator"></i>
+            </div>
+            <div class="value"><?= $formattedAvgPagu ?></div>
+            <div class="label">Rata-rata Pagu</div>
+            <div class="subtitle">Per Paket</div>
+        </div>
 
-                    <?php if (!empty($breakdown['metode'])): ?>
-                        <div class="stats-table">
-                            <h4><i class="fas fa-cogs"></i> Top 5 Metode Pengadaan</h4>
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>Metode</th>
-                                        <th>Jumlah Paket</th>
-                                        <th>Total Pagu</th>
-                                        <th>Persentase</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php foreach (array_slice($breakdown['metode'], 0, 5) as $item): ?>
-                                        <?php $percentage = $totalPagu > 0 ? ($item['total_pagu'] / $totalPagu * 100) : 0; ?>
-                                        <tr>
-                                            <td><?= htmlspecialchars($item['nama_sumber_dana']) ?></td>
-                                            <td><?= number_format($item['count'], 0, ',', '.') ?> paket</td>
-                                            <td class="price">Rp <?= number_format($item['total_pagu'], 0, ',', '.') ?></td>
-                                            <td><?= number_format($percentage, 1) ?>%</td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                    <?php endif; ?>
-                </div>
-
-                <style>
-                    .stats-tables {
-                        display: grid;
-                        gap: 30px;
-                    }
-
-                    .stats-table {
-                        background: #f8f9fa;
-                        border-radius: 12px;
-                        padding: 25px;
-                        border: 1px solid #e9ecef;
-                    }
-
-                    .stats-table h4 {
-                        margin: 0 0 20px 0;
-                        color: #2c3e50;
-                        font-size: 16px;
-                        font-weight: 600;
-                        display: flex;
-                        align-items: center;
-                        gap: 8px;
-                    }
-
-                    .stats-table h4 i {
-                        color: #dc3545;
-                    }
-
-                    .stats-table table {
-                        width: 100%;
-                        background: white;
-                        border-radius: 8px;
-                        overflow: hidden;
-                        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-                    }
-
-                    .stats-table th {
-                        background: #2c3e50;
-                        color: white;
-                        padding: 15px;
-                        font-size: 13px;
-                        text-transform: uppercase;
-                        letter-spacing: 0.5px;
-                        font-weight: 600;
-                    }
-
-                    .stats-table td {
-                        padding: 15px;
-                        border-bottom: 1px solid #f1f1f1;
-                        vertical-align: middle;
-                    }
-
-                    .stats-table tr:hover {
-                        background: #f8f9fa;
-                    }
-                </style>
-            <?php endif; ?>
+        <div class="summary-card warning">
+            <div class="icon">
+                <i class="fas fa-building"></i>
+            </div>
+            <div class="value"><?= number_format($totalKlpd, 0, ',', '.') ?></div>
+            <div class="label">Total KLPD</div>
+            <div class="subtitle">Unit Kerja</div>
         </div>
     </div>
+    <?php endif; ?>
 
-    <div class="results-section">
-        <div class="results-header">
-            <div>
-                <div class="results-title">
-                    <i class="fas fa-table"></i> Hasil Pencarian Data Pengadaan
-                </div>
-                <?php if (!empty($data)): ?>
-                    <div class="results-subtitle">
-                        <strong>Menampilkan <?= count($data) ?> dari <?= number_format($totalRecords, 0, ',', '.') ?> total data</strong>
-                    </div>
+    <!-- Data Table -->
+    <div class="card data-table">
+        <div class="table-header d-flex justify-content-between align-items-center flex-wrap">
+            <h3><i class="fas fa-table"></i> Data E-Purchasing</h3>
+            <div class="text-muted">
+                <?php if ($data && isset($data['data']) && is_array($data['data'])): ?>
+                    Menampilkan <strong><?= count($data['data']) ?></strong> dari 
+                    <strong><?= number_format($totalRecords, 0, ',', '.') ?></strong> total data
+                    <br><small>Halaman <?= $currentPage ?> dari <?= $totalPages ?></small>
                 <?php endif; ?>
             </div>
-
-            <?php if ($totalPages > 1): ?>
-                <div class="pagination">
-                    <?php
-                    // Prepare pagination parameters
-                    $paginationParams = $_GET;
-                    unset($paginationParams['page']);
-                    $paginationQuery = http_build_query($paginationParams);
-                    ?>
-
-                    <a href="?<?= $paginationQuery ?>&page=<?= max(1, $currentPage - 1) ?>"
-                        class="btn-pagination <?= $currentPage <= 1 ? 'disabled' : '' ?>"
-                        title="Halaman Sebelumnya">
-                        <i class="fas fa-chevron-left"></i>
-                    </a>
-
-                    <?php
-                    for ($i = 1; $i <= min($totalPages, 10); $i++) {
-                        if ($i == $currentPage) {
-                            echo '<a href="?' . $paginationQuery . '&page=' . $i . '" class="btn-pagination active">' . $i . '</a>';
-                        } else {
-                            echo '<a href="?' . $paginationQuery . '&page=' . $i . '" class="btn-pagination">' . $i . '</a>';
-                        }
-                    }
-
-                    if ($totalPages > 10) {
-                        echo '<span class="btn-pagination-dots">...</span>';
-                        echo '<a href="?' . $paginationQuery . '&page=' . $totalPages . '" class="btn-pagination">' . $totalPages . '</a>';
-                    }
-                    ?>
-
-                    <a href="?<?= $paginationQuery ?>&page=<?= min($totalPages, $currentPage + 1) ?>"
-                        class="btn-pagination <?= $currentPage >= $totalPages ? 'disabled' : '' ?>"
-                        title="Halaman Selanjutnya">
-                        <i class="fas fa-chevron-right"></i>
-                    </a>
-                </div>
-
-                <style>
-                    .pagination {
-                        display: flex;
-                        gap: 8px;
-                        align-items: center;
-                    }
-
-                    .pagination a.btn-pagination {
-                        text-decoration: none;
-                        width: 40px;
-                        height: 40px;
-                        border: 2px solid #e9ecef;
-                        background: white;
-                        border-radius: 8px;
-                        cursor: pointer;
-                        display: inline-flex;
-                        align-items: center;
-                        justify-content: center;
-                        font-weight: 600;
-                        color: #6c757d;
-                        transition: all 0.3s ease;
-                    }
-
-                    .pagination a.btn-pagination:hover {
-                        border-color: #dc3545;
-                        color: #dc3545;
-                        transform: translateY(-1px);
-                    }
-
-                    .pagination a.btn-pagination.active {
-                        background: #dc3545;
-                        border-color: #dc3545;
-                        color: white;
-                        box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
-                    }
-
-                    .pagination a.btn-pagination.disabled {
-                        pointer-events: none;
-                        opacity: 0.6;
-                    }
-
-                    .pagination .btn-pagination-dots {
-                        width: 40px;
-                        height: 40px;
-                        display: inline-flex;
-                        align-items: center;
-                        justify-content: center;
-                        color: #6c757d;
-                    }
-                </style>
-            <?php endif; ?>
         </div>
 
-        <?php if (!empty($data)): ?>
-            <div class="table-container">
-                <table>
+        <?php if ($data && isset($data['success']) && $data['success'] && !empty($data['data'])): ?>
+            <div class="table-responsive">
+                <table class="table">
                     <thead>
                         <tr>
-                            <th style="width: 280px;"><i class="fas fa-box"></i> Paket Pengadaan</th>
-                            <th style="width: 130px;"><i class="fas fa-money-bill-wave"></i> Total Harga (Rp)</th>
-                            <th style="width: 140px;"><i class="fas fa-tags"></i> Jenis Pengadaan</th>
-                            <th style="width: 120px;"><i class="fas fa-store"></i> Kuantitas</th>
-                            <th style="width: 120px;"><i class="fas fa-cogs"></i> Metode</th>
-                            <th style="width: 120px;"><i class="fas fa-calendar"></i> Tanggal Buat</th>
-                            <th style="width: 120px;"><i class="fas fa-building"></i> KLPD</th>
-                            <th style="width: 200px;"><i class="fas fa-sitemap"></i> Satuan Kerja</th>
-                            <th style="width: 150px;"><i class="fas fa-user"></i> PPK</th>
+                            <th style="width: 80px;">No</th>
+                            <th style="width: 100px;">Tahun</th>
+                            <th style="width: 300px;">Nama Paket</th>
+                            <th style="width: 150px;">Total Harga</th>
+                            <th style="width: 200px;">Satuan Kerja</th>
+                            <th style="width: 120px;">KLPD</th>
+                            <th style="width: 120px;">Status</th>
+                            <th style="width: 120px;">Tanggal Buat</th>
+                            <th style="width: 100px;">Kuantitas</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach ($data as $row): ?>
+                        <?php foreach ($data['data'] as $index => $row): ?>
+                            <?php $rowNumber = (($currentPage - 1) * $limit) + $index + 1; ?>
                             <tr>
+                                <td><strong><?= $rowNumber ?></strong></td>
+                                <td><span class="badge bg-primary"><?= htmlspecialchars($row['tahun_anggaran'] ?? '-') ?></span></td>
                                 <td>
-                                    <div style="font-weight: 700; color: #2c3e50; margin-bottom: 5px;">
-                                        <?= htmlspecialchars($row['nama_paket'] ?? 'N/A') ?>
-                                    </div>
-                                    <div class="small-text">
-                                        <i class="fas fa-id-card"></i> ID: <?= htmlspecialchars($row['id'] ?? 'N/A') ?>
-                                    </div>
-                                    <?php if (!empty($row['kd_paket'])): ?>
-                                        <div class="small-text">
-                                            <i class="fas fa-code"></i> Kode: <?= htmlspecialchars($row['kd_paket']) ?>
-                                        </div>
-                                    <?php endif; ?>
-                                </td>
-                                <td class="price">
-                                    Rp <?= number_format($row['total_harga'] ?? 0, 0, ',', '.') ?>
-                                    <?php if (!empty($row['harga_satuan']) && $row['harga_satuan'] > 0): ?>
-                                        <div class="small-text">
-                                            @Rp <?= number_format($row['harga_satuan'], 0, ',', '.') ?>
-                                        </div>
-                                    <?php endif; ?>
-                                </td>
-                                <td>
-                                    <?php if (!empty($row['jnt_jenis_produk'])): ?>
-                                        <span class="badge badge-primary"><?= htmlspecialchars($row['jnt_jenis_produk']) ?></span>
-                                    <?php else: ?>
-                                        <span class="badge badge-secondary">N/A</span>
-                                    <?php endif; ?>
-                                </td>
-                                <td>
-                                    <span class="badge badge-success"><?= number_format($row['kuantitas'] ?? 0, 0, ',', '.') ?></span>
-                                </td>
-                                <td>
-                                    <small><?= htmlspecialchars($row['nama_sumber_dana'] ?? 'N/A') ?></small>
-                                </td>
-                                <td>
-                                    <small>
-                                        <?php
-                                        if (!empty($row['tanggal_buat_paket'])) {
-                                            echo date('d/m/Y', strtotime($row['tanggal_buat_paket']));
-                                        } else {
-                                            echo 'N/A';
-                                        }
-                                        ?>
+                                    <div class="fw-bold text-dark mb-1"><?= htmlspecialchars($row['nama_paket'] ?? $row['nama_pengadaan'] ?? '-') ?></div>
+                                    <small class="text-muted">
+                                        <i class="fas fa-hashtag"></i> <?= htmlspecialchars($row['no_paket'] ?? $row['id'] ?? '-') ?><br>
+                                        <i class="fas fa-code"></i> <?= htmlspecialchars($row['kode_anggaran'] ?? '-') ?>
                                     </small>
                                 </td>
-                                <td><small><?= htmlspecialchars($row['kd_klpd'] ?? 'N/A') ?></small></td>
-                                <td><small><?= htmlspecialchars($row['nama_satker'] ?? 'N/A') ?></small></td>
-                                <td>
-                                    <small><?= htmlspecialchars($row['user_ppk'] ?? 'N/A') ?></small>
-                                    <?php if (!empty($row['jabatan_ppk'])): ?>
-                                        <div class="small-text">
-                                            <?= htmlspecialchars($row['jabatan_ppk']) ?>
-                                        </div>
-                                    <?php endif; ?>
+                                <td class="price">
+                                    <?= isset($row['formatted_total_harga']) ? 
+                                        htmlspecialchars($row['formatted_total_harga']) : 
+                                        'Rp ' . number_format($row['total_harga'] ?? $row['nilai_pengadaan'] ?? 0, 0, ',', '.') ?>
                                 </td>
+                                <td>
+                                    <div class="fw-bold"><?= htmlspecialchars($row['nama_satker'] ?? $row['instansi'] ?? '-') ?></div>
+                                    <small class="text-muted"><?= htmlspecialchars($row['alamat_satker'] ?? $row['deskripsi'] ?? '-') ?></small>
+                                </td>
+                                <td><span class="badge bg-info"><?= htmlspecialchars($row['kd_klpd'] ?? '-') ?></span></td>
+                                <td>
+                                    <?php 
+                                        $status = $row['status_paket'] ?? $row['status'] ?? '-';
+                                        $badgeClass = 'secondary';
+                                        if (stripos($status, 'selesai') !== false || stripos($status, 'complete') !== false) {
+                                            $badgeClass = 'success';
+                                        } elseif (stripos($status, 'proses') !== false || stripos($status, 'progress') !== false) {
+                                            $badgeClass = 'warning';
+                                        } elseif (stripos($status, 'batal') !== false || stripos($status, 'cancel') !== false) {
+                                            $badgeClass = 'danger';
+                                        }
+                                    ?>
+                                    <span class="badge bg-<?= $badgeClass ?>"><?= htmlspecialchars($status) ?></span>
+                                </td>
+                                <td><small><?= htmlspecialchars($row['formatted_tanggal_buat'] ?? ($row['tanggal_pengadaan'] ? date('d/m/Y', strtotime($row['tanggal_pengadaan'])) : '-')) ?></small></td>
+                                <td><strong><?= number_format($row['kuantitas'] ?? 1, 0, ',', '.') ?></strong></td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
                 </table>
             </div>
 
-            <div class="table-footer">
-                <div>
-                    <strong><i class="fas fa-info-circle"></i> Informasi Halaman:</strong>
-                    Halaman <?= $currentPage ?> dari <?= $totalPages ?>
-                </div>
-                <div>
-                    <strong>Total Data: <?= number_format($totalRecords, 0, ',', '.') ?></strong> pengadaan
-                </div>
-            </div>
+            <!-- Pagination -->
+            <?php if ($totalPages > 1): ?>
+                <nav aria-label="Pagination" class="p-3">
+                    <ul class="pagination">
+                        <!-- Previous Button -->
+                        <li class="page-item <?= $currentPage <= 1 ? 'disabled' : '' ?>">
+                            <?php 
+                                $prevParams = $_GET;
+                                $prevParams['page'] = max(1, $currentPage - 1);
+                                $prevQuery = http_build_query(array_filter($prevParams));
+                            ?>
+                            <a class="page-link" href="?<?= $prevQuery ?>">
+                                <i class="fas fa-chevron-left"></i>
+                            </a>
+                        </li>
 
-            <style>
-                .table-footer {
-                    padding: 20px 25px;
-                    border-top: 2px solid #e9ecef;
-                    background: #f8f9fa;
-                    font-size: 14px;
-                    color: #6c757d;
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                }
+                        <!-- Page Numbers -->
+                        <?php 
+                            $startPage = max(1, $currentPage - 2);
+                            $endPage = min($totalPages, $currentPage + 2);
+                            
+                            // Show first page if not in range
+                            if ($startPage > 1): ?>
+                                <li class="page-item">
+                                    <?php 
+                                        $firstParams = $_GET;
+                                        $firstParams['page'] = 1;
+                                        $firstQuery = http_build_query(array_filter($firstParams));
+                                    ?>
+                                    <a class="page-link" href="?<?= $firstQuery ?>">1</a>
+                                </li>
+                                <?php if ($startPage > 2): ?>
+                                    <li class="page-item disabled">
+                                        <span class="page-link">...</span>
+                                    </li>
+                                <?php endif; ?>
+                            <?php endif;
+                            
+                            // Show page range
+                            for ($i = $startPage; $i <= $endPage; $i++): ?>
+                                <li class="page-item <?= $i === $currentPage ? 'active' : '' ?>">
+                                    <?php 
+                                        $pageParams = $_GET;
+                                        $pageParams['page'] = $i;
+                                        $pageQuery = http_build_query(array_filter($pageParams));
+                                    ?>
+                                    <a class="page-link" href="?<?= $pageQuery ?>"><?= $i ?></a>
+                                </li>
+                            <?php endfor;
+                            
+                            // Show last page if not in range
+                            if ($endPage < $totalPages): ?>
+                                <?php if ($endPage < $totalPages - 1): ?>
+                                    <li class="page-item disabled">
+                                        <span class="page-link">...</span>
+                                    </li>
+                                <?php endif; ?>
+                                <li class="page-item">
+                                    <?php 
+                                        $lastParams = $_GET;
+                                        $lastParams['page'] = $totalPages;
+                                        $lastQuery = http_build_query(array_filter($lastParams));
+                                    ?>
+                                    <a class="page-link" href="?<?= $lastQuery ?>"><?= $totalPages ?></a>
+                                </li>
+                            <?php endif; ?>
 
-                .badge-secondary {
-                    background: #6c757d;
-                    color: white;
-                }
-
-                @media (max-width: 768px) {
-                    .table-footer {
-                        flex-direction: column;
-                        gap: 10px;
-                        text-align: center;
-                    }
-                }
-            </style>
+                        <!-- Next Button -->
+                        <li class="page-item <?= $currentPage >= $totalPages ? 'disabled' : '' ?>">
+                            <?php 
+                                $nextParams = $_GET;
+                                $nextParams['page'] = min($totalPages, $currentPage + 1);
+                                $nextQuery = http_build_query(array_filter($nextParams));
+                            ?>
+                            <a class="page-link" href="?<?= $nextQuery ?>">
+                                <i class="fas fa-chevron-right"></i>
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+            <?php endif; ?>
 
         <?php else: ?>
             <div class="empty-state">
                 <i class="fas fa-search-minus"></i>
-                <p><strong>Tidak ada data pengadaan yang ditemukan</strong></p>
-                <small class="text-muted">Coba ubah kriteria pencarian atau filter yang Anda gunakan</small>
+                <h4>Tidak ada data ditemukan</h4>
+                <p>Coba ubah kriteria filter atau hapus beberapa filter untuk melihat lebih banyak data</p>
+                <?php if (!$pengadaanModel): ?>
+                    <small class="text-muted">
+                        <i class="fas fa-exclamation-triangle"></i> 
+                        Model database tidak tersedia. Pastikan tabel 'pengadaan' sudah dibuat dan konfigurasi database benar.
+                    </small>
+                <?php endif; ?>
             </div>
         <?php endif; ?>
     </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Date range validation
@@ -1176,17 +1100,17 @@ if (file_exists('../../navbar/header.php')) {
 
         if (tanggalAwal && tanggalAkhir) {
             tanggalAwal.addEventListener('change', function() {
-                tanggalAkhir.min = this.value;
-                if (tanggalAkhir.value && tanggalAkhir.value < this.value) {
+                if (tanggalAkhir.value && this.value > tanggalAkhir.value) {
                     tanggalAkhir.value = this.value;
                 }
+                tanggalAkhir.min = this.value;
             });
 
             tanggalAkhir.addEventListener('change', function() {
-                tanggalAwal.max = this.value;
-                if (tanggalAwal.value && tanggalAwal.value > this.value) {
+                if (tanggalAwal.value && this.value < tanggalAwal.value) {
                     tanggalAwal.value = this.value;
                 }
+                tanggalAwal.max = this.value;
             });
         }
 
@@ -1205,78 +1129,106 @@ if (file_exists('../../navbar/header.php')) {
             });
         }
 
-        // Form submission handler with URL cleanup
-        const filterForm = document.querySelector('form');
-        if (filterForm) {
-            filterForm.addEventListener('submit', function(e) {
-                // Show loading state
-                const submitBtn = this.querySelector('.search-btn');
-                const originalText = submitBtn.innerHTML;
-                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mencari...';
-                submitBtn.disabled = true;
+        // Auto-submit on select change (optional)
+        const autoSubmitSelects = document.querySelectorAll('select[name="limit"]');
+        autoSubmitSelects.forEach(select => {
+            select.addEventListener('change', function() {
+                // Remove page parameter when changing limit
+                const form = this.form;
+                const pageInput = form.querySelector('input[name="page"]');
+                if (pageInput) pageInput.remove();
+                
+                form.submit();
+            });
+        });
 
-                // Disable empty inputs to clean URL
-                const inputs = this.querySelectorAll('input, select');
-                inputs.forEach(input => {
-                    if (!input.value) {
-                        input.disabled = true;
-                    }
-                });
+        // Form validation
+        const form = document.querySelector('form');
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                const minTotal = parseFloat(form.querySelector('input[name="min_total"]').value) || 0;
+                const maxTotal = parseFloat(form.querySelector('input[name="max_total"]').value) || 0;
 
-                // Validate date range
-                const awal = tanggalAwal ? tanggalAwal.value : '';
-                const akhir = tanggalAkhir ? tanggalAkhir.value : '';
-
-                if (awal && akhir && awal > akhir) {
+                if (minTotal > 0 && maxTotal > 0 && minTotal > maxTotal) {
                     e.preventDefault();
-                    alert('Tanggal awal tidak boleh lebih besar dari tanggal akhir!');
-                    submitBtn.innerHTML = originalText;
-                    submitBtn.disabled = false;
-                    // Re-enable inputs
-                    inputs.forEach(input => {
-                        input.disabled = false;
-                    });
+                    alert('Nilai minimum tidak boleh lebih besar dari nilai maksimum!');
                     return false;
                 }
 
-                return true;
+                // Show loading state
+                const submitBtn = form.querySelector('button[type="submit"]');
+                if (submitBtn) {
+                    const originalText = submitBtn.innerHTML;
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memproses...';
+                    submitBtn.disabled = true;
+
+                    // Restore button after 5 seconds if no redirect happens
+                    setTimeout(() => {
+                        submitBtn.innerHTML = originalText;
+                        submitBtn.disabled = false;
+                    }, 5000);
+                }
             });
         }
 
-        // Copy ID functionality
-        document.querySelectorAll('.small-text').forEach(smallText => {
-            if (smallText.textContent.includes('ID:')) {
-                smallText.style.cursor = 'pointer';
-                smallText.title = 'Klik untuk copy ID';
-                smallText.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    const idText = this.textContent.replace('ID: ', '').trim();
-                    if (navigator.clipboard) {
-                        navigator.clipboard.writeText(idText).then(() => {
-                            const originalText = this.textContent;
-                            this.textContent = '✓ ID Copied!';
-                            this.style.color = '#27ae60';
-                            setTimeout(() => {
-                                this.textContent = originalText;
-                                this.style.color = '';
-                            }, 1500);
-                        });
-                    }
-                });
-            }
+        // Table row hover effects
+        document.querySelectorAll('tbody tr').forEach(row => {
+            row.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-2px)';
+            });
+
+            row.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0)';
+            });
         });
     });
 
-    function resetForm() {
-        window.location.href = window.location.pathname;
+    // Export function
+    function exportData(format = 'csv') {
+        const currentParams = new URLSearchParams(window.location.search);
+        currentParams.delete('page');
+        currentParams.set('action', 'export');
+        currentParams.set('format', format);
+        
+        const exportUrl = `api/epurchasing.php?${currentParams.toString()}`;
+        window.open(exportUrl, '_blank');
+    }
+
+    // Print function
+    function printTable() {
+        const printContent = document.querySelector('.data-table').innerHTML;
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>Data E-Purchasing - <?= date('Y-m-d H:i:s') ?></title>
+                    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+                    <style>
+                        body { font-size: 12px; }
+                        .table th { background: #2c3e50 !important; color: white !important; }
+                        @media print {
+                            .no-print { display: none !important; }
+                            .table { font-size: 10px; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="container-fluid">
+                        <h3>Data E-Purchasing</h3>
+                        <p>Dicetak pada: <?= date('d/m/Y H:i:s') ?></p>
+                        ${printContent}
+                    </div>
+                    <script>window.print(); window.onafterprint = function(){ window.close(); }</script>
+                </body>
+            </html>
+        `);
+        printWindow.document.close();
     }
 </script>
 
 <?php
-// Include footer if exists
+// Include footer
 if (file_exists('../../navbar/footer.php')) {
     include '../../navbar/footer.php';
-} else {
-    echo '</body></html>';
 }
 ?>

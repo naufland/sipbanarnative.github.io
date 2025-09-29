@@ -445,8 +445,8 @@
                                             Realisasi
                                         </a>
                                         <ul class="dropdown-menu">
-                                            <li><a class="dropdown-item" href=""<?= $_SERVER['REQUEST_SCHEME'] ?>://<?= $_SERVER['HTTP_HOST'] ?>/rekappengadaan/realisasi/tender.php""><i class="fas fa-file-alt"></i>Tender</a></li>
-                                            <li><a class="dropdown-item" href="#"><i class="fas fa-file-alt"></i> Item Submenu 2</a></li>
+                                            <li><a class="dropdown-item" href="<?= $_SERVER['REQUEST_SCHEME'] ?>://<?= $_SERVER['HTTP_HOST'] ?>/rekappengadaan/realisasi/tender.php" ><i class="fas fa-file-alt"></i>Tender</a></li>
+                                            <li><a class="dropdown-item" href="<?= $_SERVER['REQUEST_SCHEME'] ?>://<?= $_SERVER['HTTP_HOST'] ?>/rekappengadaan/realisasi/seleksi.php"><i class="fas fa-file-alt"></i>Seleksi</a></li>
                                             <li><a class="dropdown-item" href="#"><i class="fas fa-file-alt"></i> Item Submenu 3</a></li>
                                             <li><a class="dropdown-item" href="#"><i class="fas fa-file-alt"></i> Item Submenu 4</a></li>
                                             <li><a class="dropdown-item" href="#"><i class="fas fa-file-alt"></i> Item Submenu 5</a></li>
@@ -468,7 +468,7 @@
                                 <a class="nav-link dropdown-toggle" href="#" id="rekapPembukaanDropdown" role="button"
                                     data-bs-toggle="dropdown" aria-expanded="false">
                                     <i class="fas fa-folder"></i>
-                                    Rekap Pembukaan
+                                    Rekap Pembukuan
                                 </a>
                                 <ul class="dropdown-menu" aria-labelledby="rekapPembukaanDropdown">
                                     <li>
