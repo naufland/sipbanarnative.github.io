@@ -617,7 +617,7 @@ include '../navbar/header.php';
     }
 
     .styled-table tbody tr:hover {
-        background: linear-gradient(135deg, #fff5f5 0%, #fed7d7 100%);
+        background: linear-gradient(135deg, #f9f9f9ff 0%, #ebebebff 100%);
         transform: scale(1.01);
     }
 
@@ -636,14 +636,14 @@ include '../navbar/header.php';
     .summary-row,
     .penyedia-row,
     .swakelola-row {
-        background: linear-gradient(135deg, #fed7d7 0%, #feb2b2 100%) !important;
+        background: linear-gradient(135deg, #fff9eaff 0%, #ffe4a9ff 100%) !important;
         font-weight: 700;
     }
 
     .total-row {
-        background: linear-gradient(135deg, #fbb6ce 0%, #f687b3 100%) !important;
+        background: linear-gradient(135deg, #ebf9ffff 0%, #b0e0edff 100%) !important;
         font-weight: 800;
-        border-top: 3px solid #dc3545;
+        border-top: 3px solid #52b7ffff;
         color: #2d3748;
     }
 
@@ -1226,9 +1226,9 @@ include '../navbar/header.php';
         };
 
         // Enhanced color schemes with gradients simulation
-        const caraColors = ['#dc3545', '#c82333'];
-        const jenisColors = ['#dc3545', '#e74c3c', '#c0392b', '#a93226'];
-        const metodeColors = ['#dc3545', '#e74c3c', '#c0392b', '#a93226', '#922b21', '#7b241c', '#641e16', '#5b1a14'];
+        const caraColors = ['#f58530ff', '#2782d1ff'];
+        const jenisColors = ['#f9c03cff', '#2782d1ff', '#f58530ff', '#858585ff'];
+        const metodeColors = ['#f58530ff', '#2782d1ff', '#04a40cff', '#f9c03cff', '#2491fdff', '#7b241c', '#641e16', '#5b1a14'];
 
         // Data dari PHP
         const dataCara = <?= $chart_cara_json ?>;

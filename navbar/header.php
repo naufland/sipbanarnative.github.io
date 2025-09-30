@@ -40,8 +40,7 @@
                 z-index: 1000;
                 border-bottom: 3px solid #b21e2f;
             }
-
-            .navbar {
+.navbar {
                 padding: 8px 0;
             }
 
@@ -53,6 +52,7 @@
                 display: flex;
                 align-items: center;
                 gap: 12px;
+                margin-right: 40px;
             }
 
             .navbar-brand:hover {
