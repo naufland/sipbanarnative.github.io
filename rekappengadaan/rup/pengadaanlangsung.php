@@ -49,7 +49,6 @@ $summaryData = json_decode($summaryResponse, true);
 $totalPagu = 0;
 $totalPaket = 0;
 $formattedTotalPagu = 'Rp 0';
-$avgPagu = 0;
 $formattedAvgPagu = 'Rp 0';
 $klpdCount = 0;
 
@@ -60,11 +59,10 @@ if ($summaryData && isset($summaryData['success']) && $summaryData['success'] &&
 
     $totalPaket = $summary['total_paket'] ?? 0;
     $totalPagu = $summary['total_pagu'] ?? 0;
-    $avgPagu = $summary['avg_pagu'] ?? 0;
 
     // Format nilai untuk ditampilkan
     $formattedTotalPagu = 'Rp ' . number_format($totalPagu, 0, ',', '.');
-    $formattedAvgPagu = 'Rp ' . number_format($avgPagu, 0, ',', '.');
+    
 }
 
 // 7. Siapkan variabel untuk paginasi
@@ -1016,11 +1014,7 @@ include '../../navbar/header.php';
                     <div class="card-icon">
                         <i class="fas fa-calculator"></i>
                     </div>
-                    <div class="card-content">
-                        <div class="card-value"><?= $formattedAvgPagu ?></div>
-                        <div class="card-label">Rata-rata Pagu</div>
-                        <div class="card-subtitle">Per Paket</div>
-                    </div>
+                    
                 </div>
 
 
@@ -1308,7 +1302,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 <div class="card-content">
 
-                    <div class="card-value">${formatRupiah(Math.round(summary.avg_pagu))}</div>
+                    
 
                     <div class="card-label">Rata-rata Pagu</div>
 

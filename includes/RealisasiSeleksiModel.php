@@ -48,7 +48,7 @@ class RealisasiSeleksiModel
     public function getRealisasiSeleksiData($filters = [], $limit = 50, $offset = 0)
     {
         list($whereClause, $params) = $this->buildWhereClause($filters);
-        $sql = "SELECT * FROM " . $this->table_name . $whereClause . " ORDER BY No DESC LIMIT :limit OFFSET :offset";
+        $sql = "SELECT * FROM " . $this->table_name . $whereClause . " ORDER BY No ASC LIMIT :limit OFFSET :offset";
         $stmt = $this->conn->prepare($sql);
         foreach ($params as $key => $value) { $stmt->bindValue($key, $value); }
         $stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);

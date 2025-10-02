@@ -1,10 +1,10 @@
 <?php
-// File: includes/RealisasiSwakelolaModel.php
+// File: includes/RealisasiNontenderModel.php
 
-class RealisasiSwakelolaModel
+class RealisasiNontenderModel
 {
     private $conn;
-    private $table_name = "realisasi_swakelola";
+    private $table_name = "realisasi_nontender";
 
     public function __construct($db)
     {
@@ -28,31 +28,50 @@ class RealisasiSwakelolaModel
             $params[':klpd'] = $filters['klpd'];
         }
 
-        // Filter berdasarkan Tipe Swakelola
-        if (!empty($filters['tipe_swakelola'])) {
-            $whereClause .= " AND Tipe_Swakelola = :tipe_swakelola";
-            $params[':tipe_swakelola'] = $filters['tipe_swakelola'];
+        // Filter berdasarkan Metode Pengadaan
+        if (!empty($filters['metode_pengadaan'])) {
+            $whereClause .= " AND Metode_Pengadaan = :metode_pengadaan";
+            $params[':metode_pengadaan'] = $filters['metode_pengadaan'];
+        }
+
+        // Filter berdasarkan Jenis Pengadaan
+        if (!empty($filters['jenis_pengadaan'])) {
+            $whereClause .= " AND Jenis_Pengadaan = :jenis_pengadaan";
+            $params[':jenis_pengadaan'] = $filters['jenis_pengadaan'];
         }
 
         // Filter berdasarkan pencarian
         if (!empty($filters['search'])) {
-            $whereClause .= " AND (Nama_Paket LIKE :search OR Nama_Pelaksana LIKE :search OR Nama_Satker LIKE :search)";
+            $whereClause .= " AND (Nama_Paket LIKE :search OR Nama_Pemenang LIKE :search OR Nama_Satker LIKE :search OR Kode_Paket LIKE :search)";
             $params[':search'] = "%" . $filters['search'] . "%";
         }
         
         return [$whereClause, $params];
     }
 
-    public function getRealisasiSeleksiData($filters = [], $limit = 50, $offset = 0)
+    public function getRealisasiNontenderData($filters = [], $limit = 50, $offset = 0)
     {
         list($whereClause, $params) = $this->buildWhereClause($filters);
-        $sql = "SELECT * FROM " . $this->table_name . $whereClause . " ORDER BY No ASC LIMIT :limit OFFSET :offset";
+        
+        $sql = "SELECT Tahun_Anggaran, Kode_Paket, Nama_Paket, Kode_RUP, KLPD, 
+                Nama_Satker, Jenis_Pengadaan, Metode_Pengadaan, Nilai_Pagu, 
+                Nilai_HPS, Nama_Pemenang, Nilai_Kontrak, Nilai_PDN, Nilai_UMK, 
+                Sumber_Dana, Status_Paket 
+                FROM " . $this->table_name . $whereClause . " 
+                ORDER BY Tahun_Anggaran DESC, Kode_Paket ASC 
+                LIMIT :limit OFFSET :offset";
+        
         $stmt = $this->conn->prepare($sql);
+        
+        // Bind semua parameter dari filter
         foreach ($params as $key => $value) { 
             $stmt->bindValue($key, $value); 
         }
+        
+        // Bind parameter limit dan offset
         $stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);
         $stmt->bindValue(':offset', (int)$offset, PDO::PARAM_INT);
+        
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
@@ -60,7 +79,7 @@ class RealisasiSwakelolaModel
     public function getTotalCount($filters = [])
     {
         list($whereClause, $params) = $this->buildWhereClause($filters);
-        $sql = "SELECT COUNT(No) as total FROM " . $this->table_name . $whereClause;
+        $sql = "SELECT COUNT(*) as total FROM " . $this->table_name . $whereClause;
         $stmt = $this->conn->prepare($sql);
         $stmt->execute($params);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -68,16 +87,16 @@ class RealisasiSwakelolaModel
     }
 
     /**
-     * Fungsi untuk mendapatkan summary data (Total Paket, Total Pagu, Total Realisasi)
+     * Fungsi untuk mendapatkan summary data (Total Paket, Total Pagu, Total Kontrak)
      */
     public function getSummaryData($filters = [])
     {
         list($whereClause, $params) = $this->buildWhereClause($filters);
         
         $sql = "SELECT 
-                    COUNT(No) as total_paket,
+                    COUNT(*) as total_paket,
                     COALESCE(SUM(Nilai_Pagu), 0) as total_pagu,
-                    COALESCE(SUM(Nilai_Total_Realisasi), 0) as total_realisasi
+                    COALESCE(SUM(Nilai_Kontrak), 0) as total_kontrak
                 FROM " . $this->table_name . $whereClause;
         
         $stmt = $this->conn->prepare($sql);
@@ -87,7 +106,7 @@ class RealisasiSwakelolaModel
         return [
             'total_paket' => (int)($result['total_paket'] ?? 0),
             'total_pagu' => (float)($result['total_pagu'] ?? 0),
-            'total_realisasi' => (float)($result['total_realisasi'] ?? 0)
+            'total_kontrak' => (float)($result['total_kontrak'] ?? 0)
         ];
     }
 
@@ -95,11 +114,12 @@ class RealisasiSwakelolaModel
     {
         list($whereClause, $params) = $this->buildWhereClause($filters);
         $sql = "SELECT 
-                    Tipe_Swakelola, 
+                    Metode_Pengadaan,
+                    Jenis_Pengadaan,
                     KLPD, 
                     Nilai_Pagu, 
-                    Nilai_Total_Realisasi,
-                    Nama_Pelaksana
+                    Nilai_Kontrak,
+                    Nama_Pemenang
                 FROM " . $this->table_name . $whereClause;
         $stmt = $this->conn->prepare($sql);
         $stmt->execute($params);
@@ -108,7 +128,7 @@ class RealisasiSwakelolaModel
 
     public function getDistinctValues($column)
     {
-        $allowedColumns = ['Tipe_Swakelola', 'KLPD', 'Tahun_Anggaran'];
+        $allowedColumns = ['Metode_Pengadaan', 'Jenis_Pengadaan', 'KLPD', 'Tahun_Anggaran'];
         if (!in_array($column, $allowedColumns)) return [];
         
         $sql = "SELECT DISTINCT $column FROM " . $this->table_name . " WHERE $column IS NOT NULL AND $column != '' ORDER BY $column ASC";

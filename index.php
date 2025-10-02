@@ -1,368 +1,315 @@
 <?php
-// Set page title untuk header
-$page_title = "SIP BANAR - Sistem Informasi Pengadaan Barang dan Jasa";
+// Set judul halaman
+$page_title = "Dashboard Utama - SIP BANAR";
 
 // Include header
 include 'navbar/header.php';
+
+// URL API Anda. Ganti jika perlu.
+$apiPengadaanUrl = "http://sipbanar-phpnative.id/api/pengadaan.php?action=summary";
+$apiTenderUrl = "http://sipbanar-phpnative.id/api/realisasi_tender.php?action=summary";
+$apiSwakelolaUrl = "http://sipbanar-phpnative.id/api/realisasi_swakelola.php?action=summary";
+
+// Ambil data dari API
+$pengadaanData = json_decode(@file_get_contents($apiPengadaanUrl), true);
+$tenderData = json_decode(@file_get_contents($apiTenderUrl), true);
+$swakelolaData = json_decode(@file_get_contents($apiSwakelolaUrl), true);
+
+// Proses data untuk ditampilkan
+$totalPaketPengadaan = $pengadaanData['summary']['total_paket'] ?? 0;
+$totalPaketTender = $tenderData['summary']['total_paket'] ?? 0;
+$totalPaketSwakelola = $swakelolaData['summary']['total_paket'] ?? 0;
+
+$totalKeseluruhan = $totalPaketPengadaan + $totalPaketTender + $totalPaketSwakelola;
+
+// Data untuk Grafik (disiapkan untuk JavaScript)
+$chartData = [
+    'labels' => ['Pengadaan', 'Realisasi Tender', 'Realisasi Swakelola'],
+    'data' => [$totalPaketPengadaan, $totalPaketTender, $totalPaketSwakelola]
+];
 ?>
-<script src="js/submenu.js"></script><!-- Bootstrap JS harus dimuat dulu -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
-<!-- Kemudian submenu script -->
 
-<!-- Custom CSS khusus untuk halaman index -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <style>
-    /* Override beberapa style yang konflik dengan header */
-    .dropdown-item {
-        padding: 12px 20px;
-        /* Konsisten dengan header */
-        color: #2c3e50;
-        transition: all 0.3s ease;
-        display: flex;
-        align-items: center;
-        gap: 10px;
+    body {
+        background-color: #f4f7f6;
     }
 
-    .dropdown-item:hover {
-        background: #f8f9fa;
-        color: #dc3545;
-        transform: translateX(5px);
-    }
-
-    /* Hero Section */
     .hero {
-        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        background: linear-gradient(135deg, #dc3545 0%, #a31a28 100%);
         color: white;
-        padding: 80px 0 60px 0;
+        padding: 100px 0;
         text-align: center;
-        position: relative;
-        overflow: hidden;
-    }
-
-    .hero::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-image:
-            radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.1) 20%, transparent 21%),
-            radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.1) 15%, transparent 16%),
-            radial-gradient(circle at 40% 60%, rgba(255, 255, 255, 0.05) 25%, transparent 26%);
-        pointer-events: none;
-    }
-
-    .hero-content {
-        position: relative;
-        z-index: 2;
+        border-bottom: 5px solid #8B0000;
     }
 
     .hero h1 {
-        font-size: 3rem;
-        font-weight: bold;
-        margin-bottom: 40px;
-        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        font-size: 3.5rem;
+        font-weight: 800;
+        margin-bottom: 1rem;
+        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
     }
 
-    .stats-container {
+    .hero p {
+        font-size: 1.25rem;
+        opacity: 0.9;
+        max-width: 700px;
+        margin: 0 auto 40px auto;
+    }
+
+    .stats-wrapper {
         display: flex;
         justify-content: center;
-        gap: 80px;
-        margin-top: 30px;
+        gap: 30px;
+        flex-wrap: wrap;
     }
 
-    .stat-item h2 {
+    .stat-card {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 25px 40px;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+        text-align: center;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-10px);
+        background: rgba(255, 255, 255, 0.2);
+    }
+
+    .stat-card h2 {
         font-size: 3.5rem;
-        font-weight: bold;
-        margin-bottom: 10px;
-        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        font-weight: 700;
+        margin: 0;
     }
 
-    .stat-item p {
+    .stat-card p {
         font-size: 1rem;
-        opacity: 0.9;
-        font-weight: 600;
+        margin: 5px 0 0 0;
+        opacity: 0.8;
+        font-weight: 500;
+        letter-spacing: 1px;
     }
 
-    /* Kategori Section */
-    .kategori {
-        padding: 60px 0;
-        background: #f8f9fa;
+    .main-content {
+        padding: 80px 0;
     }
 
-    .kategori h2 {
-        color: #333;
+    .section-title {
         font-size: 2.5rem;
-        font-weight: bold;
+        font-weight: 700;
+        color: #2c3e50;
         margin-bottom: 50px;
+        text-align: center;
     }
 
     .kategori-card {
-        background: #78909c;
-        color: white;
-        border: none;
-        transition: all 0.3s ease;
-        cursor: pointer;
-        height: 140px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
+        background: #ffffff;
+        border: 1px solid #e0e0e0;
         text-decoration: none;
-        border-radius: 8px;
-        margin-bottom: 20px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        color: #34495e;
+        padding: 30px;
+        border-radius: 12px;
+        text-align: center;
+        transition: all 0.3s ease;
+        display: block;
+        height: 100%;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
     }
 
     .kategori-card:hover {
-        background: #607d8b;
-        transform: translateY(-5px);
-        color: white;
-        text-decoration: none;
-        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        transform: translateY(-8px);
+        border-color: #dc3545;
+        box-shadow: 0 10px 30px rgba(220, 53, 69, 0.2);
     }
 
     .kategori-icon {
-        font-size: 2.5rem;
-        margin-bottom: 10px;
+        font-size: 3rem;
+        color: #dc3545;
+        margin-bottom: 15px;
     }
 
     .kategori-title {
-        font-size: 0.85rem;
-        font-weight: bold;
-        text-align: center;
-        line-height: 1.2;
-        margin-bottom: 5px;
+        font-size: 1.1rem;
+        font-weight: 600;
     }
 
     .kategori-subtitle {
-        font-size: 0.7rem;
-        opacity: 0.9;
-        text-align: center;
+        font-size: 0.9rem;
+        color: #6c757d;
     }
 
-    /* Mobile Responsiveness */
+    .chart-container {
+        background: #ffffff;
+        padding: 40px;
+        border-radius: 15px;
+        box-shadow: 0 4px 25px rgba(0, 0, 0, 0.1);
+    }
+
     @media (max-width: 768px) {
         .hero h1 {
-            font-size: 2.2rem;
+            font-size: 2.5rem;
         }
 
-        .stats-container {
-            flex-direction: column;
-            gap: 30px;
+        .stats-wrapper {
+            gap: 15px;
         }
 
-        .stat-item h2 {
+        .stat-card {
+            padding: 20px;
+        }
+
+        .stat-card h2 {
             font-size: 2.5rem;
         }
     }
 </style>
 
-<!-- Hero Section -->
 <section class="hero">
     <div class="container">
-        <div class="hero-content">
-            <h1>Sistem Informasi Pengadaan Barang Dan Jasa Banjarmasin Maju Dan Sejahtera</h1>
-            <div class="stats-container">
-                <div class="stat-item">
-                    <h2>2749</h2>
-                    <p>DATA</p>
-                </div>
-                <div class="stat-item">
-                    <h2>107</h2>
-                    <p>MAKRO</p>
-                </div>
-                <div class="stat-item">
-                    <h2>2642</h2>
-                    <p>SEKTORAL</p>
-                </div>
+        <h1>Sistem Informasi Pengadaan Banjarmasin</h1>
+        <p>Transparansi Data untuk Pembangunan yang Lebih Baik dan Kesejahteraan Masyarakat.</p>
+        <div class="stats-wrapper">
+            <div class="stat-card">
+                <h2 data-target="<?= $totalPaketPengadaan ?>">0</h2>
+                <p>PENGADAAN</p>
+            </div>
+            <div class="stat-card">
+                <h2 data-target="<?= $totalPaketTender ?>">0</h2>
+                <p>REALISASI TENDER</p>
+            </div>
+            <div class="stat-card">
+                <h2 data-target="<?= $totalPaketSwakelola ?>">0</h2>
+                <p>REALISASI SWAKELOLA</p>
             </div>
         </div>
     </div>
 </section>
 
-<!-- Kategori Section -->
-<section class="kategori">
+<main class="main-content">
     <div class="container">
-        <h2 class="text-center mb-5">KATEGORI</h2>
-        <div class="row">
-            <!-- Baris Pertama -->
-            <div class="col-lg-2 col-md-4 col-sm-6 col-6 mb-3">
-                <a href="rup/pengadaanlangsung.php" class="kategori-card">
-                    <div class="kategori-icon">
-                        <i class="fas fa-chart-line"></i>
+        <div class="row gy-4 align-items-center">
+            <div class="col-lg-7">
+                <h2 class="section-title">Kategori Data</h2>
+                <div class="row">
+                    <div class="col-md-4 col-6 mb-4">
+                        <a href="rekappengadaan/pengadaan/seluruhpengadaan.php" class="kategori-card">
+                            <div class="kategori-icon"><i class="fas fa-boxes"></i></div>
+                            <div class="kategori-title">Data Pengadaan</div>
+                            <div class="kategori-subtitle"><?= number_format($totalPaketPengadaan, 0, ',', '.') ?> Paket</div>
+                        </a>
                     </div>
-                    <div class="kategori-title">EKONOMI</div>
-                    <div class="kategori-subtitle">420 DATA</div>
-                </a>
+                    <div class="col-md-4 col-6 mb-4">
+                        <a href="rekappengadaan/tender/realisasi_tender.php" class="kategori-card">
+                            <div class="kategori-icon"><i class="fas fa-gavel"></i></div>
+                            <div class="kategori-title">Realisasi Tender</div>
+                            <div class="kategori-subtitle"><?= number_format($totalPaketTender, 0, ',', '.') ?> Paket</div>
+                        </a>
+                    </div>
+                    <div class="col-md-4 col-6 mb-4">
+                        <a href="rekappengadaan/swakelola/realisasi_swakelola.php" class="kategori-card">
+                            <div class="kategori-icon"><i class="fas fa-people-carry"></i></div>
+                            <div class="kategori-title">Realisasi Swakelola</div>
+                            <div class="kategori-subtitle"><?= number_format($totalPaketSwakelola, 0, ',', '.') ?> Paket</div>
+                        </a>
+                    </div>
+                </div>
             </div>
 
-            <div class="col-lg-2 col-md-4 col-sm-6 col-6 mb-3">
-                <a href="#" class="kategori-card">
-                    <div class="kategori-icon">
-                        <i class="fas fa-users"></i>
-                    </div>
-                    <div class="kategori-title">KEPENDUDUKAN</div>
-                    <div class="kategori-subtitle">233 DATA</div>
-                </a>
-            </div>
-
-            <div class="col-lg-2 col-md-4 col-sm-6 col-6 mb-3">
-                <a href="rekapitulasi/import.php" class="kategori-card">
-                    <div class="kategori-icon">
-                        <i class="fas fa-hospital"></i>
-                    </div>
-                    <div class="kategori-title">KESEHATAN</div>
-                    <div class="kategori-subtitle">185 DATA</div>
-                </a>
-            </div>
-
-            <div class="col-lg-2 col-md-4 col-sm-6 col-6 mb-3">
-                <a href="rekappengadaan/rup/seluruhpengadaan.php" class="kategori-card">
-                    <div class="kategori-icon">
-                        <i class="fas fa-eye"></i>
-                    </div>
-                    <div class="kategori-title">PENGAWASAN</div>
-                    <div class="kategori-subtitle">142 DATA</div>
-                </a>
-            </div>
-
-            <div class="col-lg-2 col-md-4 col-sm-6 col-6 mb-3">
-                <a href="#" class="kategori-card">
-                    <div class="kategori-icon">
-                        <i class="fas fa-masks-theater"></i>
-                    </div>
-                    <div class="kategori-title">PARIWISATA BUDAYA</div>
-                    <div class="kategori-subtitle">98 DATA</div>
-                </a>
-            </div>
-
-            <div class="col-lg-2 col-md-4 col-sm-6 col-6 mb-3">
-                <a href="#" class="kategori-card">
-                    <div class="kategori-icon">
-                        <i class="fas fa-cogs"></i>
-                    </div>
-                    <div class="kategori-title">PEMERINTAHAN</div>
-                    <div class="kategori-subtitle">76 DATA</div>
-                </a>
-            </div>
-
-            <!-- Baris Kedua -->
-            <div class="col-lg-2 col-md-4 col-sm-6 col-6 mb-3">
-                <a href="#" class="kategori-card">
-                    <div class="kategori-icon">
-                        <i class="fas fa-tools"></i>
-                    </div>
-                    <div class="kategori-title">PENANGGULANGAN BENCANA</div>
-                    <div class="kategori-subtitle">54 DATA</div>
-                </a>
-            </div>
-
-            <div class="col-lg-2 col-md-4 col-sm-6 col-6 mb-3">
-                <a href="swakelola/tes.php" class="kategori-card">
-                    <div class="kategori-icon">
-                        <i class="fas fa-graduation-cap"></i>
-                    </div>
-                    <div class="kategori-title">PENDIDIKAN</div>
-                    <div class="kategori-subtitle">321 DATA</div>
-                </a>
-            </div>
-
-            <div class="col-lg-2 col-md-4 col-sm-6 col-6 mb-3">
-                <a href="rekapitulasi/input.php" class="kategori-card">
-                    <div class="kategori-icon">
-                        <i class="fas fa-seedling"></i>
-                    </div>
-                    <div class="kategori-title">PERTANIAN</div>
-                    <div class="kategori-subtitle">167 DATA</div>
-                </a>
-            </div>
-
-            <div class="col-lg-2 col-md-4 col-sm-6 col-6 mb-3">
-                <a href="#" class="kategori-card">
-                    <div class="kategori-icon">
-                        <i class="fas fa-people-group"></i>
-                    </div>
-                    <div class="kategori-title">SOSIAL</div>
-                    <div class="kategori-subtitle">89 DATA</div>
-                </a>
-            </div>
-
-            <div class="col-lg-2 col-md-4 col-sm-6 col-6 mb-3">
-                <a href="#" class="kategori-card">
-                    <div class="kategori-icon">
-                        <i class="fas fa-briefcase"></i>
-                    </div>
-                    <div class="kategori-title">TENAGA KERJA</div>
-                    <div class="kategori-subtitle">112 DATA</div>
-                </a>
-            </div>
-
-            <div class="col-lg-2 col-md-4 col-sm-6 col-6 mb-3">
-                <a href="#" class="kategori-card">
-                    <div class="kategori-icon">
-                        <i class="fas fa-truck"></i>
-                    </div>
-                    <div class="kategori-title">TRANSPORTASI</div>
-                    <div class="kategori-subtitle">45 DATA</div>
-                </a>
+            <div class="col-lg-5">
+                <div class="chart-container">
+                    <h3 class="text-center mb-4">Komposisi Data Paket</h3>
+                    <canvas id="komposisiDataChart"></canvas>
+                </div>
             </div>
         </div>
     </div>
-</section>
+</main>
 
-<!-- Custom JavaScript khusus untuk halaman index -->
 <script>
-    // HANYA JavaScript yang spesifik untuk index, tidak conflict dengan header
     document.addEventListener('DOMContentLoaded', function() {
-        // Smooth hover effects untuk kategori cards
-        const cards = document.querySelectorAll('.kategori-card');
-        cards.forEach(card => {
-            card.addEventListener('mouseenter', function() {
-                this.style.transform = 'translateY(-8px) scale(1.02)';
-            });
+        // 1. Animasi Counter Angka
+        const counters = document.querySelectorAll('.stat-card h2');
+        const speed = 200; // Semakin besar, semakin lambat
 
-            card.addEventListener('mouseleave', function() {
-                this.style.transform = 'translateY(0) scale(1)';
-            });
-        });
+        const animateCounter = (counter) => {
+            const target = +counter.getAttribute('data-target');
+            const count = +counter.innerText;
+            const increment = target / speed;
 
-        // Counter animation untuk stats
-        function animateCounter(element, target) {
-            let count = 0;
-            const increment = target / 100;
-            const timer = setInterval(() => {
-                count += increment;
-                if (count >= target) {
-                    element.textContent = target;
-                    clearInterval(timer);
-                } else {
-                    element.textContent = Math.floor(count);
-                }
-            }, 20);
-        }
-
-        // Animate counters when hero section is visible
-        const observerOptions = {
-            threshold: 0.5
+            if (count < target) {
+                counter.innerText = Math.ceil(count + increment);
+                setTimeout(() => animateCounter(counter), 10);
+            } else {
+                counter.innerText = new Intl.NumberFormat('id-ID').format(target);
+            }
         };
 
-        const observer = new IntersectionObserver((entries) => {
+        const observer = new IntersectionObserver((entries, observer) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
-                    const counters = entry.target.querySelectorAll('.stat-item h2');
-                    counters.forEach(counter => {
-                        const target = parseInt(counter.textContent);
-                        animateCounter(counter, target);
-                    });
+                    animateCounter(entry.target);
                     observer.unobserve(entry.target);
                 }
             });
-        }, observerOptions);
+        }, {
+            threshold: 0.5
+        });
 
-        const heroSection = document.querySelector('.hero');
-        if (heroSection) {
-            observer.observe(heroSection);
+        counters.forEach(counter => observer.observe(counter));
+
+        // 2. Grafik Pie Chart dengan Chart.js
+        const ctx = document.getElementById('komposisiDataChart');
+        if (ctx) {
+            // Ambil data dari PHP
+            const chartData = <?= json_encode($chartData) ?>;
+
+            new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: chartData.labels,
+                    datasets: [{
+                        label: 'Jumlah Paket',
+                        data: chartData.data,
+                        backgroundColor: [
+                            'rgba(52, 152, 219, 0.8)', // Biru
+                            'rgba(231, 76, 60, 0.8)', // Merah
+                            'rgba(241, 196, 15, 0.8)' // Kuning
+                        ],
+                        borderColor: [
+                            'rgba(52, 152, 219, 1)',
+                            'rgba(231, 76, 60, 1)',
+                            'rgba(241, 196, 15, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed !== null) {
+                                        label += new Intl.NumberFormat('id-ID').format(context.parsed) + ' Paket';
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
         }
     });
 </script>

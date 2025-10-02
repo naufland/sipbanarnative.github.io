@@ -1,5 +1,5 @@
 <?php
-// File: api/realisasi_tender.php
+// File: api/realisasi_swakelola.php
 
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
@@ -16,27 +16,32 @@ require_once '../includes/RealisasiSwakelolaModel.php';
 try {
     $database = new Database();
     $db = $database->getConnection();
-    $realisasiTender = new RealisasiSwakelolaModel($db);
+    $realisasiSwakelola = new RealisasiSwakelolaModel($db);
     $action = $_GET['action'] ?? 'list';
 
+    // Build filters untuk Swakelola
     $filters = array_filter([
-        'tanggal_awal' => $_GET['tanggal_awal'] ?? '',
-        'tanggal_akhir' => $_GET['tanggal_akhir'] ?? '',
-        'jenis_pengadaan' => $_GET['jenis_pengadaan'] ?? '',
+        'tahun' => $_GET['tahun'] ?? '',
         'klpd' => $_GET['klpd'] ?? '',
-        'metode_pengadaan' => $_GET['metode_pengadaan'] ?? '',
+        'tipe_swakelola' => $_GET['tipe_swakelola'] ?? '',
         'search' => $_GET['search'] ?? ''
     ]);
 
     switch ($action) {
         case 'list':
             $page = intval($_GET['page'] ?? 1);
-            $limit = intval($_GET['limit'] ?? 100000);
+            $limit = intval($_GET['limit'] ?? 50);
             $offset = ($page - 1) * $limit;
 
-            $data = $realisasiTender->getRealisasiSeleksiData($filters, $limit, $offset);
-            $total = $realisasiTender->getTotalCount($filters);
+            $data = $realisasiSwakelola->getRealisasiSeleksiData($filters, $limit, $offset);
+            $total = $realisasiSwakelola->getTotalCount($filters);
             $totalPages = ceil($total / $limit);
+            
+            // Tambahkan nomor urut
+            $startNumber = $offset + 1;
+            foreach ($data as $index => &$row) {
+                $row['No'] = $startNumber + $index;
+            }
             
             echo json_encode([
                 'success' => true,
@@ -47,70 +52,99 @@ try {
                     'total_records' => (int)$total,
                     'per_page' => $limit
                 ]
-            ]);
+            ], JSON_PRETTY_PRINT);
             break;
 
         case 'summary':
-            // MEMANGGIL METODE YANG BENAR
-            $allData = $realisasiTender->getAllDataForSummary($filters);
+            // GUNAKAN FUNGSI getSummaryData() YANG SUDAH DIBUAT
+            $summary = $realisasiSwakelola->getSummaryData($filters);
             
-            $summary = [
-                'total_paket' => count($allData),
-                'total_pagu' => 0, 'total_hps' => 0, 'total_kontrak' => 0,
-                'breakdown' => [
-                    'jenis_pengadaan' => [], 'klpd' => [], 'metode_pengadaan' => []
-                ]
+            // Tambahan: Ambil data detail untuk breakdown (opsional)
+            $allData = $realisasiSwakelola->getAllDataForSummary($filters);
+            
+            // Breakdown berdasarkan Tipe Swakelola
+            $breakdown = [
+                'tipe_swakelola' => [],
+                'klpd' => []
             ];
-
+            
             foreach ($allData as $row) {
                 $pagu = (float)($row['Nilai_Pagu'] ?? 0);
-                $hps = (float)($row['Nilai_HPS'] ?? 0);
-                $kontrak = (float)($row['Nilai_Kontrak'] ?? 0);
-
-                $summary['total_pagu'] += $pagu;
-                $summary['total_hps'] += $hps;
-                $summary['total_kontrak'] += $kontrak;
-
-                // Proses breakdown
-                $breakdownKeys = [
-                    'jenis_pengadaan' => 'Jenis_Pengadaan',
-                    'klpd' => 'KLPD',
-                    'metode_pengadaan' => 'Metode_Pengadaan'
-                ];
-                foreach ($breakdownKeys as $key => $dbKey) {
-                    if (!empty($row[$dbKey])) {
-                        $value = $row[$dbKey];
-                        if (!isset($summary['breakdown'][$key][$value])) {
-                            $summary['breakdown'][$key][$value] = ['count' => 0, 'total_pagu' => 0];
-                        }
-                        $summary['breakdown'][$key][$value]['count']++;
-                        $summary['breakdown'][$key][$value]['total_pagu'] += $pagu;
-                    }
+                $realisasi = (float)($row['Nilai_Total_Realisasi'] ?? 0);
+                
+                // Breakdown Tipe Swakelola
+                $tipe = $row['Tipe_Swakelola'] ?? 'Tidak Diketahui';
+                if (!isset($breakdown['tipe_swakelola'][$tipe])) {
+                    $breakdown['tipe_swakelola'][$tipe] = [
+                        'count' => 0,
+                        'total_pagu' => 0,
+                        'total_realisasi' => 0
+                    ];
                 }
+                $breakdown['tipe_swakelola'][$tipe]['count']++;
+                $breakdown['tipe_swakelola'][$tipe]['total_pagu'] += $pagu;
+                $breakdown['tipe_swakelola'][$tipe]['total_realisasi'] += $realisasi;
+                
+                // Breakdown KLPD
+                $klpd = $row['KLPD'] ?? 'Tidak Diketahui';
+                if (!isset($breakdown['klpd'][$klpd])) {
+                    $breakdown['klpd'][$klpd] = [
+                        'count' => 0,
+                        'total_pagu' => 0,
+                        'total_realisasi' => 0
+                    ];
+                }
+                $breakdown['klpd'][$klpd]['count']++;
+                $breakdown['klpd'][$klpd]['total_pagu'] += $pagu;
+                $breakdown['klpd'][$klpd]['total_realisasi'] += $realisasi;
             }
-
-            $summary['avg_pagu'] = $summary['total_paket'] > 0 ? $summary['total_pagu'] / $summary['total_paket'] : 0;
             
-            foreach ($summary['breakdown'] as &$breakdown) {
-                uasort($breakdown, fn($a, $b) => $b['total_pagu'] <=> $a['total_pagu']);
+            // Urutkan breakdown berdasarkan total_pagu
+            foreach ($breakdown as &$group) {
+                uasort($group, fn($a, $b) => $b['total_pagu'] <=> $a['total_pagu']);
             }
-
-            echo json_encode(['success' => true, 'summary' => $summary]);
+            
+            // Hitung persentase realisasi
+            $persentase_realisasi = 0;
+            if ($summary['total_pagu'] > 0) {
+                $persentase_realisasi = ($summary['total_realisasi'] / $summary['total_pagu']) * 100;
+            }
+            
+            echo json_encode([
+                'success' => true,
+                'summary' => [
+                    'total_paket' => $summary['total_paket'],
+                    'total_pagu' => $summary['total_pagu'],
+                    'total_realisasi' => $summary['total_realisasi'],
+                    'persentase_realisasi' => round($persentase_realisasi, 2),
+                    'breakdown' => $breakdown
+                ]
+            ], JSON_PRETTY_PRINT);
             break;
         
         case 'options':
             echo json_encode([
                 'success' => true,
                 'options' => [
-                    'jenis_pengadaan' => $realisasiTender->getDistinctValues('Jenis_Pengadaan'),
-                    'klpd' => $realisasiTender->getDistinctValues('KLPD'),
-                    'metode_pengadaan' => $realisasiTender->getDistinctValues('Metode_Pengadaan'),
-                    'years' => $realisasiTender->getAvailableYears() // Pemanggilan ini sekarang sudah valid
+                    'tipe_swakelola' => $realisasiSwakelola->getDistinctValues('Tipe_Swakelola'),
+                    'klpd' => $realisasiSwakelola->getDistinctValues('KLPD'),
+                    'years' => $realisasiSwakelola->getAvailableYears()
                 ]
-            ]);
+            ], JSON_PRETTY_PRINT);
+            break;
+            
+        default:
+            echo json_encode([
+                'success' => false,
+                'message' => 'Invalid action'
+            ], JSON_PRETTY_PRINT);
             break;
     }
 } catch (Exception $e) {
-    error_log("API Error in realisasi_tender: " . $e->getMessage());
-    echo json_encode(['success' => false, 'message' => 'Server error']);
+    error_log("API Error in realisasi_swakelola: " . $e->getMessage());
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Server error: ' . $e->getMessage()
+    ], JSON_PRETTY_PRINT);
 }

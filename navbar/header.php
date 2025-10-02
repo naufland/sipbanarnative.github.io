@@ -416,7 +416,7 @@
                                 <a class="nav-link dropdown-toggle" href="#" id="rekapDropdown" role="button"
                                     data-bs-toggle="dropdown" aria-expanded="false">
                                     <i class="fas fa-chart-line"></i>
-                                    Penyedia
+                                    Data PBJ
                                 </a>
                                 <ul class="dropdown-menu" aria-labelledby="rekapDropdown">
                                     <li class="dropdown-submenu">
@@ -428,7 +428,7 @@
                                             <li>
                                                 <a class="dropdown-item" href="<?= $_SERVER['REQUEST_SCHEME'] ?>://<?= $_SERVER['HTTP_HOST'] ?>/rekappengadaan/rup/pengadaanlangsung.php">
                                                     <i class="fas fa-bolt"></i>
-                                                    Pengadaan Langsung
+                                                    Penyedia
                                                 </a>
                                             </li>
                                             <li>
@@ -447,9 +447,13 @@
                                         <ul class="dropdown-menu">
                                             <li><a class="dropdown-item" href="<?= $_SERVER['REQUEST_SCHEME'] ?>://<?= $_SERVER['HTTP_HOST'] ?>/rekappengadaan/realisasi/tender.php" ><i class="fas fa-file-alt"></i>Tender</a></li>
                                             <li><a class="dropdown-item" href="<?= $_SERVER['REQUEST_SCHEME'] ?>://<?= $_SERVER['HTTP_HOST'] ?>/rekappengadaan/realisasi/seleksi.php"><i class="fas fa-file-alt"></i>Seleksi</a></li>
-                                            <li><a class="dropdown-item" href="#"><i class="fas fa-file-alt"></i> Item Submenu 3</a></li>
-                                            <li><a class="dropdown-item" href="#"><i class="fas fa-file-alt"></i> Item Submenu 4</a></li>
-                                            <li><a class="dropdown-item" href="#"><i class="fas fa-file-alt"></i> Item Submenu 5</a></li>
+                                            <li><a class="dropdown-item" href="<?= $_SERVER['REQUEST_SCHEME'] ?>://<?= $_SERVER['HTTP_HOST'] ?>/rekappengadaan/realisasi/swakelola.php"><i class="fas fa-file-alt"></i>Swakelola</a></li>
+                                            <li><a class="dropdown-item" href="<?= $_SERVER['REQUEST_SCHEME'] ?>://<?= $_SERVER['HTTP_HOST'] ?>/rekappengadaan/realisasi/nontender.php"><i class="fas fa-file-alt"></i>Non Tender</a></li>
+                                            <li><a class="dropdown-item" href="<?= $_SERVER['REQUEST_SCHEME'] ?>://<?= $_SERVER['HTTP_HOST'] ?>/rekappengadaan/realisasi/penunjukanlangsung.php"><i class="fas fa-file-alt"></i>Penunjukkan Langsung</a></li>
+                                            <li><a class="dropdown-item" href="<?= $_SERVER['REQUEST_SCHEME'] ?>://<?= $_SERVER['HTTP_HOST'] ?>/rekappengadaan/realisasi/pencatatan_nontender.php"><i class="fas fa-file-alt"></i>Pencatatan Nontender</a></li>
+                                            <li><a class="dropdown-item" href="<?= $_SERVER['REQUEST_SCHEME'] ?>://<?= $_SERVER['HTTP_HOST'] ?>/rekappengadaan/realisasi/dikecualikan.php"><i class="fas fa-file-alt"></i>Dikecualikan</a></li>
+                                            <li><a class="dropdown-item" href="<?= $_SERVER['REQUEST_SCHEME'] ?>://<?= $_SERVER['HTTP_HOST'] ?>/rekappengadaan/realisasi/pengadaandarurat.php"><i class="fas fa-file-alt"></i>Pengadaan Darurat</a></li>
+                                            <li><a class="dropdown-item" href="<?= $_SERVER['REQUEST_SCHEME'] ?>://<?= $_SERVER['HTTP_HOST'] ?>/rekappengadaan/realisasi/epurchasing.php"><i class="fas fa-file-alt"></i>E-Purchasing</a></li>
                                         </ul>
                                     </li>
                                     <li>
