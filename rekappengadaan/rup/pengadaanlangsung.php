@@ -1307,7 +1307,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="card-label">Rata-rata Pagu</div>
 
                     <div class="card-subtitle">Per Paket</div>
-
+                
                 </div>
 
             </div>

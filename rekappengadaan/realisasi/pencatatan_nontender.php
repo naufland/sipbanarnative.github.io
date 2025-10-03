@@ -96,7 +96,7 @@ include '../../navbar/header.php';
 
     .filter-header,
     .summary-header {
-        background: linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%);
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
         color: white;
         padding: 20px 25px;
         display: flex;
