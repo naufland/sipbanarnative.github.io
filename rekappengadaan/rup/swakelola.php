@@ -611,14 +611,7 @@ include '../../navbar/header.php';
                         <div class="card-subtitle">Keseluruhan</div>
                     </div>
                 </div>
-                <div class="summary-card info">
-                    <div class="card-icon"><i class="fas fa-calculator"></i></div>
-                    <div class="card-content">
-                        <div class="card-value"><?= $formattedAvgPagu ?></div>
-                        <div class="card-label">Rata-rata Pagu</div>
-                        <div class="card-subtitle">Per Paket</div>
-                    </div>
-                </div>
+                
 
             </div>
         </div>

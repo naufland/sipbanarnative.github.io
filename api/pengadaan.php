@@ -46,7 +46,7 @@ try {
 
                     // Pagination parameters
                     $page = intval($_GET['page'] ?? 1);
-                    $limit = intval($_GET['limit'] ?? 100000);
+                    $limit = intval($_GET['limit'] ?? 1000000);
                     $offset = ($page - 1) * $limit;
 
                     // Get data and total count
@@ -92,7 +92,7 @@ try {
                     });
 
                     // Get all data for summary calculation (without pagination)
-                    $allData = $pengadaan->getPengadaanData($filters, 10000, 0);
+                    $allData = $pengadaan->getPengadaanData($filters, 1000000, 0);
                     $totalRecords = count($allData);
                     
                     // Calculate summary statistics

@@ -31,11 +31,13 @@ $summaryResponse = @file_get_contents($apiSummaryUrl);
 $summaryData = json_decode($summaryResponse, true);
 
 // 6. Inisialisasi dan proses variabel statistik (disesuaikan untuk Pencatatan Non-Tender)
+// 6. Inisialisasi dan proses variabel statistik (disesuaikan untuk Pencatatan Non-Tender)
 $totalPaket = 0;
 $totalPagu = 0;
 $totalRealisasi = 0;
 $totalPDN = 0;
 $totalUMK = 0;
+$efisiensi = 0; // Tambahan untuk efisiensi
 $formattedTotalPagu = 'Rp 0';
 $formattedTotalRealisasi = 'Rp 0';
 $formattedTotalPDN = 'Rp 0';
@@ -48,6 +50,11 @@ if ($summaryData && ($summaryData['success'] ?? false) && isset($summaryData['su
     $totalRealisasi = $summary['total_realisasi'] ?? 0;
     $totalPDN = $summary['total_pdn'] ?? 0;
     $totalUMK = $summary['total_umk'] ?? 0;
+
+    // Hitung efisiensi
+    if ($totalPagu > 0) {
+        $efisiensi = (($totalPagu - $totalRealisasi) / $totalPagu) * 100;
+    }
 
     $formattedTotalPagu = 'Rp ' . number_format($totalPagu, 0, ',', '.');
     $formattedTotalRealisasi = 'Rp ' . number_format($totalRealisasi, 0, ',', '.');
@@ -100,7 +107,7 @@ include '../../navbar/header.php';
         color: white;
         padding: 20px 25px;
         display: flex;
-        align-items: center;
+        align-items: center;    
         gap: 12px;
     }
 
@@ -515,45 +522,35 @@ include '../../navbar/header.php';
         </div>
         <div class="summary-content">
             <div class="summary-cards">
-                <div class="summary-card primary">
-                    <div class="card-icon"><i class="fas fa-boxes"></i></div>
-                    <div class="card-content">
-                        <div class="card-value"><?= number_format($totalPaket, 0, ',', '.') ?></div>
-                        <div class="card-label">Total Paket</div>
-                    </div>
-                </div>
-                <div class="summary-card warning">
-                    <div class="card-icon"><i class="fas fa-file-invoice-dollar"></i></div>
-                    <div class="card-content">
-                        <div class="card-value"><?= $formattedTotalPagu ?></div>
-                        <div class="card-label">Total Pagu</div>
-                    </div>
-                </div>
-                <div class="summary-card success">
-                    <div class="card-icon"><i class="fas fa-file-contract"></i></div>
-                    <div class="card-content">
-                        <div class="card-value"><?= $formattedTotalRealisasi ?></div>
-                        <div class="card-label">Total Realisasi</div>
-                    </div>
-                </div>
-                <div class="summary-card info">
-                    <div class="card-icon"><i class="fas fa-flag"></i></div>
-                    <div class="card-content">
-                        <div class="card-value"><?= $formattedTotalPDN ?></div>
-                        <div class="card-label">Total PDN</div>
-                    </div>
-                </div>
-                <div class="summary-card secondary">
-                    <div class="card-icon"><i class="fas fa-industry"></i></div>
-                    <div class="card-content">
-                        <div class="card-value"><?= $formattedTotalUMK ?></div>
-                        <div class="card-label">Total UMK</div>
-                    </div>
-                </div>
-            </div>
+    <div class="summary-card primary">
+        <div class="card-icon"><i class="fas fa-boxes"></i></div>
+        <div class="card-content">
+            <div class="card-value"><?= number_format($totalPaket, 0, ',', '.') ?></div>
+            <div class="card-label">Total Paket</div>
         </div>
     </div>
-
+    <div class="summary-card warning">
+        <div class="card-icon"><i class="fas fa-file-invoice-dollar"></i></div>
+        <div class="card-content">
+            <div class="card-value"><?= $formattedTotalPagu ?></div>
+            <div class="card-label">Total Pagu</div>
+        </div>
+    </div>
+    <div class="summary-card success">
+        <div class="card-icon"><i class="fas fa-handshake"></i></div>
+        <div class="card-content">
+            <div class="card-value"><?= $formattedTotalRealisasi ?></div>
+            <div class="card-label">Total Nilai Kontrak</div>
+        </div>
+    </div>
+    <div class="summary-card info">
+        <div class="card-icon"><i class="fas fa-percentage"></i></div>
+        <div class="card-content">
+            <div class="card-value"><?= number_format($efisiensi, 2) ?>%</div>
+            <div class="card-label">Efisiensi Anggaran</div>
+        </div>
+    </div>
+</div>
     <div class="results-section">
         <div class="results-header">
             <div>

@@ -31,11 +31,13 @@ $summaryResponse = @file_get_contents($apiSummaryUrl);
 $summaryData = json_decode($summaryResponse, true);
 
 // 6. Inisialisasi dan proses variabel statistik (disesuaikan untuk Realisasi Dikecualikan)
+// 6. Inisialisasi dan proses variabel statistik (disesuaikan untuk Realisasi Dikecualikan)
 $totalPaket = 0;
 $totalPagu = 0;
 $totalRealisasi = 0;
 $totalPDN = 0;
 $totalUMK = 0;
+$efisiensi = 0; // Tambahan
 $persentaseRealisasi = 0;
 $formattedTotalPagu = 'Rp 0';
 $formattedTotalRealisasi = 'Rp 0';
@@ -50,6 +52,11 @@ if ($summaryData && ($summaryData['success'] ?? false) && isset($summaryData['su
     $totalPDN = $summary['total_pdn'] ?? 0;
     $totalUMK = $summary['total_umk'] ?? 0;
     $persentaseRealisasi = $summary['persentase_realisasi'] ?? 0;
+
+    // Hitung efisiensi anggaran
+    if ($totalPagu > 0) {
+        $efisiensi = (($totalPagu - $totalRealisasi) / $totalPagu) * 100;
+    }
 
     $formattedTotalPagu = 'Rp ' . number_format($totalPagu, 0, ',', '.');
     $formattedTotalRealisasi = 'Rp ' . number_format($totalRealisasi, 0, ',', '.');
@@ -208,10 +215,10 @@ include '../../navbar/header.php';
     }
 
     .summary-cards {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 20px;
-    }
+    display: grid;
+    grid-template-columns: repeat(4, 1fr); /* Ubah dari auto-fit menjadi 4 kolom tetap */
+    gap: 20px;
+}
 
     .summary-card {
         padding: 25px;
@@ -537,24 +544,17 @@ include '../../navbar/header.php';
                     </div>
                 </div>
                 <div class="summary-card success">
-                    <div class="card-icon"><i class="fas fa-file-contract"></i></div>
+                    <div class="card-icon"><i class="fas fa-handshake"></i></div>
                     <div class="card-content">
                         <div class="card-value"><?= $formattedTotalRealisasi ?></div>
                         <div class="card-label">Total Realisasi</div>
                     </div>
                 </div>
                 <div class="summary-card info">
-                    <div class="card-icon"><i class="fas fa-flag"></i></div>
+                    <div class="card-icon"><i class="fas fa-percentage"></i></div>
                     <div class="card-content">
-                        <div class="card-value"><?= $formattedTotalPDN ?></div>
-                        <div class="card-label">Total PDN</div>
-                    </div>
-                </div>
-                <div class="summary-card secondary">
-                    <div class="card-icon"><i class="fas fa-industry"></i></div>
-                    <div class="card-content">
-                        <div class="card-value"><?= $formattedTotalUMK ?></div>
-                        <div class="card-label">Total UMK</div>
+                        <div class="card-value"><?= number_format($efisiensi, 2) ?>%</div>
+                        <div class="card-label">Efisiensi Anggaran</div>
                     </div>
                 </div>
             </div>

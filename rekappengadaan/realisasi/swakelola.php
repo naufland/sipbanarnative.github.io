@@ -34,8 +34,10 @@ $summaryData = json_decode($summaryResponse, true);
 $totalPaket = 0;
 $totalPagu = 0;
 $totalRealisasi = 0;
+$efisiensi = 0;
 $formattedTotalPagu = 'Rp 0';
 $formattedTotalRealisasi = 'Rp 0';
+$formattedEfisiensi = '0%';
 
 if ($summaryData && ($summaryData['success'] ?? false) && isset($summaryData['summary'])) {
     $summary = $summaryData['summary'];
@@ -44,10 +46,17 @@ if ($summaryData && ($summaryData['success'] ?? false) && isset($summaryData['su
     // Menggunakan 'total_realisasi' dari API Swakelola
     $totalRealisasi = $summary['total_realisasi'] ?? 0;
 
+    // Hitung Efisiensi: (Pagu - Realisasi) / Pagu * 100
+    if ($totalPagu > 0) {
+        $efisiensi = (($totalPagu - $totalRealisasi) / $totalPagu) * 100;
+    }
+
     $formattedTotalPagu = 'Rp ' . number_format($totalPagu, 0, ',', '.');
     $formattedTotalRealisasi = 'Rp ' . number_format($totalRealisasi, 0, ',', '.');
+    $formattedEfisiensi = number_format($efisiensi, 2, ',', '.') . '%';
 }
 
+// ... (sisa kode sama seperti sebelumnya sampai bagian summary cards)
 // 7. Siapkan variabel untuk paginasi
 $tableData = $data['data'] ?? [];
 $totalPages = $data['pagination']['total_pages'] ?? 1;
@@ -495,6 +504,13 @@ include '../../navbar/header.php';
                         <div class="card-label">Total Realisasi</div>
                     </div>
                 </div>
+                <div class="summary-card info">
+                    <div class="card-icon"><i class="fas fa-percentage"></i></div>
+                    <div class="card-content">
+                        <div class="card-value"><?= $formattedEfisiensi ?></div>
+                        <div class="card-label">Efisiensi Anggaran</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -551,13 +567,13 @@ include '../../navbar/header.php';
                                 <td><i class="fas fa-building" style="margin-right: 5px; color: #3498db;"></i> <?= htmlspecialchars($row['KLPD'] ?? '-') ?></td>
                                 <td style="text-align: center;"><span class="badge badge-primary"><?= htmlspecialchars($row['Tipe_Swakelola'] ?? '-') ?></span></td>
                                 <td class="text-right">
-                                    <?php 
+                                    <?php
                                     $nilaiPagu = $row['Nilai_Pagu'] ?? 0;
                                     echo 'Rp ' . number_format($nilaiPagu, 0, ',', '.');
                                     ?>
                                 </td>
                                 <td class="text-right text-success">
-                                    <?php 
+                                    <?php
                                     $nilaiRealisasi = $row['Nilai_Total_Realisasi'] ?? 0;
                                     echo 'Rp ' . number_format($nilaiRealisasi, 0, ',', '.');
                                     ?>

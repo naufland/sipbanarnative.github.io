@@ -1010,12 +1010,7 @@ include '../../navbar/header.php';
                     </div>
                 </div>
 
-                <div class="summary-card info">
-                    <div class="card-icon">
-                        <i class="fas fa-calculator"></i>
-                    </div>
-                    
-                </div>
+               
 
 
                 </div>

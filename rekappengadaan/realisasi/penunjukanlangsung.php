@@ -37,6 +37,7 @@ $totalHPS = 0;
 $totalKontrak = 0;
 $totalPDN = 0;
 $totalUMK = 0;
+$efisiensi = 0;
 $formattedTotalPagu = 'Rp 0';
 $formattedTotalHPS = 'Rp 0';
 $formattedTotalKontrak = 'Rp 0';
@@ -57,6 +58,11 @@ if ($summaryData && ($summaryData['success'] ?? false) && isset($summaryData['su
     $formattedTotalKontrak = 'Rp ' . number_format($totalKontrak, 0, ',', '.');
     $formattedTotalPDN = 'Rp ' . number_format($totalPDN, 0, ',', '.');
     $formattedTotalUMK = 'Rp ' . number_format($totalUMK, 0, ',', '.');
+    
+    // Hitung efisiensi anggaran
+    if ($totalPagu > 0) {
+        $efisiensi = (($totalPagu - $totalKontrak) / $totalPagu) * 100;
+    }
 }
 
 // 7. Siapkan variabel untuk paginasi
@@ -209,22 +215,79 @@ include '../../navbar/header.php';
         color: #dc3545;
     }
 
-    .summary-cards {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 20px;
+    /* NEW SUMMARY CARD DESIGN */
+    .summary-header-new {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        color: white;
+        padding: 16px 25px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border-radius: 15px 15px 0 0;
     }
 
-    .summary-card {
-        padding: 25px;
+    .summary-header-new h3 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 700;
+    }
+
+    .summary-cards-new {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 0;
+        padding: 0;
+    }
+
+    .summary-card-new {
+        padding: 30px 25px;
         display: flex;
         align-items: center;
         gap: 20px;
-        border-radius: 12px;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        border-right: 1px solid #e9ecef;
+        border-bottom: 1px solid #e9ecef;
+        background: white;
+        transition: all 0.3s ease;
+        position: relative;
     }
 
-    .card-icon {
+    .summary-card-new:nth-child(4n) {
+        border-right: none;
+    }
+
+    .summary-card-new::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, transparent, transparent);
+        transition: all 0.3s ease;
+    }
+
+    .summary-card-new:hover {
+        background: #f8f9fa;
+        transform: translateY(-2px);
+    }
+
+    .summary-card-new:nth-child(1)::before {
+        background: linear-gradient(90deg, #3498db, #5dade2);
+    }
+
+    .summary-card-new:nth-child(2)::before {
+        background: linear-gradient(90deg, #f39c12, #f5b041);
+    }
+
+    .summary-card-new:nth-child(3)::before {
+        background: linear-gradient(90deg, #27ae60, #52be80);
+    }
+
+    .summary-card-new:nth-child(4)::before {
+        background: linear-gradient(90deg, #17a2b8, #48c9b0);
+    }
+
+    .card-icon-new {
         width: 60px;
         height: 60px;
         border-radius: 50%;
@@ -233,38 +296,42 @@ include '../../navbar/header.php';
         justify-content: center;
         color: white;
         font-size: 24px;
+        flex-shrink: 0;
     }
 
-    .summary-card.primary .card-icon {
-        background: linear-gradient(135deg, #dc3545, #e74c3c);
+    .summary-card-new:nth-child(1) .card-icon-new {
+        background: linear-gradient(135deg, #3498db, #2980b9);
     }
 
-    .summary-card.warning .card-icon {
-        background: linear-gradient(135deg, #c0392b, #e74c3c);
+    .summary-card-new:nth-child(2) .card-icon-new {
+        background: linear-gradient(135deg, #f39c12, #e67e22);
     }
 
-    .summary-card.success .card-icon {
-        background: linear-gradient(135deg, #922b21, #cb4335);
+    .summary-card-new:nth-child(3) .card-icon-new {
+        background: linear-gradient(135deg, #27ae60, #229954);
     }
 
-    .summary-card.info .card-icon {
-        background: linear-gradient(135deg, #a93226, #cd6155);
+    .summary-card-new:nth-child(4) .card-icon-new {
+        background: linear-gradient(135deg, #17a2b8, #138496);
     }
 
-    .summary-card.secondary .card-icon {
-        background: linear-gradient(135deg, #943126, #d98880);
+    .card-content-new {
+        flex: 1;
     }
 
-    .card-value {
+    .card-value-new {
         font-size: 24px;
         font-weight: 700;
         color: #2c3e50;
+        margin-bottom: 5px;
     }
 
-    .card-label {
-        font-size: 14px;
+    .card-label-new {
+        font-size: 13px;
         font-weight: 600;
-        color: #6c757d;
+        color: #7f8c8d;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
 
     .results-header {
@@ -432,6 +499,26 @@ include '../../navbar/header.php';
             transform: translateY(0);
         }
     }
+
+    @media (max-width: 1200px) {
+        .summary-cards-new {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        
+        .summary-card-new:nth-child(2n) {
+            border-right: none;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .summary-cards-new {
+            grid-template-columns: 1fr;
+        }
+        
+        .summary-card-new {
+            border-right: none;
+        }
+    }
 </style>
 
 <div class="container">
@@ -500,53 +587,37 @@ include '../../navbar/header.php';
     </div>
 
     <div class="summary-section">
-        <div class="summary-header">
+        <div class="summary-header-new">
             <i class="fas fa-chart-bar"></i>
-            <h3>Ringkasan Data Penunjukan Langsung</h3>
+            <h3>Ringkasan Data Realisasi Tender</h3>
         </div>
-        <div class="summary-content">
-            <div class="summary-cards">
-                <div class="summary-card primary">
-                    <div class="card-icon"><i class="fas fa-boxes"></i></div>
-                    <div class="card-content">
-                        <div class="card-value"><?= number_format($totalPaket, 0, ',', '.') ?></div>
-                        <div class="card-label">Total Paket</div>
-                    </div>
+        <div class="summary-cards-new">
+            <div class="summary-card-new">
+                <div class="card-icon-new"><i class="fas fa-boxes"></i></div>
+                <div class="card-content-new">
+                    <div class="card-value-new"><?= number_format($totalPaket, 0, ',', '.') ?></div>
+                    <div class="card-label-new">Total Paket</div>
                 </div>
-                <div class="summary-card warning">
-                    <div class="card-icon"><i class="fas fa-file-invoice-dollar"></i></div>
-                    <div class="card-content">
-                        <div class="card-value"><?= $formattedTotalPagu ?></div>
-                        <div class="card-label">Total Pagu</div>
-                    </div>
+            </div>
+            <div class="summary-card-new">
+                <div class="card-icon-new"><i class="fas fa-file-invoice-dollar"></i></div>
+                <div class="card-content-new">
+                    <div class="card-value-new"><?= $formattedTotalPagu ?></div>
+                    <div class="card-label-new">Total Pagu</div>
                 </div>
-                <div class="summary-card info">
-                    <div class="card-icon"><i class="fas fa-money-check-alt"></i></div>
-                    <div class="card-content">
-                        <div class="card-value"><?= $formattedTotalHPS ?></div>
-                        <div class="card-label">Total HPS</div>
-                    </div>
+            </div>
+            <div class="summary-card-new">
+                <div class="card-icon-new"><i class="fas fa-handshake"></i></div>
+                <div class="card-content-new">
+                    <div class="card-value-new"><?= $formattedTotalKontrak ?></div>
+                    <div class="card-label-new">Total Nilai Kontrak</div>
                 </div>
-                <div class="summary-card success">
-                    <div class="card-icon"><i class="fas fa-file-contract"></i></div>
-                    <div class="card-content">
-                        <div class="card-value"><?= $formattedTotalKontrak ?></div>
-                        <div class="card-label">Total Kontrak</div>
-                    </div>
-                </div>
-                <div class="summary-card secondary">
-                    <div class="card-icon"><i class="fas fa-flag"></i></div>
-                    <div class="card-content">
-                        <div class="card-value"><?= $formattedTotalPDN ?></div>
-                        <div class="card-label">Total PDN</div>
-                    </div>
-                </div>
-                <div class="summary-card primary">
-                    <div class="card-icon"><i class="fas fa-industry"></i></div>
-                    <div class="card-content">
-                        <div class="card-value"><?= $formattedTotalUMK ?></div>
-                        <div class="card-label">Total UMK</div>
-                    </div>
+            </div>
+            <div class="summary-card-new">
+                <div class="card-icon-new"><i class="fas fa-percentage"></i></div>
+                <div class="card-content-new">
+                    <div class="card-value-new"><?= number_format($efisiensi, 2, ',', '.') ?>%</div>
+                    <div class="card-label-new">Efisiensi Anggaran</div>
                 </div>
             </div>
         </div>
@@ -629,10 +700,9 @@ include '../../navbar/header.php';
                                 <td class="text-right">
                                     <?php
                                     $nilaiPDN = $row['Nilai_PDN'] ?? 0;
-                                    // Hapus karakter non-digit kecuali titik dan koma, lalu konversi
-                                    $nilaiPDN = str_replace('.', '', $nilaiPDN); // Hapus titik ribuan
-                                    $nilaiPDN = str_replace(',', '.', $nilaiPDN); // Ubah koma desimal jadi titik
-                                    $nilaiPDN = floatval($nilaiPDN); // Konversi ke float
+                                    $nilaiPDN = str_replace('.', '', $nilaiPDN);
+                                    $nilaiPDN = str_replace(',', '.', $nilaiPDN);
+                                    $nilaiPDN = floatval($nilaiPDN);
                                     echo 'Rp ' . number_format($nilaiPDN, 0, ',', '.');
                                     ?>
                                 </td>

@@ -31,11 +31,14 @@ $summaryResponse = @file_get_contents($apiSummaryUrl);
 $summaryData = json_decode($summaryResponse, true);
 
 // 6. Inisialisasi dan proses variabel statistik (disesuaikan untuk Non-Tender)
+// 6. Inisialisasi dan proses variabel statistik (disesuaikan untuk Non-Tender)
 $totalPaket = 0;
 $totalPagu = 0;
 $totalKontrak = 0;
+$efisiensi = 0;
 $formattedTotalPagu = 'Rp 0';
 $formattedTotalKontrak = 'Rp 0';
+$formattedEfisiensi = '0%';
 
 if ($summaryData && ($summaryData['success'] ?? false) && isset($summaryData['summary'])) {
     $summary = $summaryData['summary'];
@@ -44,8 +47,14 @@ if ($summaryData && ($summaryData['success'] ?? false) && isset($summaryData['su
     // Menggunakan 'total_kontrak' dari API Non-Tender
     $totalKontrak = $summary['total_kontrak'] ?? 0;
 
+    // Hitung Efisiensi: (Pagu - Kontrak) / Pagu * 100
+    if ($totalPagu > 0) {
+        $efisiensi = (($totalPagu - $totalKontrak) / $totalPagu) * 100;
+    }
+
     $formattedTotalPagu = 'Rp ' . number_format($totalPagu, 0, ',', '.');
     $formattedTotalKontrak = 'Rp ' . number_format($totalKontrak, 0, ',', '.');
+    $formattedEfisiensi = number_format($efisiensi, 2, ',', '.') . '%';
 }
 
 // 7. Siapkan variabel untuk paginasi
@@ -65,352 +74,491 @@ include '../../navbar/header.php';
 <script src="../../js/submenu.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
 <style>
-    body {
-        font-family: 'Inter', sans-serif;
-        background-color: #f8f9fa;
-    }
+   body {
+    font-family: 'Inter', sans-serif;
+    background-color: #f8f9fa;
+}
 
-    .container {
-        max-width: 1600px;
-        margin: 0 auto;
-        padding: 20px;
-    }
+.container {
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 20px;
+}
 
-    .filter-section,
-    .summary-section,
-    .results-section {
-        background: white;
-        border-radius: 15px;
-        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
-        margin-bottom: 30px;
-        border: 1px solid #e9ecef;
-        animation: fadeInUp 0.6s ease-out;
-    }
+/* Sections */
+.filter-section,
+.summary-section,
+.results-section {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+    margin-bottom: 30px;
+    border: 1px solid #e9ecef;
+    animation: fadeInUp 0.6s ease-out;
+}
 
-    .filter-header,
-    .summary-header {
-        background: linear-gradient(135deg, #28a745 0%, #218838 100%);
-        color: white;
-        padding: 20px 25px;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
+/* Headers */
+.filter-header,
+.summary-header {
+    background: linear-gradient(135deg, #28a745 0%, #218838 100%);
+    color: white;
+    padding: 20px 25px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
 
-    .filter-header h3,
-    .summary-header h3 {
-        margin: 0;
-        font-size: 18px;
-    }
+/* Headers - Warna MERAH untuk Non-Tender */
+.filter-header,
+.summary-header {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    color: white;
+    padding: 20px 25px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
 
-    .filter-content,
-    .summary-content {
-        padding: 30px 25px;
-    }
+/* Tombol dan hover states juga ganti ke merah */
+.search-btn {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    color: white;
+}
 
-    .filter-row {
-        display: grid;
-        gap: 25px;
-        margin-bottom: 25px;
-    }
+.search-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(220, 53, 69, 0.3);
+}
 
-    .filter-group label {
-        display: block;
-        margin-bottom: 10px;
-        font-weight: 600;
-        color: #2c3e50;
-    }
+.reset-btn:hover {
+    border-color: #dc3545;
+    color: #dc3545;
+}
 
-    .filter-group select,
-    .filter-group input {
-        width: 100%;
-        padding: 14px 16px;
-        border: 2px solid #e9ecef;
-        border-radius: 10px;
-        font-size: 14px;
-        transition: all 0.3s ease;
-        box-sizing: border-box;
-    }
+.filter-group select:focus,
+.filter-group input:focus {
+    outline: none;
+    border-color: #dc3545;
+    box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.15);
+}
 
-    .filter-group select:focus,
-    .filter-group input:focus {
-        outline: none;
-        border-color: #28a745;
-        box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.15);
-    }
+.pagination a.btn-pagination:hover {
+    border-color: #dc3545;
+    color: #dc3545;
+}
 
-    .search-input-wrapper {
-        position: relative;
-    }
+.pagination a.btn-pagination.active {
+    background: #dc3545;
+    border-color: #dc3545;
+    color: white;
+}
 
-    .search-input-wrapper i {
-        position: absolute;
-        left: 16px;
-        top: 50%;
-        transform: translateY(-50%);
-        color: #6c757d;
-    }
+.empty-state i {
+    color: #dc3545;
+}
 
-    .search-input-wrapper input {
-        padding-left: 45px !important;
-    }
+/* Content */
+.filter-content,
+.summary-content {
+    padding: 30px 25px;
+}
 
-    .search-row {
-        display: flex;
-        justify-content: flex-end;
-        align-items: center;
-        padding-top: 25px;
-        border-top: 2px solid #f1f3f4;
-        gap: 15px;
-    }
+/* Filter Form */
+.filter-row {
+    display: grid;
+    gap: 25px;
+    margin-bottom: 25px;
+}
 
-    .search-btn,
-    .reset-btn {
-        border: none;
-        padding: 14px 30px;
-        border-radius: 10px;
-        font-weight: 600;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        transition: all 0.3s ease;
-    }
+.filter-group label {
+    display: block;
+    margin-bottom: 10px;
+    font-weight: 600;
+    color: #2c3e50;
+}
 
-    .search-btn {
-        background: linear-gradient(135deg, #28a745 0%, #218838 100%);
-        color: white;
-    }
+.filter-group select,
+.filter-group input {
+    width: 100%;
+    padding: 14px 16px;
+    border: 2px solid #e9ecef;
+    border-radius: 10px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    box-sizing: border-box;
+}
 
-    .search-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 25px rgba(40, 167, 69, 0.3);
-    }
+.filter-group select:focus,
+.filter-group input:focus {
+    outline: none;
+    border-color: #28a745;
+    box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.15);
+}
 
-    .reset-btn {
-        background: transparent;
-        color: #6c757d;
-        border: 2px solid #e9ecef;
-    }
+.search-input-wrapper {
+    position: relative;
+}
 
-    .reset-btn:hover {
-        border-color: #28a745;
-        color: #28a745;
-    }
+.search-input-wrapper i {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6c757d;
+}
 
+.search-input-wrapper input {
+    padding-left: 45px !important;
+}
+
+.search-row {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding-top: 25px;
+    border-top: 2px solid #f1f3f4;
+    gap: 15px;
+}
+
+.search-btn,
+.reset-btn {
+    border: none;
+    padding: 14px 30px;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+}
+
+.search-btn {
+    background: linear-gradient(135deg, #28a745 0%, #218838 100%);
+    color: white;
+}
+
+.search-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(40, 167, 69, 0.3);
+}
+
+.reset-btn {
+    background: transparent;
+    color: #6c757d;
+    border: 2px solid #e9ecef;
+}
+
+.reset-btn:hover {
+    border-color: #28a745;
+    color: #28a745;
+}
+
+/* Summary Cards */
+.summary-cards {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+}
+
+.summary-card {
+    background: white;
+    padding: 30px 25px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.summary-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+}
+
+.summary-card.primary::before {
+    background: #3498db;
+}
+
+.summary-card.warning::before {
+    background: #f39c12;
+}
+
+.summary-card.success::before {
+    background: #27ae60;
+}
+
+.summary-card.info::before {
+    background: #17a2b8;
+}
+
+.summary-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.card-icon {
+    width: 65px;
+    height: 65px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 26px;
+    flex-shrink: 0;
+}
+
+.summary-card.primary .card-icon {
+    background: #3498db;
+}
+
+.summary-card.warning .card-icon {
+    background: #f39c12;
+}
+
+.summary-card.success .card-icon {
+    background: #27ae60;
+}
+
+.summary-card.info .card-icon {
+    background: #17a2b8;
+}
+
+.card-content {
+    flex: 1;
+}
+
+.card-value {
+    font-size: 26px;
+    font-weight: 700;
+    color: #2c3e50;
+    margin-bottom: 5px;
+    line-height: 1.2;
+}
+
+.card-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #6c757d;
+    line-height: 1.3;
+}
+
+/* Results Section */
+.results-header {
+    padding: 25px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.results-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #2c3e50;
+}
+
+.results-subtitle {
+    font-size: 14px;
+    color: #6c757d;
+}
+
+/* Pagination */
+.pagination {
+    display: flex;
+    gap: 8px;
+}
+
+.pagination a.btn-pagination {
+    text-decoration: none;
+    width: 40px;
+    height: 40px;
+    border: 2px solid #e9ecef;
+    background: white;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    color: #6c757d;
+    transition: all 0.3s ease;
+}
+
+.pagination a.btn-pagination:hover {
+    border-color: #28a745;
+    color: #28a745;
+}
+
+.pagination a.btn-pagination.active {
+    background: #28a745;
+    border-color: #28a745;
+    color: white;
+}
+
+.pagination a.btn-pagination.disabled {
+    pointer-events: none;
+    opacity: 0.6;
+}
+
+.pagination .btn-pagination-dots {
+    width: 40px;
+    height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Table */
+.table-container {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    min-width: 1600px;
+}
+
+table th {
+    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+    color: white;
+    padding: 16px 12px;
+    text-align: left;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+table td {
+    padding: 16px 12px;
+    border-bottom: 1px solid #f1f1f1;
+    vertical-align: middle;
+}
+
+table tr:nth-child(even) {
+    background: #fafafa;
+}
+
+table tr:hover {
+    background: #f0f0f0;
+}
+
+/* Badges */
+.badge {
+    display: inline-block;
+    padding: 6px 12px;
+    font-size: 10px;
+    font-weight: 600;
+    border-radius: 20px;
+}
+
+.badge-success {
+    background: #28a745;
+    color: white;
+}
+
+.badge-info {
+    background: #17a2b8;
+    color: white;
+}
+
+/* Empty State */
+.empty-state {
+    padding: 60px 40px;
+    text-align: center;
+    color: #6c757d;
+}
+
+.empty-state i {
+    font-size: 64px;
+    margin-bottom: 20px;
+    opacity: 0.3;
+    color: #28a745;
+}
+
+.empty-state p {
+    font-size: 18px;
+    margin: 0;
+}
+
+/* Table Footer */
+.table-footer {
+    padding: 20px 25px;
+    border-top: 2px solid #e9ecef;
+    background: #f8f9fa;
+    font-size: 14px;
+    color: #6c757d;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Utility Classes */
+.text-right {
+    text-align: right;
+}
+
+.text-success {
+    color: #27ae60;
+    font-weight: 600;
+}
+
+/* Animations */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
     .summary-cards {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 20px;
+        grid-template-columns: repeat(2, 1fr);
     }
+}
 
-    .summary-card {
-        padding: 25px;
-        display: flex;
-        align-items: center;
-        gap: 20px;
-        border-radius: 12px;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+@media (max-width: 768px) {
+    .container {
+        padding: 15px;
     }
-
-    .card-icon {
-        width: 60px;
-        height: 60px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        font-size: 24px;
+    
+    .summary-cards {
+        grid-template-columns: 1fr;
     }
-
-    .summary-card.primary .card-icon {
-        background: linear-gradient(135deg, #3498db, #5dade2);
-    }
-
-    .summary-card.warning .card-icon {
-        background: linear-gradient(135deg, #f39c12, #f8c471);
-    }
-
-    .summary-card.success .card-icon {
-        background: linear-gradient(135deg, #27ae60, #58d68d);
-    }
-
-    .card-value {
-        font-size: 24px;
-        font-weight: 700;
-        color: #2c3e50;
-    }
-
-    .card-label {
-        font-size: 14px;
-        font-weight: 600;
-        color: #6c757d;
-    }
-
+    
     .results-header {
-        padding: 25px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        border-bottom: 2px solid #e9ecef;
+        flex-direction: column;
+        gap: 15px;
+        align-items: flex-start;
     }
-
-    .results-title {
-        font-size: 20px;
-        font-weight: 700;
-        color: #2c3e50;
-    }
-
-    .results-subtitle {
-        font-size: 14px;
-        color: #6c757d;
-    }
-
-    .pagination {
-        display: flex;
-        gap: 8px;
-    }
-
-    .pagination a.btn-pagination {
-        text-decoration: none;
-        width: 40px;
-        height: 40px;
-        border: 2px solid #e9ecef;
-        background: white;
-        border-radius: 8px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 600;
-        color: #6c757d;
-        transition: all 0.3s ease;
-    }
-
-    .pagination a.btn-pagination:hover {
-        border-color: #28a745;
-        color: #28a745;
-    }
-
-    .pagination a.btn-pagination.active {
-        background: #28a745;
-        border-color: #28a745;
-        color: white;
-    }
-
-    .pagination a.btn-pagination.disabled {
-        pointer-events: none;
-        opacity: 0.6;
-    }
-
-    .pagination .btn-pagination-dots {
-        width: 40px;
-        height: 40px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .table-container {
-        overflow-x: auto;
-    }
-
-    table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 13px;
-        min-width: 1600px;
-    }
-
-    table th {
-        background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
-        color: white;
-        padding: 16px 12px;
-        text-align: left;
-        font-size: 12px;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    table td {
-        padding: 16px 12px;
-        border-bottom: 1px solid #f1f1f1;
-        vertical-align: middle;
-    }
-
-    table tr:nth-child(even) {
-        background: #fafafa;
-    }
-
-    table tr:hover {
-        background: #f0f0f0;
-    }
-
-    .badge {
-        display: inline-block;
-        padding: 6px 12px;
-        font-size: 10px;
-        font-weight: 600;
-        border-radius: 20px;
-    }
-
-    .badge-success {
-        background: #28a745;
-        color: white;
-    }
-
-    .badge-info {
-        background: #17a2b8;
-        color: white;
-    }
-
-    .empty-state {
-        padding: 60px 40px;
-        text-align: center;
-        color: #6c757d;
-    }
-
-    .empty-state i {
-        font-size: 64px;
-        margin-bottom: 20px;
-        opacity: 0.3;
-        color: #28a745;
-    }
-
-    .empty-state p {
-        font-size: 18px;
-        margin: 0;
-    }
-
+    
     .table-footer {
-        padding: 20px 25px;
-        border-top: 2px solid #e9ecef;
-        background: #f8f9fa;
-        font-size: 14px;
-        color: #6c757d;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
+        flex-direction: column;
+        gap: 10px;
+        text-align: center;
     }
-
-    .text-right {
-        text-align: right;
+    
+    table {
+        font-size: 12px;
     }
-
-    .text-success {
-        color: #27ae60;
-        font-weight: 600;
-    }
-
-    @keyframes fadeInUp {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
-        }
-
-        to {
-            opacity: 1;
-            transform: translateY(0);
+}
+    @media (max-width: 768px) {
+        .summary-cards {
+            grid-template-columns: 1fr;
         }
     }
 </style>
@@ -479,7 +627,7 @@ include '../../navbar/header.php';
         </div>
     </div>
 
-    <div class="summary-section">
+    <<div class="summary-section">
         <div class="summary-header">
             <i class="fas fa-chart-bar"></i>
             <h3>Ringkasan Data Non-Tender</h3>
@@ -501,101 +649,108 @@ include '../../navbar/header.php';
                     </div>
                 </div>
                 <div class="summary-card success">
-                    <div class="card-icon"><i class="fas fa-file-contract"></i></div>
+                    <div class="card-icon"><i class="fas fa-handshake"></i></div>
                     <div class="card-content">
                         <div class="card-value"><?= $formattedTotalKontrak ?></div>
                         <div class="card-label">Total Kontrak</div>
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="results-section">
-        <div class="results-header">
-            <div>
-                <div class="results-title"><i class="fas fa-table"></i> Hasil Data Realisasi Non-Tender</div>
-                <div class="results-subtitle">
-                    <strong>Menampilkan <?= count($tableData) ?> dari <?= number_format($totalRecords, 0, ',', '.') ?> total data</strong>
+                <div class="summary-card info">
+                    <div class="card-icon"><i class="fas fa-percentage"></i></div>
+                    <div class="card-content">
+                        <div class="card-value"><?= $formattedEfisiensi ?></div>
+                        <div class="card-label">Efisiensi Anggaran</div>
+                    </div>
                 </div>
             </div>
-            <div class="pagination">
-                <?php
-                $paginationParams = $_GET;
-                unset($paginationParams['page']);
-                $paginationQuery = http_build_query($paginationParams);
-                ?>
-                <a href="?<?= $paginationQuery ?>&page=<?= max(1, $currentPage - 1) ?>" class="btn-pagination <?= $currentPage <= 1 ? 'disabled' : '' ?>"><i class="fas fa-chevron-left"></i></a>
-                <?php for ($i = 1; $i <= $totalPages; $i++):
-                    if ($i == $currentPage || abs($i - $currentPage) < 2 || $i <= 2 || $i > $totalPages - 2): ?>
-                        <a href="?<?= $paginationQuery ?>&page=<?= $i ?>" class="btn-pagination <?= $i == $currentPage ? 'active' : '' ?>"><?= $i ?></a>
-                    <?php elseif ($i == $currentPage - 2 || $i == $currentPage + 2): ?>
-                        <span class="btn-pagination-dots">...</span>
-                <?php endif;
-                endfor; ?>
-                <a href="?<?= $paginationQuery ?>&page=<?= min($totalPages, $currentPage + 1) ?>" class="btn-pagination <?= $currentPage >= $totalPages ? 'disabled' : '' ?>"><i class="fas fa-chevron-right"></i></a>
+        </div>
+</div>
+
+<div class="results-section">
+    <div class="results-header">
+        <div>
+            <div class="results-title"><i class="fas fa-table"></i> Hasil Data Realisasi Non-Tender</div>
+            <div class="results-subtitle">
+                <strong>Menampilkan <?= count($tableData) ?> dari <?= number_format($totalRecords, 0, ',', '.') ?> total data</strong>
             </div>
         </div>
-
-        <?php if (!empty($tableData)) : ?>
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th style="width: 3%;">No</th>
-                            <th style="width: 20%;">Nama Paket</th>
-                            <th style="width: 9%;">Kode Paket</th>
-                            <th style="width: 9%;">Kode RUP</th>
-                            <th style="width: 10%;">KLPD</th>
-                            <th style="width: 8%;">Metode</th>
-                            <th style="width: 8%;">Jenis</th>
-                            <th style="width: 10%;">Nilai Pagu</th>
-                            <th style="width: 10%;">Nilai Kontrak</th>
-                            <th style="width: 13%;">Nama Pemenang</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($tableData as $row) : ?>
-                            <tr>
-                                <td style="text-align: center; font-weight: bold;">
-                                    <?= htmlspecialchars($row['No_Urut'] ?? '-') ?>
-                                </td>
-                                <td><?= htmlspecialchars($row['Nama_Paket'] ?? '-') ?></td>
-                                <td><i class="fas fa-barcode" style="margin-right: 5px; color: #6c757d;"></i> <?= htmlspecialchars($row['Kode_Paket'] ?? '-') ?></td>
-                                <td><i class="fas fa-trophy" style="margin-right: 5px; color: #f39c12;"></i> <?= htmlspecialchars($row['Kode_RUP'] ?? '-') ?></td>
-                                <td><i class="fas fa-building" style="margin-right: 5px; color: #3498db;"></i> <?= htmlspecialchars($row['KLPD'] ?? '-') ?></td>
-                                <td style="text-align: center;"><span class="badge badge-success"><?= htmlspecialchars($row['Metode_Pengadaan'] ?? '-') ?></span></td>
-                                <td style="text-align: center;"><span class="badge badge-info"><?= htmlspecialchars($row['Jenis_Pengadaan'] ?? '-') ?></span></td>
-                                <td class="text-right">
-                                    <?php
-                                    $nilaiPagu = $row['Nilai_Pagu'] ?? 0;
-                                    echo 'Rp ' . number_format($nilaiPagu, 0, ',', '.');
-                                    ?>
-                                </td>
-                                <td class="text-right text-success">
-                                    <?php
-                                    $nilaiKontrak = $row['Nilai_Kontrak'] ?? 0;
-                                    echo 'Rp ' . number_format($nilaiKontrak, 0, ',', '.');
-                                    ?>
-                                </td>
-                                <td><?= htmlspecialchars($row['Nama_Pemenang'] ?? '-') ?></td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
-            <div class="table-footer">
-                <div><strong>Halaman:</strong> <?= $currentPage ?> dari <?= $totalPages ?></div>
-                <div><strong>Total Data:</strong> <?= number_format($totalRecords, 0, ',', '.') ?> paket non-tender</div>
-            </div>
-        <?php else : ?>
-            <div class="empty-state">
-                <i class="fas fa-search-minus"></i>
-                <p><strong>Tidak ada data non-tender yang ditemukan</strong></p>
-                <small class="text-muted">Silakan ubah kriteria filter Anda.</small>
-            </div>
-        <?php endif; ?>
+        <div class="pagination">
+            <?php
+            $paginationParams = $_GET;
+            unset($paginationParams['page']);
+            $paginationQuery = http_build_query($paginationParams);
+            ?>
+            <a href="?<?= $paginationQuery ?>&page=<?= max(1, $currentPage - 1) ?>" class="btn-pagination <?= $currentPage <= 1 ? 'disabled' : '' ?>"><i class="fas fa-chevron-left"></i></a>
+            <?php for ($i = 1; $i <= $totalPages; $i++):
+                if ($i == $currentPage || abs($i - $currentPage) < 2 || $i <= 2 || $i > $totalPages - 2): ?>
+                    <a href="?<?= $paginationQuery ?>&page=<?= $i ?>" class="btn-pagination <?= $i == $currentPage ? 'active' : '' ?>"><?= $i ?></a>
+                <?php elseif ($i == $currentPage - 2 || $i == $currentPage + 2): ?>
+                    <span class="btn-pagination-dots">...</span>
+            <?php endif;
+            endfor; ?>
+            <a href="?<?= $paginationQuery ?>&page=<?= min($totalPages, $currentPage + 1) ?>" class="btn-pagination <?= $currentPage >= $totalPages ? 'disabled' : '' ?>"><i class="fas fa-chevron-right"></i></a>
+        </div>
     </div>
+
+    <?php if (!empty($tableData)) : ?>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 3%;">No</th>
+                        <th style="width: 20%;">Nama Paket</th>
+                        <th style="width: 9%;">Kode Paket</th>
+                        <th style="width: 9%;">Kode RUP</th>
+                        <th style="width: 10%;">KLPD</th>
+                        <th style="width: 8%;">Metode</th>
+                        <th style="width: 8%;">Jenis</th>
+                        <th style="width: 10%;">Nilai Pagu</th>
+                        <th style="width: 10%;">Nilai Kontrak</th>
+                        <th style="width: 13%;">Nama Pemenang</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($tableData as $row) : ?>
+                        <tr>
+                            <td style="text-align: center; font-weight: bold;">
+                                <?= htmlspecialchars($row['No_Urut'] ?? '-') ?>
+                            </td>
+                            <td><?= htmlspecialchars($row['Nama_Paket'] ?? '-') ?></td>
+                            <td><i class="fas fa-barcode" style="margin-right: 5px; color: #6c757d;"></i> <?= htmlspecialchars($row['Kode_Paket'] ?? '-') ?></td>
+                            <td><i class="fas fa-trophy" style="margin-right: 5px; color: #f39c12;"></i> <?= htmlspecialchars($row['Kode_RUP'] ?? '-') ?></td>
+                            <td><i class="fas fa-building" style="margin-right: 5px; color: #3498db;"></i> <?= htmlspecialchars($row['KLPD'] ?? '-') ?></td>
+                            <td style="text-align: center;"><span class="badge badge-success"><?= htmlspecialchars($row['Metode_Pengadaan'] ?? '-') ?></span></td>
+                            <td style="text-align: center;"><span class="badge badge-info"><?= htmlspecialchars($row['Jenis_Pengadaan'] ?? '-') ?></span></td>
+                            <td class="text-right">
+                                <?php
+                                $nilaiPagu = $row['Nilai_Pagu'] ?? 0;
+                                echo 'Rp ' . number_format($nilaiPagu, 0, ',', '.');
+                                ?>
+                            </td>
+                            <td class="text-right text-success">
+                                <?php
+                                $nilaiKontrak = $row['Nilai_Kontrak'] ?? 0;
+                                echo 'Rp ' . number_format($nilaiKontrak, 0, ',', '.');
+                                ?>
+                            </td>
+                            <td><?= htmlspecialchars($row['Nama_Pemenang'] ?? '-') ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+        <div class="table-footer">
+            <div><strong>Halaman:</strong> <?= $currentPage ?> dari <?= $totalPages ?></div>
+            <div><strong>Total Data:</strong> <?= number_format($totalRecords, 0, ',', '.') ?> paket non-tender</div>
+        </div>
+    <?php else : ?>
+        <div class="empty-state">
+            <i class="fas fa-search-minus"></i>
+            <p><strong>Tidak ada data non-tender yang ditemukan</strong></p>
+            <small class="text-muted">Silakan ubah kriteria filter Anda.</small>
+        </div>
+    <?php endif; ?>
+</div>
 </div>
 
 <script>
