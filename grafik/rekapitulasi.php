@@ -1,10 +1,34 @@
 <?php
-// FILE: dashboard_rekapitulasi.php
+// FILE: dashboard_rekapitulasi_bulan.php
 
 // 1. KONEKSI & PENGOLAHAN DATA DARI TABEL ASLI
 require_once '../config/database.php';
 
-// Inisialisasi array kosong - akan diisi dari database
+// Ambil bulan yang dipilih dari parameter GET, default ke bulan saat ini
+$bulan_dipilih = isset($_GET['bulan']) ? $_GET['bulan'] : date('F'); // Format: January, February, dll
+$tahun_dipilih = isset($_GET['tahun']) ? $_GET['tahun'] : date('Y');
+
+// Mapping bulan Indonesia ke Inggris
+$bulan_mapping = [
+    'Januari' => 'January',
+    'Februari' => 'February',
+    'Maret' => 'March',
+    'April' => 'April',
+    'Mei' => 'May',
+    'Juni' => 'June',
+    'Juli' => 'July',
+    'Agustus' => 'August',
+    'September' => 'September',
+    'Oktober' => 'October',
+    'November' => 'November',
+    'Desember' => 'December'
+];
+$bulan_mapping_reverse = array_flip($bulan_mapping);
+
+// Daftar bulan untuk dropdown
+$daftar_bulan = array_keys($bulan_mapping);
+
+// Inisialisasi array
 $rekap_metode = [];
 $rekap_jenis = [];
 $rekap_cara = [
@@ -22,466 +46,272 @@ try {
     $tables_stmt->execute();
     $available_tables = $tables_stmt->fetchAll(PDO::FETCH_COLUMN);
 
-    // Cari tabel yang cocok
-    $possible_tables = ['rup_keseluruhan', 'rup_penyedia', 'procurement_data', 'pengadaan', 'rup'];
+    // Cari tabel utama untuk data PENYEDIA (utamakan yang bukan swakelola)
+    $possible_tables = ['rup_keseluruhan', 'procurement_data', 'pengadaan', 'rup'];
     $main_table = null;
-
     foreach ($possible_tables as $table) {
         if (in_array($table, $available_tables)) {
-            // Cek apakah tabel memiliki data
-            $check_data = "SELECT COUNT(*) as total FROM `$table`";
-            $check_stmt = $conn->prepare($check_data);
-            $check_stmt->execute();
-            $count = $check_stmt->fetch()['total'];
-
-            if ($count > 0) {
-                $main_table = $table;
-                break;
-            }
+            $main_table = $table;
+            break;
         }
     }
-
-    // Jika tidak ada tabel yang cocok, ambil tabel pertama yang ada data
-    if (!$main_table && !empty($available_tables)) {
+    if (!$main_table) {
+        // Fallback jika tidak ada tabel ideal, cari tabel apapun yang ada data
         foreach ($available_tables as $table) {
-            try {
-                $check_data = "SELECT COUNT(*) as total FROM `$table`";
-                $check_stmt = $conn->prepare($check_data);
-                $check_stmt->execute();
-                $count = $check_stmt->fetch()['total'];
-
-                if ($count > 0) {
-                    $main_table = $table;
-                    break;
+            if ($table !== 'rup_swakelola') { // Jangan jadikan rup_swakelola sebagai tabel utama
+                try {
+                    $check_data = "SELECT COUNT(*) as total FROM $table";
+                    $check_stmt = $conn->prepare($check_data);
+                    $check_stmt->execute();
+                    if ($check_stmt->fetch()['total'] > 0) {
+                        $main_table = $table;
+                        break;
+                    }
+                } catch (Exception $e) {
+                    continue;
                 }
-            } catch (Exception $e) {
-                continue;
             }
         }
     }
 
     if (!$main_table) {
-        throw new Exception("Tidak ada tabel dengan data yang ditemukan");
+        throw new Exception("Tidak ada tabel data utama (Penyedia) yang ditemukan.");
     }
 
-    // Cek kolom yang tersedia di tabel
-    $describe_sql = "DESCRIBE `$main_table`";
+    // Cek kolom yang tersedia di tabel utama
+    $describe_sql = "DESCRIBE $main_table";
     $describe_stmt = $conn->prepare($describe_sql);
     $describe_stmt->execute();
     $columns = $describe_stmt->fetchAll(PDO::FETCH_COLUMN);
 
-    // Tentukan kolom yang akan digunakan
-    $metode_col = null;
-    $pagu_col = null;
-    $paket_col = null;
-    $jenis_col = null;
+    // Opsi nama kolom yang mungkin
+    $bulan_options = ['Bulan', 'bulan', 'month', 'Month'];
+    $tahun_options = ['Tahun', 'tahun', 'year', 'Year'];
+    $metode_options = ['Metode', 'metode', 'cara_pengadaan'];
+    $pagu_options = ['Pagu_Rp', 'pagu_rp', 'pagu', 'nilai_kontrak'];
+    $jenis_options = ['Jenis_Pengadaan', 'jenis_pengadaan', 'jenis', 'kategori'];
 
-    // Cari kolom metode
-    $metode_options = ['Metode', 'metode', 'cara_pengadaan', 'jenis_tender', 'pemilihan'];
-    foreach ($metode_options as $col) {
-        if (in_array($col, $columns)) {
-            $metode_col = $col;
-            break;
+    // Fungsi untuk mencari kolom
+    function find_column($options, $columns_list)
+    {
+        foreach ($options as $col) {
+            if (in_array($col, $columns_list)) {
+                return $col;
+            }
         }
+        return null;
     }
 
-    // Cari kolom pagu
-    $pagu_options = ['Pagu_Rp', 'pagu_rp', 'pagu', 'nilai_kontrak', 'harga'];
-    foreach ($pagu_options as $col) {
-        if (in_array($col, $columns)) {
-            $pagu_col = $col;
-            break;
-        }
-    }
-
-    // Cari kolom nama paket
-    $paket_options = ['Paket', 'paket', 'nama_paket', 'judul', 'kegiatan'];
-    foreach ($paket_options as $col) {
-        if (in_array($col, $columns)) {
-            $paket_col = $col;
-            break;
-        }
-    }
-
-    // Cari kolom jenis
-    $jenis_options = ['Jenis_Pengadaan', 'jenis_pengadaan', 'jenis', 'kategori', 'tipe'];
-    foreach ($jenis_options as $col) {
-        if (in_array($col, $columns)) {
-            $jenis_col = $col;
-            break;
-        }
-    }
+    // Tentukan kolom yang akan digunakan untuk tabel utama
+    $metode_col = find_column($metode_options, $columns);
+    $pagu_col = find_column($pagu_options, $columns);
+    $jenis_col = find_column($jenis_options, $columns);
+    $bulan_col = find_column($bulan_options, $columns);
+    $tahun_col = find_column($tahun_options, $columns);
 
     if (!$metode_col || !$pagu_col) {
-        throw new Exception("Kolom metode atau pagu tidak ditemukan. Kolom tersedia: " . implode(', ', $columns));
+        throw new Exception("Kolom metode atau pagu tidak ditemukan di tabel utama '$main_table'. Kolom tersedia: " . implode(', ', $columns));
     }
 
-    // Query untuk mendapatkan data metode pengadaan dari database
-    // Termasuk semua metode yang mungkin ada termasuk Tender Cepat
+    // ==================================================================
+    // 1. PROSES DATA PENYEDIA DARI TABEL UTAMA ($main_table)
+    // ==================================================================
+    $where_condition = "WHERE $metode_col IS NOT NULL AND TRIM($metode_col) != '' AND $pagu_col IS NOT NULL AND $pagu_col > 0";
+    if ($bulan_col) {
+        $bulan_indo = array_search($bulan_dipilih, $bulan_mapping_reverse) ?: $bulan_dipilih;
+        $bulan_eng = $bulan_mapping[$bulan_indo] ?? $bulan_dipilih;
+        $where_condition .= " AND (LOWER($bulan_col) = LOWER('$bulan_indo') OR LOWER($bulan_col) = LOWER('$bulan_eng'))";
+    }
+    if ($tahun_col) {
+        $where_condition .= " AND $tahun_col = '$tahun_dipilih'";
+    }
+
     $sql_penyedia = "
         SELECT 
             CASE 
-                WHEN LOWER(`$metode_col`) LIKE '%e-purchasing%' OR LOWER(`$metode_col`) LIKE '%epurchasing%' THEN 'E-Purchasing'
-                WHEN LOWER(`$metode_col`) LIKE '%pengadaan langsung%' THEN 'Pengadaan Langsung'
-                WHEN LOWER(`$metode_col`) LIKE '%penunjukan langsung%' THEN 'Penunjukan Langsung'
-                WHEN LOWER(`$metode_col`) LIKE '%seleksi%' THEN 'Seleksi'
-                WHEN LOWER(`$metode_col`) LIKE '%tender cepat%' OR LOWER(`$metode_col`) LIKE '%tender%cepat%' THEN 'Tender Cepat'
-                WHEN LOWER(`$metode_col`) LIKE '%tender%' AND LOWER(`$metode_col`) NOT LIKE '%cepat%' THEN 'Tender'
-                WHEN LOWER(`$metode_col`) LIKE '%dikecualikan%' OR LOWER(`$metode_col`) LIKE '%pengecualian%' THEN 'Dikecualikan'
-                WHEN LOWER(`$metode_col`) LIKE '%swakelola%' THEN 'Swakelola'
-                ELSE TRIM(`$metode_col`)
+                WHEN LOWER($metode_col) LIKE '%e-purchasing%' THEN 'E-Purchasing'
+                WHEN LOWER($metode_col) LIKE '%pengadaan langsung%' THEN 'Pengadaan Langsung'
+                WHEN LOWER($metode_col) LIKE '%penunjukan langsung%' THEN 'Penunjukan Langsung'
+                WHEN LOWER($metode_col) LIKE '%seleksi%' THEN 'Seleksi'
+                WHEN LOWER($metode_col) LIKE '%tender cepat%' THEN 'Tender Cepat'
+                WHEN LOWER($metode_col) LIKE '%tender%' THEN 'Tender'
+                WHEN LOWER($metode_col) LIKE '%dikecualikan%' THEN 'Dikecualikan'
+                ELSE TRIM($metode_col)
             END as metode,
             COUNT(*) as jumlah_paket,
-            COALESCE(SUM(CAST(`$pagu_col` as DECIMAL(20,2))), 0) as total_pagu
-        FROM `$main_table` 
-        WHERE `$metode_col` IS NOT NULL 
-        AND TRIM(`$metode_col`) != '' 
-        AND `$metode_col` != 'NULL'
-        AND `$pagu_col` IS NOT NULL
-        AND `$pagu_col` > 0
+            COALESCE(SUM(CAST($pagu_col as DECIMAL(20,2))), 0) as total_pagu
+        FROM $main_table 
+        $where_condition
         GROUP BY metode
-        ORDER BY total_pagu DESC
-    ";
+        ORDER BY total_pagu DESC";
 
-    $stmt = $conn->prepare($sql_penyedia);
-    $stmt->execute();
+    $stmt_penyedia = $conn->prepare($sql_penyedia);
+    $stmt_penyedia->execute();
 
     $total_penyedia_paket = 0;
     $total_penyedia_pagu = 0;
-
-    if ($stmt->rowCount() > 0) {
-        $penyedia_data = $stmt->fetchAll();
-
-        foreach ($penyedia_data as $row) {
+    if ($stmt_penyedia->rowCount() > 0) {
+        foreach ($stmt_penyedia->fetchAll() as $row) {
             $metode = trim($row['metode']);
             $paket = (int)$row['jumlah_paket'];
             $pagu = (float)$row['total_pagu'];
+            $rekap_metode[$metode] = ['paket' => $paket, 'pagu' => $pagu];
+            $total_penyedia_paket += $paket;
+            $total_penyedia_pagu += $pagu;
+        }
+    }
+    $rekap_cara['Penyedia'] = ['paket' => $total_penyedia_paket, 'pagu' => $total_penyedia_pagu];
 
-            // Skip jika ini adalah swakelola (akan diproses terpisah)
-            if (strtolower($metode) != 'swakelola') {
-                $rekap_metode[$metode] = ['paket' => $paket, 'pagu' => $pagu];
-                $total_penyedia_paket += $paket;
-                $total_penyedia_pagu += $pagu;
-            } else {
-                // Jika ada swakelola di data utama, tambahkan ke rekap_cara
-                $rekap_cara['Swakelola']['paket'] += $paket;
-                $rekap_cara['Swakelola']['pagu'] += $pagu;
+
+    // ==================================================================
+    // 2. PROSES DATA SWAKELOLA DARI TABEL `rup_swakelola` (KHUSUS)
+    // ==================================================================
+    if (in_array('rup_swakelola', $available_tables)) {
+        try {
+            $swakelola_table = 'rup_swakelola';
+            $describe_swakelola_sql = "DESCRIBE $swakelola_table";
+            $stmt_desc_swakelola = $conn->prepare($describe_swakelola_sql);
+            $stmt_desc_swakelola->execute();
+            $swakelola_columns = $stmt_desc_swakelola->fetchAll(PDO::FETCH_COLUMN);
+
+            $swakelola_pagu_col = find_column($pagu_options, $swakelola_columns);
+            $swakelola_bulan_col = find_column($bulan_options, $swakelola_columns);
+            $swakelola_tahun_col = find_column($tahun_options, $swakelola_columns);
+
+            $select_pagu_clause = "0 as total_pagu";
+            $where_swakelola = "WHERE 1=1";
+
+            if ($swakelola_pagu_col) {
+                $select_pagu_clause = "COALESCE(SUM(CAST($swakelola_pagu_col as DECIMAL(20,2))), 0) as total_pagu";
+            }
+
+            if ($swakelola_bulan_col) {
+                $bulan_indo = array_search($bulan_dipilih, $bulan_mapping_reverse) ?: $bulan_dipilih;
+                $bulan_eng = $bulan_mapping[$bulan_indo] ?? $bulan_dipilih;
+                $where_swakelola .= " AND (LOWER($swakelola_bulan_col) = LOWER('$bulan_indo') OR LOWER($swakelola_bulan_col) = LOWER('$bulan_eng'))";
+            }
+
+            if ($swakelola_tahun_col) {
+                $where_swakelola .= " AND $swakelola_tahun_col = '$tahun_dipilih'";
+            }
+
+            $sql_swakelola = "
+                SELECT 
+                    COUNT(*) as jumlah_paket,
+                    $select_pagu_clause
+                FROM $swakelola_table 
+                $where_swakelola";
+
+            $stmt_swakelola = $conn->prepare($sql_swakelola);
+            $stmt_swakelola->execute();
+            $swakelola_data = $stmt_swakelola->fetch();
+
+            if ($swakelola_data) {
+                $rekap_cara['Swakelola']['paket'] = (int)$swakelola_data['jumlah_paket'];
+                $rekap_cara['Swakelola']['pagu'] = (float)$swakelola_data['total_pagu'];
+            }
+        } catch (Exception $e) {
+            error_log("Error saat memproses tabel rup_swakelola: " . $e->getMessage());
+        }
+    } else {
+        error_log("Tabel 'rup_swakelola' tidak ditemukan.");
+    }
+
+
+    // ==================================================================
+    // 3. PROSES DATA JENIS PENGADAAN (DARI TABEL UTAMA)
+    // ==================================================================
+    if ($jenis_col) {
+        $where_jenis = "WHERE $jenis_col IS NOT NULL AND TRIM($jenis_col) != '' AND $pagu_col IS NOT NULL AND $pagu_col > 0";
+        if ($bulan_col) {
+            $bulan_indo = array_search($bulan_dipilih, $bulan_mapping_reverse) ?: $bulan_dipilih;
+            $bulan_eng = $bulan_mapping[$bulan_indo] ?? $bulan_dipilih;
+            $where_jenis .= " AND (LOWER($bulan_col) = LOWER('$bulan_indo') OR LOWER($bulan_col) = LOWER('$bulan_eng'))";
+        }
+        if ($tahun_col) {
+            $where_jenis .= " AND $tahun_col = '$tahun_dipilih'";
+        }
+
+        $sql_jenis = "
+            SELECT 
+                CASE 
+                    WHEN LOWER($jenis_col) LIKE '%barang%' THEN 'Barang'
+                    WHEN LOWER($jenis_col) LIKE '%konsultansi%' THEN 'Jasa Konsultansi'
+                    WHEN LOWER($jenis_col) LIKE '%konstruksi%' THEN 'Pekerjaan Konstruksi'
+                    WHEN LOWER($jenis_col) LIKE '%jasa lainnya%' THEN 'Jasa Lainnya'
+                    ELSE 'Lainnya'
+                END as jenis_kategori,
+                COUNT(*) as jumlah_paket,
+                COALESCE(SUM(CAST($pagu_col as DECIMAL(20,2))), 0) as total_pagu
+            FROM $main_table 
+            $where_jenis
+            GROUP BY jenis_kategori ORDER BY total_pagu DESC";
+
+        $stmt_jenis = $conn->prepare($sql_jenis);
+        $stmt_jenis->execute();
+        if ($stmt_jenis->rowCount() > 0) {
+            foreach ($stmt_jenis->fetchAll() as $row) {
+                $jenis = trim($row['jenis_kategori']);
+                if ($jenis && $jenis !== 'Lainnya') {
+                    $rekap_jenis[$jenis] = ['paket' => (int)$row['jumlah_paket'], 'pagu' => (float)$row['total_pagu']];
+                }
             }
         }
     }
 
-    // Pastikan semua metode standar ada dalam rekap (dengan nilai 0 jika tidak ada data)
-    $metode_standar = [
-        'E-Purchasing',
-        'Pengadaan Langsung',
-        'Penunjukan Langsung',
-        'Seleksi',
-        'Tender',
-        'Tender Cepat',
-        'Dikecualikan'
-    ];
-
+    // Pastikan semua metode standar ada dalam rekap untuk tampilan
+    $metode_standar = ['E-Purchasing', 'Pengadaan Langsung', 'Penunjukan Langsung', 'Seleksi', 'Tender', 'Tender Cepat', 'Dikecualikan'];
     foreach ($metode_standar as $metode) {
         if (!isset($rekap_metode[$metode])) {
             $rekap_metode[$metode] = ['paket' => 0, 'pagu' => 0];
         }
     }
-
-    $rekap_cara['Penyedia'] = ['paket' => $total_penyedia_paket, 'pagu' => $total_penyedia_pagu];
-
-    // Query untuk swakelola - cek apakah ada tabel terpisah atau dalam tabel utama
-    $swakelola_tables = ['rup_swakelola', 'swakelola', 'procurement_swakelola'];
-    $swakelola_found = false;
-
-    foreach ($swakelola_tables as $sw_table) {
-        if (in_array($sw_table, $available_tables)) {
-            try {
-                // Cek kolom pagu di tabel swakelola
-                $describe_sw_sql = "DESCRIBE `$sw_table`";
-                $describe_sw_stmt = $conn->prepare($describe_sw_sql);
-                $describe_sw_stmt->execute();
-                $sw_columns = $describe_sw_stmt->fetchAll(PDO::FETCH_COLUMN);
-
-                $sw_pagu_col = null;
-                foreach ($pagu_options as $col) {
-                    if (in_array($col, $sw_columns)) {
-                        $sw_pagu_col = $col;
-                        break;
-                    }
-                }
-
-                if ($sw_pagu_col) {
-                    $sql_swakelola = "
-                        SELECT 
-                            COUNT(*) as jumlah_paket,
-                            COALESCE(SUM(CAST(`$sw_pagu_col` as DECIMAL(20,2))), 0) as total_pagu
-                        FROM `$sw_table` 
-                        WHERE `$sw_pagu_col` IS NOT NULL AND `$sw_pagu_col` > 0
-                    ";
-
-                    $stmt = $conn->prepare($sql_swakelola);
-                    $stmt->execute();
-
-                    if ($stmt->rowCount() > 0) {
-                        $swakelola_data = $stmt->fetch();
-                        $rekap_cara['Swakelola']['paket'] += (int)$swakelola_data['jumlah_paket'];
-                        $rekap_cara['Swakelola']['pagu'] += (float)$swakelola_data['total_pagu'];
-                        $swakelola_found = true;
-                        break;
-                    }
-                }
-            } catch (Exception $e) {
-                continue;
-            }
-        }
-    }
-
-    // Jika tidak ada tabel swakelola terpisah, cari di tabel utama berdasarkan metode
-    if (!$swakelola_found) {
-        $sql_swakelola_alt = "
-            SELECT 
-                COUNT(*) as jumlah_paket,
-                COALESCE(SUM(CAST(`$pagu_col` as DECIMAL(20,2))), 0) as total_pagu
-            FROM `$main_table` 
-            WHERE (LOWER(`$metode_col`) LIKE '%swakelola%'";
-
-        // Tambahkan kondisi jika ada kolom pemilihan
-        $pemilihan_options = ['Pemilihan', 'pemilihan', 'cara_pemilihan'];
-        foreach ($pemilihan_options as $col) {
-            if (in_array($col, $columns)) {
-                $sql_swakelola_alt .= " OR LOWER(`$col`) LIKE '%swakelola%'";
-                break;
-            }
-        }
-
-        $sql_swakelola_alt .= ") AND `$pagu_col` IS NOT NULL AND `$pagu_col` > 0";
-
-        try {
-            $stmt = $conn->prepare($sql_swakelola_alt);
-            $stmt->execute();
-
-            if ($stmt->rowCount() > 0) {
-                $swakelola_data = $stmt->fetch();
-                $rekap_cara['Swakelola']['paket'] += (int)$swakelola_data['jumlah_paket'];
-                $rekap_cara['Swakelola']['pagu'] += (float)$swakelola_data['total_pagu'];
-            }
-        } catch (Exception $e) {
-            error_log("Swakelola alternative query error: " . $e->getMessage());
-        }
-    }
-
-    // Query untuk jenis pengadaan berdasarkan kolom yang ditemukan
-    if ($jenis_col) {
-        $sql_jenis = "
-            SELECT 
-                CASE 
-                    WHEN LOWER(`$jenis_col`) LIKE '%barang%' THEN 'Barang'
-                    WHEN LOWER(`$jenis_col`) LIKE '%konsultansi%' THEN 'Jasa Konsultansi'
-                    WHEN LOWER(`$jenis_col`) LIKE '%konstruksi%' OR LOWER(`$jenis_col`) LIKE '%pekerjaan konstruksi%' THEN 'Pekerjaan Konstruksi'
-                    WHEN LOWER(`$jenis_col`) LIKE '%jasa%' THEN 'Jasa Lainnya'
-                    ELSE COALESCE(`$jenis_col`, 'Lainnya')
-                END as jenis_kategori,
-                COUNT(*) as jumlah_paket,
-                COALESCE(SUM(CAST(`$pagu_col` as DECIMAL(20,2))), 0) as total_pagu
-            FROM `$main_table` 
-            WHERE `$jenis_col` IS NOT NULL 
-            AND TRIM(`$jenis_col`) != '' 
-            AND `$jenis_col` != 'NULL'
-            AND `$pagu_col` IS NOT NULL
-            AND `$pagu_col` > 0
-            GROUP BY jenis_kategori
-            ORDER BY total_pagu DESC
-        ";
-
-        try {
-            $stmt = $conn->prepare($sql_jenis);
-            $stmt->execute();
-
-            if ($stmt->rowCount() > 0) {
-                $jenis_data = $stmt->fetchAll();
-
-                foreach ($jenis_data as $row) {
-                    $jenis = trim($row['jenis_kategori']);
-                    if ($jenis && $jenis != 'Lainnya' && $jenis != '') {
-                        $paket = (int)$row['jumlah_paket'];
-                        $pagu = (float)$row['total_pagu'];
-                        $rekap_jenis[$jenis] = ['paket' => $paket, 'pagu' => $pagu];
-                    }
-                }
-            }
-        } catch (Exception $e) {
-            error_log("Jenis pengadaan query error: " . $e->getMessage());
-        }
-    }
-
-    // Fallback: analisis dari nama paket jika ada
-    if (empty($rekap_jenis) && $paket_col) {
-        try {
-            $sql_jenis_fallback = "
-                SELECT 
-                    CASE 
-                        WHEN LOWER(`$paket_col`) LIKE '%barang%' OR LOWER(`$paket_col`) LIKE '%alat%' OR LOWER(`$paket_col`) LIKE '%peralatan%' THEN 'Barang'
-                        WHEN LOWER(`$paket_col`) LIKE '%konsultansi%' OR LOWER(`$paket_col`) LIKE '%konsultan%' OR LOWER(`$paket_col`) LIKE '%perencanaan%' THEN 'Jasa Konsultansi'
-                        WHEN LOWER(`$paket_col`) LIKE '%konstruksi%' OR LOWER(`$paket_col`) LIKE '%pembangunan%' OR LOWER(`$paket_col`) LIKE '%renovasi%' OR LOWER(`$paket_col`) LIKE '%rehab%' THEN 'Pekerjaan Konstruksi'
-                        ELSE 'Jasa Lainnya'
-                    END as jenis_kategori,
-                    COUNT(*) as jumlah_paket,
-                    COALESCE(SUM(CAST(`$pagu_col` as DECIMAL(20,2))), 0) as total_pagu
-                FROM `$main_table` 
-                WHERE `$paket_col` IS NOT NULL 
-                AND TRIM(`$paket_col`) != ''
-                AND `$pagu_col` IS NOT NULL
-                AND `$pagu_col` > 0
-                GROUP BY jenis_kategori
-                ORDER BY total_pagu DESC
-            ";
-
-            $stmt = $conn->prepare($sql_jenis_fallback);
-            $stmt->execute();
-
-            if ($stmt->rowCount() > 0) {
-                $jenis_data = $stmt->fetchAll();
-
-                foreach ($jenis_data as $row) {
-                    $jenis = trim($row['jenis_kategori']);
-                    $paket = (int)$row['jumlah_paket'];
-                    $pagu = (float)$row['total_pagu'];
-                    $rekap_jenis[$jenis] = ['paket' => $paket, 'pagu' => $pagu];
-                }
-            }
-        } catch (Exception $e2) {
-            error_log("Jenis pengadaan fallback error: " . $e2->getMessage());
-        }
-    }
-
-    // Debug: Cek total records
-    $debug_sql = "SELECT COUNT(*) as total FROM `$main_table`";
-    $debug_stmt = $conn->prepare($debug_sql);
-    $debug_stmt->execute();
-    $total_records = $debug_stmt->fetch()['total'];
-
-    // Sample data untuk debugging
-    $sample_sql = "SELECT * FROM `$main_table` LIMIT 5";
-    $sample_stmt = $conn->prepare($sample_sql);
-    $sample_stmt->execute();
-    $sample_data = $sample_stmt->fetchAll();
-
-    error_log("Debug Info:");
-    error_log("- Main table: $main_table");
-    error_log("- Available tables: " . implode(', ', $available_tables));
-    error_log("- Available columns: " . implode(', ', $columns));
-    error_log("- Metode column: " . ($metode_col ?? 'NOT FOUND'));
-    error_log("- Pagu column: " . ($pagu_col ?? 'NOT FOUND'));
-    error_log("- Paket column: " . ($paket_col ?? 'NOT FOUND'));
-    error_log("- Jenis column: " . ($jenis_col ?? 'NOT FOUND'));
-    error_log("- Total records in $main_table: " . $total_records);
-    error_log("- Rekap Metode count: " . count($rekap_metode));
-    error_log("- Rekap Jenis count: " . count($rekap_jenis));
-
-    if (!empty($sample_data)) {
-        error_log("- Tender Cepat data: " . json_encode($rekap_metode['Tender Cepat'] ?? 'NOT SET'));
-        error_log("- All metode data: " . json_encode($rekap_metode));
-    }
 } catch (Exception $e) {
     error_log("Database error: " . $e->getMessage());
-
-    // Set data kosong jika error
     $rekap_metode = [];
     $rekap_jenis = [];
-    $rekap_cara = [
-        'Penyedia' => ['paket' => 0, 'pagu' => 0],
-        'Swakelola' => ['paket' => 0, 'pagu' => 0]
-    ];
+    $rekap_cara = ['Penyedia' => ['paket' => 0, 'pagu' => 0], 'Swakelola' => ['paket' => 0, 'pagu' => 0]];
 }
 
-// Filter out metode dengan 0 paket untuk tampilan tabel, KECUALI Tender Cepat
-$rekap_metode_display = array_filter($rekap_metode, function ($data, $key) {
-    // Selalu tampilkan Tender Cepat meskipun 0 untuk kelengkapan
-    return $data['paket'] > 0 || $key === 'Tender Cepat';
-}, ARRAY_FILTER_USE_BOTH);
+// Filter metode yang akan ditampilkan (yang punya data)
+$rekap_metode_display = array_filter($rekap_metode, function ($data) {
+    return $data['paket'] > 0 || $data['pagu'] > 0;
+});
 
-// Urutkan ulang agar Tender Cepat muncul di posisi yang tepat
-$metode_order = [
-    'E-Purchasing',
-    'Pengadaan Langsung',
-    'Dikecualikan',
-    'Tender',
-    'Seleksi',
-    'Penunjukan Langsung',
-    'Tender Cepat'  // Posisi setelah metode lainnya
-];
-
+// Urutkan metode sesuai standar
+$metode_order = ['E-Purchasing', 'Pengadaan Langsung', 'Dikecualikan', 'Tender', 'Seleksi', 'Penunjukan Langsung', 'Tender Cepat'];
 $rekap_metode_sorted = [];
 foreach ($metode_order as $metode) {
     if (isset($rekap_metode_display[$metode])) {
         $rekap_metode_sorted[$metode] = $rekap_metode_display[$metode];
     }
 }
-
-// Tambahkan metode lain yang tidak ada dalam urutan standar
-foreach ($rekap_metode_display as $metode => $data) {
-    if (!in_array($metode, $metode_order)) {
-        $rekap_metode_sorted[$metode] = $data;
-    }
-}
-
 $rekap_metode_display = $rekap_metode_sorted;
 
-// Menyiapkan data untuk JavaScript (Charts)
-$chart_cara_json = json_encode([
-    'labels' => array_keys($rekap_cara),
-    'data' => array_column($rekap_cara, 'pagu')
-]);
 
-// Menyiapkan data untuk JavaScript (Charts) - sertakan semua metode termasuk yang 0
-$chart_metode_json = json_encode([
-    'labels' => array_keys($rekap_metode_display),
-    'data' => array_column($rekap_metode_display, 'pagu')
-]);
+// Menyiapkan data untuk JavaScript Charts
+$chart_cara_json = json_encode(['labels' => array_keys($rekap_cara), 'data' => array_column($rekap_cara, 'pagu')]);
+$chart_metode_json = json_encode(['labels' => array_keys($rekap_metode_display), 'data' => array_column($rekap_metode_display, 'pagu')]);
+$chart_jenis_json = json_encode(['labels' => array_keys($rekap_jenis), 'data' => array_column($rekap_jenis, 'pagu')]);
 
-$chart_jenis_json = json_encode([
-    'labels' => array_keys($rekap_jenis),
-    'data' => array_column($rekap_jenis, 'pagu')
-]);
-
-// Hitung total untuk persentase
+// Hitung total keseluruhan
 $total_pagu = $rekap_cara['Penyedia']['pagu'] + $rekap_cara['Swakelola']['pagu'];
 $total_paket = $rekap_cara['Penyedia']['paket'] + $rekap_cara['Swakelola']['paket'];
 
-// Debug information
-$debug_info = [
-    'total_records' => $total_records ?? 0,
-    'metode_count' => count($rekap_metode),
-    'jenis_count' => count($rekap_jenis),
-    'table_used' => $main_table ?? 'unknown',
-    'available_tables' => $available_tables ?? [],
-    'available_columns' => $columns ?? [],
-    'columns_found' => [
-        'metode' => $metode_col ?? 'NOT FOUND',
-        'pagu' => $pagu_col ?? 'NOT FOUND',
-        'paket' => $paket_col ?? 'NOT FOUND',
-        'jenis' => $jenis_col ?? 'NOT FOUND'
-    ],
-    'sample_data' => $sample_data[0] ?? null
-];
-
 // 2. VIEW
-$page_title = "Dashboard Perencanaan";
+$page_title = "Dashboard Perencanaan - " . htmlspecialchars($bulan_dipilih . ' ' . $tahun_dipilih);
 include '../navbar/header.php';
 ?>
 <script src="../../js/submenu.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 
 <style>
     body {
         background: white;
-        min-height: 100vh;
-        font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-family: 'Inter', sans-serif;
     }
 
     .container {
@@ -490,13 +320,85 @@ include '../navbar/header.php';
         padding: 15px;
     }
 
+    .filter-section {
+        background: linear-gradient(135deg, #fff5f5 0%, #fed7d7 100%);
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 25px;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    .filter-section h3 {
+        color: #c53030;
+        font-size: 18px;
+        font-weight: 700;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .filter-form {
+        display: flex;
+        gap: 15px;
+        align-items: end;
+        flex-wrap: wrap;
+    }
+
+    .form-group {
+        flex: 1;
+        min-width: 200px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #2d3748;
+        font-size: 14px;
+    }
+
+    .form-group select {
+        width: 100%;
+        padding: 12px 15px;
+        border: 2px solid #e2e8f0;
+        border-radius: 10px;
+        font-size: 14px;
+        background: white;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .form-group select:focus {
+        outline: none;
+        border-color: #dc3545;
+        box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.1);
+    }
+
+    .btn-filter {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        color: white;
+        border: none;
+        padding: 12px 30px;
+        border-radius: 10px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-filter:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(220, 53, 69, 0.3);
+    }
+
     .card {
         background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(20px);
         border-radius: 20px;
         box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
         margin-bottom: 30px;
-        overflow: hidden;
         border: 1px solid rgba(255, 255, 255, 0.2);
         transition: all 0.3s ease;
     }
@@ -513,34 +415,15 @@ include '../navbar/header.php';
         font-size: 18px;
         font-weight: 700;
         text-align: center;
-        letter-spacing: 1px;
         display: flex;
         align-items: center;
         justify-content: center;
         gap: 12px;
-        position: relative;
-        overflow: hidden;
-    }
-
-    .card-header::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-        transition: left 0.5s;
-    }
-
-    .card-header:hover::before {
-        left: 100%;
     }
 
     .table-container {
         padding: 25px;
         overflow-x: auto;
-        position: relative;
     }
 
     .table-controls {
@@ -552,54 +435,37 @@ include '../navbar/header.php';
         gap: 10px;
     }
 
-    .btn-group {
-        display: flex;
-        gap: 8px;
-    }
-
     .btn {
         background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
-        color: white;
+        color: white !important;
         border: none;
         padding: 8px 16px;
         border-radius: 8px;
         font-size: 12px;
-        font-weight: 500;
         cursor: pointer;
         transition: all 0.3s ease;
         display: flex;
         align-items: center;
         gap: 6px;
+        text-decoration: none !important;
     }
 
     .btn:hover {
         transform: translateY(-2px);
         box-shadow: 0 8px 20px rgba(220, 53, 69, 0.3);
-        color: white;
-        text-decoration: none;
-    }
-
-    .btn:active {
-        transform: translateY(0);
     }
 
     .styled-table {
         border-collapse: collapse;
         width: 100%;
         font-size: 14px;
-        border-radius: 12px;
-        overflow: hidden;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-        background: white;
     }
 
     .styled-table th,
     .styled-table td {
-        border: none;
         padding: 15px;
         text-align: left;
         border-bottom: 1px solid #f0f0f0;
-        position: relative;
     }
 
     .styled-table th {
@@ -607,18 +473,10 @@ include '../navbar/header.php';
         font-weight: 700;
         text-align: center;
         color: #c53030;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        font-size: 12px;
-    }
-
-    .styled-table tbody tr {
-        transition: all 0.3s ease;
     }
 
     .styled-table tbody tr:hover {
-        background: linear-gradient(135deg, #f9f9f9ff 0%, #ebebebff 100%);
-        transform: scale(1.01);
+        background: #f9f9f9;
     }
 
     .styled-table td:first-child,
@@ -630,54 +488,44 @@ include '../navbar/header.php';
     .styled-table td:last-child {
         text-align: right;
         font-weight: 600;
-        color: #2d3748;
     }
 
-    .summary-row,
-    .penyedia-row,
+    .penyedia-row td,
+    .swakelola-row td,
+    .total-row td {
+        font-weight: bold !important;
+    }
+
+    .penyedia-row {
+        background-color: #fef3c7 !important;
+    }
+
     .swakelola-row {
-        background: linear-gradient(135deg, #fff9eaff 0%, #ffe4a9ff 100%) !important;
-        font-weight: 700;
+        background-color: #dbeafe !important;
     }
 
     .total-row {
-        background: linear-gradient(135deg, #ebf9ffff 0%, #b0e0edff 100%) !important;
-        font-weight: 800;
-        border-top: 3px solid #52b7ffff;
-        color: #2d3748;
+        background-color: #d1fae5 !important;
+        border-top: 2px solid #059669;
     }
 
     .chart-grid {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
         gap: 30px;
         padding: 30px;
     }
 
     .chart-item {
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(15px);
-        border: 1px solid rgba(255, 255, 255, 0.3);
+        background: #fff;
         border-radius: 20px;
         box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
         transition: all 0.3s ease;
-        overflow: hidden;
-        position: relative;
     }
 
     .chart-item:hover {
         transform: translateY(-8px);
         box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
-    }
-
-    .chart-item::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 4px;
-        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
     }
 
     .chart-item-header {
@@ -687,51 +535,15 @@ include '../navbar/header.php';
         font-weight: 700;
         text-align: center;
         font-size: 14px;
-        letter-spacing: 0.5px;
-        text-transform: uppercase;
-        position: relative;
     }
 
     .chart-content {
         padding: 25px;
-        position: relative;
     }
 
     .chart-wrapper {
         position: relative;
         height: 350px;
-    }
-
-    .chart-controls {
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        z-index: 10;
-        display: flex;
-        gap: 5px;
-    }
-
-    .chart-btn {
-        background: rgba(220, 53, 69, 0.9);
-        color: white;
-        border: none;
-        border-radius: 6px;
-        padding: 6px 8px;
-        font-size: 10px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-
-    .chart-item:hover .chart-btn {
-        opacity: 1;
-        transform: translateY(0);
-    }
-
-    .chart-btn:hover {
-        background: rgba(220, 53, 69, 1);
-        transform: scale(1.1);
     }
 
     .info-banner {
@@ -740,53 +552,15 @@ include '../navbar/header.php';
         padding: 18px 25px;
         border-radius: 15px;
         margin-bottom: 25px;
-        font-size: 14px;
         text-align: center;
-        font-weight: 500;
         box-shadow: 0 8px 25px rgba(220, 53, 69, 0.3);
-        position: relative;
-        overflow: hidden;
-    }
-
-    .info-banner::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-        animation: shimmer 2s infinite;
-    }
-
-    @keyframes shimmer {
-        0% {
-            left: -100%;
-        }
-
-        100% {
-            left: 100%;
-        }
-    }
-
-    .debug-info {
-        background: rgba(248, 250, 252, 0.9);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(226, 232, 240, 0.8);
-        border-radius: 12px;
-        padding: 15px;
-        margin-bottom: 25px;
-        font-size: 12px;
-        color: #4a5568;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
     }
 
     .no-data {
         text-align: center;
         padding: 60px;
         color: #718096;
-        font-style: italic;
-        background: linear-gradient(135deg, #fff5f5 0%, #fed7d7 100%);
+        background: #f7fafc;
         border-radius: 12px;
         margin: 20px 0;
     }
@@ -797,216 +571,51 @@ include '../navbar/header.php';
         opacity: 0.5;
     }
 
-    /* Modal Styles */
-    .modal {
-        display: none;
-        position: fixed;
-        z-index: 1000;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0, 0, 0, 0.8);
-        backdrop-filter: blur(5px);
-    }
-
-    .modal-content {
-        background: white;
-        margin: 5% auto;
-        padding: 0;
-        border-radius: 20px;
-        width: 90%;
-        max-width: 1000px;
-        max-height: 80vh;
-        overflow-y: auto;
-        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
-        animation: modalSlideIn 0.3s ease-out;
-    }
-
-    @keyframes modalSlideIn {
-        from {
-            opacity: 0;
-            transform: translateY(-50px) scale(0.8);
-        }
-
-        to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-        }
-    }
-
-    .modal-header {
-        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
-        color: white;
-        padding: 20px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        border-radius: 20px 20px 0 0;
-    }
-
-    .close {
-        color: white;
-        font-size: 28px;
-        font-weight: bold;
-        cursor: pointer;
-        transition: all 0.2s ease;
-    }
-
-    .close:hover {
-        transform: scale(1.2);
-        opacity: 0.8;
-    }
-
-    .modal-body {
-        padding: 30px;
-    }
-
-    /* Loading Animation */
-    .loading {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 200px;
-    }
-
-    .spinner {
-        width: 40px;
-        height: 40px;
-        border: 4px solid #f3f4f6;
-        border-top: 4px solid #dc3545;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-        0% {
-            transform: rotate(0deg);
-        }
-
-        100% {
-            transform: rotate(360deg);
-        }
-    }
-
-    /* Responsive Design */
-    @media (max-width: 1200px) {
-        .chart-grid {
-            grid-template-columns: 1fr;
-        }
-    }
-
     @media (max-width: 768px) {
-        .container {
-            margin: 15px auto;
-            padding: 10px;
-        }
-
-        .chart-grid {
-            grid-template-columns: 1fr;
-            gap: 20px;
-            padding: 20px;
-        }
-
-        .chart-wrapper {
-            height: 280px;
-        }
-
-        .chart-item-header {
-            font-size: 12px;
-            padding: 15px;
-        }
-
-        .table-container {
-            padding: 15px;
-        }
-
-        .btn-group {
+        .filter-form {
             flex-direction: column;
+        }
+
+        .form-group,
+        .btn-filter {
             width: 100%;
-        }
-
-        .btn {
-            justify-content: center;
-        }
-
-        .styled-table {
-            font-size: 12px;
-        }
-
-        .styled-table th,
-        .styled-table td {
-            padding: 10px 8px;
-        }
-    }
-
-    /* Print Styles */
-    @media print {
-
-        .chart-controls,
-        .btn-group,
-        .debug-info {
-            display: none !important;
-        }
-
-        .card {
-            box-shadow: none;
-            border: 1px solid #ddd;
         }
     }
 </style>
 
-<!-- Modal untuk Detail Chart -->
-<div id="chartModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3><i class="fas fa-chart-line"></i> Detail Grafik</h3>
-            <span class="close">&times;</span>
-        </div>
-        <div class="modal-body">
-            <div id="modalChartContainer">
-                <canvas id="modalChart"></canvas>
-            </div>
-        </div>
-    </div>
-</div>
-
 <div class="container">
     <div class="info-banner">
-        <i class="fas fa-database"></i> Data real-time dari database - Terakhir diupdate: <?= date('d/m/Y H:i:s') ?>
+        <i class="fas fa-database"></i> Data Periode: <strong><?= htmlspecialchars($bulan_dipilih . ' ' . $tahun_dipilih) ?></strong> | Update: <?= date('d/m/Y H:i:s') ?>
     </div>
 
-    <!-- Debug Information -->
-    <div class="debug-info" style="font-size: 11px; line-height: 1.4;">
-        <strong>Debug Info:</strong><br>
-        <strong>Database:</strong> <?= $debug_info['table_used'] ?> |
-        <strong>Records:</strong> <?= $debug_info['total_records'] ?> |
-        <strong>Metode Found:</strong> <?= $debug_info['metode_count'] ?> |
-        <strong>Jenis Found:</strong> <?= $debug_info['jenis_count'] ?><br>
-
-        <strong>Available Tables:</strong> <?= implode(', ', $debug_info['available_tables']) ?><br>
-
-        <strong>Columns Found:</strong>
-        Metode: <code><?= $debug_info['columns_found']['metode'] ?></code> |
-        Pagu: <code><?= $debug_info['columns_found']['pagu'] ?></code> |
-        Paket: <code><?= $debug_info['columns_found']['paket'] ?></code> |
-        Jenis: <code><?= $debug_info['columns_found']['jenis'] ?></code><br>
-
-        <?php if ($debug_info['sample_data']): ?>
-            <strong>Sample Data:</strong>
-            <details style="margin-top: 10px;">
-                <summary>Click to expand</summary>
-                <pre style="background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; font-size: 10px;">
-<?= json_encode($debug_info['sample_data'], JSON_PRETTY_PRINT) ?>
-            </pre>
-            </details>
-        <?php endif; ?>
+    <div class="filter-section">
+        <h3><i class="fas fa-filter"></i> Filter Data</h3>
+        <form method="GET" class="filter-form">
+            <div class="form-group">
+                <label for="bulan"><i class="fas fa-calendar-alt"></i> Pilih Bulan</label>
+                <select name="bulan" id="bulan" class="form-select">
+                    <?php foreach ($daftar_bulan as $bulan): ?>
+                        <option value="<?= $bulan ?>" <?= ($bulan_dipilih == $bulan || $bulan_dipilih == ($bulan_mapping[$bulan] ?? '')) ? 'selected' : '' ?>>
+                            <?= $bulan ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="tahun"><i class="fas fa-calendar"></i> Pilih Tahun</label>
+                <select name="tahun" id="tahun" class="form-select">
+                    <?php $current_year = (int)date('Y');
+                    for ($i = $current_year - 3; $i <= $current_year + 1; $i++): ?>
+                        <option value="<?= $i ?>" <?= ($tahun_dipilih == $i) ? 'selected' : '' ?>><?= $i ?></option>
+                    <?php endfor; ?>
+                </select>
+            </div>
+            <button type="submit" class="btn-filter"><i class="fas fa-search"></i> Tampilkan</button>
+        </form>
     </div>
 
     <div class="card">
-        <div class="card-header">
-            <i class="fas fa-table"></i> PERENCANAAN PENGADAAN
-        </div>
+        <div class="card-header"><i class="fas fa-table"></i> REKAPITULASI PERENCANAAN PENGADAAN</div>
         <div class="table-container">
             <div class="table-controls">
                 <div>
@@ -1014,168 +623,123 @@ include '../navbar/header.php';
                     <strong>Rp <?= number_format($total_pagu, 0, ',', '.') ?></strong>
                 </div>
                 <div class="btn-group">
-                    <a href="export_excel.php" class="btn">
-                        <i class="fas fa-file-excel"></i> Export Excel
+                    <a href="export_excel.php?bulan=<?= urlencode($bulan_dipilih) ?>&tahun=<?= $tahun_dipilih ?>" class="btn">
+                        <i class="fas fa-file-excel"></i> Export
                     </a>
-                    <button class="btn" onclick="printTable()">
-                        <i class="fas fa-print"></i> Print
-                    </button>
-                    <button class="btn" onclick="refreshData()">
-                        <i class="fas fa-refresh"></i> Refresh
-                    </button>
                 </div>
             </div>
 
-            <?php if (!empty($rekap_metode_display)): ?>
-                <table class="styled-table" id="mainTable">
+            <?php if ($total_paket > 0): ?>
+                <table class="styled-table">
                     <thead>
                         <tr>
                             <th>NO</th>
                             <th>METODE PENGADAAN</th>
-                            <th>JUMLAH PAKET RUP</th>
-                            <th>PAGU</th>
+                            <th>JUMLAH PAKET</th>
+                            <th>PAGU (Rp)</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php $no = 1; ?>
                         <?php foreach ($rekap_metode_display as $metode => $stats): ?>
-                            <tr <?= ($stats['paket'] == 0) ? 'style="opacity: 0.6; font-style: italic;"' : '' ?>>
+                            <tr>
                                 <td><?= $no++ ?></td>
-                                <td>
-                                    <?= htmlspecialchars($metode) ?>
-                                    <?= ($stats['paket'] == 0) ? ' <small>(belum ada data)</small>' : '' ?>
-                                </td>
+                                <td><?= htmlspecialchars($metode) ?></td>
                                 <td><?= number_format($stats['paket'], 0, ',', '.') ?></td>
-                                <td>Rp <?= number_format($stats['pagu'], 0, ',', '.') ?></td>
+                                <td><?= number_format($stats['pagu'], 0, ',', '.') ?></td>
                             </tr>
                         <?php endforeach; ?>
 
                         <tr class="penyedia-row">
-                            <td colspan="2"><strong>Penyedia</strong></td>
+                            <td colspan="2"><strong>Total Penyedia</strong></td>
                             <td><strong><?= number_format($rekap_cara['Penyedia']['paket'], 0, ',', '.') ?></strong></td>
-                            <td><strong>Rp <?= number_format($rekap_cara['Penyedia']['pagu'], 0, ',', '.') ?></strong></td>
+                            <td><strong><?= number_format($rekap_cara['Penyedia']['pagu'], 0, ',', '.') ?></strong></td>
                         </tr>
                         <tr class="swakelola-row">
-                            <td colspan="2"><strong>Swakelola</strong></td>
+                            <td colspan="2"><strong>Total Swakelola</strong></td>
                             <td><strong><?= number_format($rekap_cara['Swakelola']['paket'], 0, ',', '.') ?></strong></td>
-                            <td><strong>Rp <?= number_format($rekap_cara['Swakelola']['pagu'], 0, ',', '.') ?></strong></td>
+                            <td><strong><?= number_format($rekap_cara['Swakelola']['pagu'], 0, ',', '.') ?></strong></td>
                         </tr>
                         <tr class="total-row">
-                            <td colspan="2"><strong>TOTAL</strong></td>
+                            <td colspan="2"><strong>TOTAL KESELURUHAN</strong></td>
                             <td><strong><?= number_format($total_paket, 0, ',', '.') ?></strong></td>
-                            <td><strong>Rp <?= number_format($total_pagu, 0, ',', '.') ?></strong></td>
+                            <td><strong><?= number_format($total_pagu, 0, ',', '.') ?></strong></td>
                         </tr>
                     </tbody>
                 </table>
             <?php else: ?>
                 <div class="no-data">
                     <i class="fas fa-exclamation-triangle"></i><br>
-                    Tidak ada data ditemukan dalam database.<br>
-                    <small>Periksa koneksi database dan struktur tabel.</small>
+                    Tidak ada data ditemukan untuk periode <strong><?= htmlspecialchars($bulan_dipilih . ' ' . $tahun_dipilih) ?></strong>.
                 </div>
             <?php endif; ?>
         </div>
     </div>
 
-    <div class="card">
-        <div class="card-header">
-            <i class="fas fa-chart-pie"></i> VISUALISASI DATA PENGADAAN
-        </div>
-        <div class="chart-grid">
-            <div class="chart-item">
-                <div class="chart-item-header">
-                    <i class="fas fa-chart-pie"></i> CARA PENGADAAN
-                </div>
-                <div class="chart-content">
-                    <div class="chart-controls">
-                        <button class="chart-btn" onclick="openModal('chartCara', 'Cara Pengadaan')">
-                            <i class="fas fa-expand"></i>
-                        </button>
-                        <button class="chart-btn" onclick="downloadChart('chartCara', 'cara-pengadaan')">
-                            <i class="fas fa-download"></i>
-                        </button>
-                    </div>
-                    <div class="chart-wrapper">
-                        <canvas id="chartCara"></canvas>
+    <?php if ($total_paket > 0): ?>
+        <div class="card">
+            <div class="card-header"><i class="fas fa-chart-pie"></i> VISUALISASI DATA</div>
+            <div class="chart-grid">
+                <div class="chart-item">
+                    <div class="chart-item-header">CARA PENGADAAN</div>
+                    <div class="chart-content">
+                        <div class="chart-wrapper"><canvas id="chartCara"></canvas></div>
                     </div>
                 </div>
-            </div>
-
-            <div class="chart-item">
-                <div class="chart-item-header">
-                    <i class="fas fa-chart-doughnut"></i> JENIS PENGADAAN
-                </div>
-                <div class="chart-content">
-                    <div class="chart-controls">
-                        <button class="chart-btn" onclick="openModal('chartJenis', 'Jenis Pengadaan')">
-                            <i class="fas fa-expand"></i>
-                        </button>
-                        <button class="chart-btn" onclick="downloadChart('chartJenis', 'jenis-pengadaan')">
-                            <i class="fas fa-download"></i>
-                        </button>
-                    </div>
-                    <div class="chart-wrapper">
-                        <canvas id="chartJenis"></canvas>
+                <div class="chart-item">
+                    <div class="chart-item-header">JENIS PENGADAAN</div>
+                    <div class="chart-content">
+                        <div class="chart-wrapper"><canvas id="chartJenis"></canvas></div>
                     </div>
                 </div>
-            </div>
-
-            <div class="chart-item">
-                <div class="chart-item-header">
-                    <i class="fas fa-chart-bar"></i> METODE PENGADAAN
-                </div>
-                <div class="chart-content">
-                    <div class="chart-controls">
-                        <button class="chart-btn" onclick="openModal('chartMetode', 'Metode Pengadaan')">
-                            <i class="fas fa-expand"></i>
-                        </button>
-                        <button class="chart-btn" onclick="downloadChart('chartMetode', 'metode-pengadaan')">
-                            <i class="fas fa-download"></i>
-                        </button>
-                    </div>
-                    <div class="chart-wrapper">
-                        <canvas id="chartMetode"></canvas>
+                <div class="chart-item">
+                    <div class="chart-item-header">METODE PENGADAAN (PENYEDIA)</div>
+                    <div class="chart-content">
+                        <div class="chart-wrapper"><canvas id="chartMetode"></canvas></div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
+    <?php endif; ?>
 </div>
 
 <script>
     document.addEventListener("DOMContentLoaded", function() {
-        // Register Chart.js plugins
+        // Pastikan Chart.js sudah termuat
+        if (typeof Chart === 'undefined') {
+            console.error('Chart.js is not loaded.');
+            return;
+        }
+        // Daftarkan plugin yang dibutuhkan
         Chart.register(ChartDataLabels);
 
+        const formatRupiah = (value) => new Intl.NumberFormat('id-ID', {
+            style: 'currency',
+            currency: 'IDR',
+            minimumFractionDigits: 0
+        }).format(value);
+
+        // Opsi umum untuk semua chart
         const commonOptions = {
             responsive: true,
             maintainAspectRatio: false,
-            animation: {
-                duration: 1500,
-                easing: 'easeInOutQuart'
-            },
             plugins: {
                 legend: {
-                    display: true,
                     position: 'bottom',
                     labels: {
                         padding: 20,
-                        font: {
-                            size: 12,
-                            weight: '600'
-                        },
                         usePointStyle: true,
-                        pointStyle: 'circle',
+                        // Fungsi untuk generate label custom
                         generateLabels: function(chart) {
                             const data = chart.data;
                             if (data.labels.length && data.datasets.length) {
                                 const dataset = data.datasets[0];
+                                const total = dataset.data.reduce((a, b) => a + b, 0);
                                 return data.labels.map((label, i) => {
                                     const value = dataset.data[i];
-                                    const total = dataset.data.reduce((a, b) => a + b, 0);
                                     const percentage = total > 0 ? ((value / total) * 100).toFixed(1) + '%' : '0%';
                                     return {
-                                        text: `${label} (${percentage})`,
+                                        text: `${label} (${percentage})`, // <-- PERBAIKAN DI SINI
                                         fillStyle: dataset.backgroundColor[i],
                                         hidden: isNaN(dataset.data[i]) || chart.getDatasetMeta(0).data[i].hidden,
                                         index: i
@@ -1187,300 +751,96 @@ include '../navbar/header.php';
                     }
                 },
                 tooltip: {
-                    backgroundColor: 'rgba(0, 0, 0, 0.9)',
-                    titleColor: '#fff',
-                    bodyColor: '#fff',
-                    borderColor: '#dc3545',
-                    borderWidth: 2,
-                    cornerRadius: 8,
-                    displayColors: true,
                     callbacks: {
                         label: function(context) {
                             const label = context.label || '';
                             const value = context.parsed;
-                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) + '%' : '0%';
-                            const formattedValue = new Intl.NumberFormat('id-ID').format(value);
-                            return `${label}: Rp ${formattedValue} (${percentage})`;
+                            return `${label}: ${formatRupiah(value)}`;
                         }
                     }
                 },
                 datalabels: {
                     color: '#fff',
                     font: {
-                        weight: 'bold',
-                        size: 11
+                        weight: 'bold'
                     },
                     formatter: (value, context) => {
-                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                        const percentage = total > 0 ? ((value / total) * 100) : 0;
+                        const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                        const percentage = total > 0 ? (value / total) * 100 : 0;
                         return percentage > 5 ? percentage.toFixed(1) + '%' : '';
-                    },
-                    textAlign: 'center'
+                    }
                 }
-            },
-            interaction: {
-                intersect: false,
-                mode: 'nearest'
             }
         };
 
-        // Enhanced color schemes with gradients simulation
-        const caraColors = ['#f58530ff', '#2782d1ff'];
-        const jenisColors = ['#f9c03cff', '#2782d1ff', '#f58530ff', '#858585ff'];
-        const metodeColors = ['#f58530ff', '#2782d1ff', '#04a40cff', '#f9c03cff', '#2491fdff', '#7b241c', '#641e16', '#5b1a14'];
+        // Ambil data dari PHP
+        const caraData = <?= $chart_cara_json ?>;
+        const jenisData = <?= $chart_jenis_json ?>;
+        const metodeData = <?= $chart_metode_json ?>;
 
-        // Data dari PHP
-        const dataCara = <?= $chart_cara_json ?>;
-        const dataJenis = <?= $chart_jenis_json ?>;
-        const dataMetode = <?= $chart_metode_json ?>;
+        // Chart 1: Cara Pengadaan (Pie)
+        const chartCaraCanvas = document.getElementById('chartCara');
+        if (chartCaraCanvas && caraData.data.some(d => d > 0)) {
+            new Chart(chartCaraCanvas, {
+                type: 'pie',
+                data: {
+                    labels: caraData.labels,
+                    datasets: [{
+                        data: caraData.data,
+                        backgroundColor: ['#36A2EB', '#FF6384', '#FFCE56', '#4BC0C0']
+                    }]
+                },
+                options: commonOptions
+            });
+        }
 
-        let charts = {};
-
-        // 1. Chart Cara Pengadaan (Penyedia vs Swakelola)
-        if (dataCara.data.some(val => val > 0)) {
-            charts.cara = new Chart(document.getElementById('chartCara'), {
+        // Chart 2: Jenis Pengadaan (Doughnut)
+        const chartJenisCanvas = document.getElementById('chartJenis');
+        if (chartJenisCanvas && jenisData.data.some(d => d > 0)) {
+            new Chart(chartJenisCanvas, {
                 type: 'doughnut',
                 data: {
-                    labels: dataCara.labels,
+                    labels: jenisData.labels,
                     datasets: [{
-                        data: dataCara.data,
-                        backgroundColor: caraColors,
-                        borderColor: '#fff',
-                        borderWidth: 4,
-                        hoverBorderWidth: 6,
-                        hoverOffset: 10
+                        data: jenisData.data,
+                        backgroundColor: ['#FFCE56', '#4BC0C0', '#FF9F40', '#9966FF', '#C9CBCF']
+                    }]
+                },
+                options: commonOptions
+            });
+        }
+
+        // Chart 3: Metode Pengadaan (Bar)
+        const chartMetodeCanvas = document.getElementById('chartMetode');
+        if (chartMetodeCanvas && metodeData.data.some(d => d > 0)) {
+            new Chart(chartMetodeCanvas, {
+                type: 'bar',
+                data: {
+                    labels: metodeData.labels,
+                    datasets: [{
+                        label: 'Pagu (Rp)',
+                        data: metodeData.data,
+                        backgroundColor: '#4BC0C0'
                     }]
                 },
                 options: {
                     ...commonOptions,
-                    cutout: '60%',
+                    indexAxis: 'y', // Membuat bar chart menjadi horizontal
                     plugins: {
                         ...commonOptions.plugins,
-                        datalabels: {
-                            ...commonOptions.plugins.datalabels,
-                            display: true
+                        legend: {
+                            display: false
+                        }, // Sembunyikan legend untuk bar chart
+                        datalabels: { // Custom datalabels untuk bar chart
+                            color: '#333',
+                            anchor: 'end',
+                            align: 'end',
+                            formatter: (value) => value > 0 ? new Intl.NumberFormat('id-ID').format(value) : '',
                         }
                     }
                 }
             });
-        } else {
-            document.getElementById('chartCara').parentElement.innerHTML = '<div class="no-data"><i class="fas fa-chart-pie"></i><br>Tidak ada data</div>';
         }
-
-        // 2. Chart Jenis Pengadaan
-        if (dataJenis.data.length > 0 && dataJenis.data.some(val => val > 0)) {
-            charts.jenis = new Chart(document.getElementById('chartJenis'), {
-                type: 'doughnut',
-                data: {
-                    labels: dataJenis.labels,
-                    datasets: [{
-                        data: dataJenis.data,
-                        backgroundColor: jenisColors.slice(0, dataJenis.labels.length),
-                        borderColor: '#fff',
-                        borderWidth: 3,
-                        hoverBorderWidth: 5,
-                        hoverOffset: 8
-                    }]
-                },
-                options: {
-                    ...commonOptions,
-                    cutout: '55%',
-                    plugins: {
-                        ...commonOptions.plugins,
-                        datalabels: {
-                            ...commonOptions.plugins.datalabels,
-                            display: true
-                        }
-                    }
-                }
-            });
-        } else {
-            document.getElementById('chartJenis').parentElement.innerHTML = '<div class="no-data"><i class="fas fa-chart-doughnut"></i><br>Tidak ada data</div>';
-        }
-
-        // 3. Chart Metode Pengadaan (Detail)
-        if (dataMetode.data.length > 0) {
-            const filteredData = {
-                labels: [],
-                data: []
-            };
-
-            dataMetode.labels.forEach((label, index) => {
-                if (dataMetode.data[index] > 0) {
-                    filteredData.labels.push(label);
-                    filteredData.data.push(dataMetode.data[index]);
-                }
-            });
-
-            if (filteredData.data.length > 0) {
-                charts.metode = new Chart(document.getElementById('chartMetode'), {
-                    type: 'doughnut',
-                    data: {
-                        labels: filteredData.labels,
-                        datasets: [{
-                            data: filteredData.data,
-                            backgroundColor: metodeColors.slice(0, filteredData.labels.length),
-                            borderColor: '#fff',
-                            borderWidth: 3,
-                            hoverBorderWidth: 5,
-                            hoverOffset: 6
-                        }]
-                    },
-                    options: {
-                        ...commonOptions,
-                        cutout: '50%',
-                        plugins: {
-                            ...commonOptions.plugins,
-                            legend: {
-                                display: true,
-                                position: 'right',
-                                labels: {
-                                    padding: 12,
-                                    font: {
-                                        size: 10,
-                                        weight: '600'
-                                    },
-                                    usePointStyle: true,
-                                    pointStyle: 'circle',
-                                    generateLabels: function(chart) {
-                                        const data = chart.data;
-                                        if (data.labels.length && data.datasets.length) {
-                                            const dataset = data.datasets[0];
-                                            return data.labels.map((label, i) => {
-                                                const value = dataset.data[i];
-                                                const total = dataset.data.reduce((a, b) => a + b, 0);
-                                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) + '%' : '0%';
-                                                return {
-                                                    text: `${label} (${percentage})`,
-                                                    fillStyle: dataset.backgroundColor[i],
-                                                    hidden: isNaN(dataset.data[i]) || chart.getDatasetMeta(0).data[i].hidden,
-                                                    index: i
-                                                };
-                                            });
-                                        }
-                                        return [];
-                                    }
-                                }
-                            },
-                            datalabels: {
-                                ...commonOptions.plugins.datalabels,
-                                display: function(context) {
-                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                    const percentage = total > 0 ? ((context.parsed / total) * 100) : 0;
-                                    return percentage > 3;
-                                }
-                            }
-                        }
-                    }
-                });
-            } else {
-                document.getElementById('chartMetode').parentElement.innerHTML = '<div class="no-data"><i class="fas fa-chart-bar"></i><br>Tidak ada data dengan nilai > 0</div>';
-            }
-        } else {
-            document.getElementById('chartMetode').parentElement.innerHTML = '<div class="no-data"><i class="fas fa-chart-bar"></i><br>Tidak ada data</div>';
-        }
-
-        // Modal functionality
-        const modal = document.getElementById('chartModal');
-        const closeBtn = document.getElementsByClassName('close')[0];
-        let modalChart = null;
-
-        window.openModal = function(chartId, title) {
-            const originalChart = charts[chartId.replace('chart', '').toLowerCase()];
-            if (!originalChart) return;
-
-            document.querySelector('.modal-header h3').innerHTML = `<i class="fas fa-chart-line"></i> ${title}`;
-            modal.style.display = 'block';
-
-            setTimeout(() => {
-                const ctx = document.getElementById('modalChart');
-                if (modalChart) {
-                    modalChart.destroy();
-                }
-
-                modalChart = new Chart(ctx, {
-                    type: originalChart.config.type,
-                    data: JSON.parse(JSON.stringify(originalChart.config.data)),
-                    options: {
-                        ...originalChart.config.options,
-                        plugins: {
-                            ...originalChart.config.options.plugins,
-                            legend: {
-                                ...originalChart.config.options.plugins.legend,
-                                position: 'bottom'
-                            }
-                        }
-                    }
-                });
-            }, 100);
-        };
-
-        closeBtn.onclick = function() {
-            modal.style.display = 'none';
-            if (modalChart) {
-                modalChart.destroy();
-                modalChart = null;
-            }
-        };
-
-        window.onclick = function(event) {
-            if (event.target == modal) {
-                modal.style.display = 'none';
-                if (modalChart) {
-                    modalChart.destroy();
-                    modalChart = null;
-                }
-            }
-        };
-
-        // Download chart functionality
-        window.downloadChart = function(chartId, filename) {
-            const canvas = document.getElementById(chartId);
-            const link = document.createElement('a');
-            link.download = filename + '.png';
-            link.href = canvas.toDataURL();
-            link.click();
-        };
-
-        // Export table to CSV
-        window.exportTableToCSV = function() {
-            const table = document.getElementById('mainTable');
-            let csv = '';
-
-            for (let i = 0; i < table.rows.length; i++) {
-                let row = [];
-                for (let j = 0; j < table.rows[i].cells.length; j++) {
-                    row.push('"' + table.rows[i].cells[j].innerText.replace(/"/g, '""') + '"');
-                }
-                csv += row.join(',') + '\n';
-            }
-
-            const link = document.createElement('a');
-            link.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
-            link.download = 'dashboard-perencanaan-' + new Date().toISOString().slice(0, 10) + '.csv';
-            link.click();
-        };
-
-        // Print table
-        window.printTable = function() {
-            window.print();
-        };
-
-        // Refresh data
-        window.refreshData = function() {
-            location.reload();
-        };
-
-        // Console log untuk debugging
-        console.log('Enhanced Dashboard Data Loaded from Database:');
-        console.log('Debug Info:', <?= json_encode($debug_info) ?>);
-        console.log('Cara Pengadaan:', dataCara);
-        console.log('Jenis Pengadaan:', dataJenis);
-        console.log('Metode Pengadaan:', dataMetode);
-
-        const timestamp = new Date().toLocaleString('id-ID');
-        console.log('Data updated at:', timestamp);
     });
 </script>
 

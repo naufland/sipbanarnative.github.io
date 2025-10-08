@@ -29,6 +29,7 @@ try {
                 case 'list':
                     // Get filters from query parameters
                     $filters = [
+                        'bulan' => $_GET['bulan'] ?? '',           // BARU: Filter bulan
                         'tahun' => $_GET['tahun'] ?? '',
                         'tanggal_awal' => $_GET['tanggal_awal'] ?? '',
                         'tanggal_akhir' => $_GET['tanggal_akhir'] ?? '',
@@ -69,13 +70,15 @@ try {
                             'per_page' => $limit,
                             'has_next' => $page < $totalPages,
                             'has_prev' => $page > 1
-                        ]
+                        ],
+                        'filters_applied' => $filters  // BARU: Tampilkan filter yang diterapkan
                     ]);
                     break;
 
                 case 'summary':
-                    // NEW: Get summary/statistics data
+                    // Get summary/statistics data dengan support filter bulan
                     $filters = [
+                        'bulan' => $_GET['bulan'] ?? '',           // BARU: Filter bulan
                         'tahun' => $_GET['tahun'] ?? '',
                         'tanggal_awal' => $_GET['tanggal_awal'] ?? '',
                         'tanggal_akhir' => $_GET['tanggal_akhir'] ?? '',
@@ -165,13 +168,24 @@ try {
                             'total_paket' => $totalRecords,
                             'total_pagu' => $totalPagu,
                             'avg_pagu' => $avgPagu,
-                            'total_klpd' => count($klpdStats),
-                            'breakdown' => [
-                                'jenis_pengadaan' => $jenisPengadaanStats,
-                                'klpd' => $klpdStats,
-                                'metode' => $metodeStats,
-                                'usaha_kecil' => $usahaKecilStats
-                            ]
+                            'total_klpd' => count($klpdStats)
+                        ],
+                        'breakdown' => [
+                            'jenis_pengadaan' => $jenisPengadaanStats,
+                            'klpd' => $klpdStats,
+                            'metode' => $metodeStats,
+                            'usaha_kecil' => $usahaKecilStats
+                        ],
+                        'filters_applied' => $filters,  // BARU: Tampilkan filter yang diterapkan
+                        'period_info' => [              // BARU: Info periode
+                            'bulan' => $filters['bulan'] ?? null,
+                            'tahun' => $filters['tahun'] ?? null,
+                            'bulan_nama' => isset($filters['bulan']) ? [
+                                '01' => 'Januari', '02' => 'Februari', '03' => 'Maret',
+                                '04' => 'April', '05' => 'Mei', '06' => 'Juni',
+                                '07' => 'Juli', '08' => 'Agustus', '09' => 'September',
+                                '10' => 'Oktober', '11' => 'November', '12' => 'Desember'
+                            ][$filters['bulan']] ?? null : null
                         ]
                     ]);
                     break;
@@ -183,6 +197,10 @@ try {
                     $usahaKecil = $pengadaan->getDistinctValues('Usaha_Kecil');
                     $metode = $pengadaan->getDistinctValues('Metode');
                     $years = $pengadaan->getAvailableYears();
+                    
+                    // BARU: Get available months
+                    $tahunFilter = $_GET['tahun'] ?? null;
+                    $months = $pengadaan->getAvailableMonths($tahunFilter);
 
                     echo json_encode([
                         'success' => true,
@@ -191,13 +209,15 @@ try {
                             'klpd' => $klpd,
                             'usaha_kecil' => $usahaKecil,
                             'metode' => $metode,
-                            'years' => $years
+                            'years' => $years,
+                            'months' => $months  // BARU: Daftar bulan yang tersedia
                         ]
                     ]);
                     break;
 
                 case 'statistics':
                     $filters = [
+                        'bulan' => $_GET['bulan'] ?? '',  // BARU: Filter bulan
                         'tahun' => $_GET['tahun'] ?? ''
                     ];
                     $filters = array_filter($filters);
@@ -206,13 +226,43 @@ try {
 
                     echo json_encode([
                         'success' => true,
-                        'statistics' => $stats
+                        'statistics' => $stats,
+                        'filters_applied' => $filters
+                    ]);
+                    break;
+
+                case 'months':
+                    // BARU: Endpoint khusus untuk mendapatkan daftar bulan
+                    $tahun = $_GET['tahun'] ?? null;
+                    $months = $pengadaan->getAvailableMonths($tahun);
+                    
+                    // Format nama bulan
+                    $monthsWithNames = [];
+                    $namaBulan = [
+                        1 => 'Januari', 2 => 'Februari', 3 => 'Maret',
+                        4 => 'April', 5 => 'Mei', 6 => 'Juni',
+                        7 => 'Juli', 8 => 'Agustus', 9 => 'September',
+                        10 => 'Oktober', 11 => 'November', 12 => 'Desember'
+                    ];
+                    
+                    foreach ($months as $month) {
+                        $monthsWithNames[] = [
+                            'value' => str_pad($month, 2, '0', STR_PAD_LEFT),
+                            'label' => $namaBulan[$month]
+                        ];
+                    }
+
+                    echo json_encode([
+                        'success' => true,
+                        'months' => $monthsWithNames,
+                        'tahun' => $tahun
                     ]);
                     break;
 
                 case 'export':
-                    // Export functionality
+                    // Export functionality dengan support filter bulan
                     $filters = [
+                        'bulan' => $_GET['bulan'] ?? '',     // BARU: Filter bulan
                         'tahun' => $_GET['tahun'] ?? '',
                         'tanggal_awal' => $_GET['tanggal_awal'] ?? '',
                         'tanggal_akhir' => $_GET['tanggal_akhir'] ?? '',
@@ -227,8 +277,22 @@ try {
                     $data = $pengadaan->getPengadaanData($filters, 10000, 0); // Get all data for export
 
                     if ($format == 'csv') {
+                        // BARU: Tambahkan info bulan di nama file jika ada filter bulan
+                        $fileName = 'data_pengadaan';
+                        if (!empty($filters['bulan']) && !empty($filters['tahun'])) {
+                            $namaBulan = [
+                                '01' => 'januari', '02' => 'februari', '03' => 'maret',
+                                '04' => 'april', '05' => 'mei', '06' => 'juni',
+                                '07' => 'juli', '08' => 'agustus', '09' => 'september',
+                                '10' => 'oktober', '11' => 'november', '12' => 'desember'
+                            ];
+                            $fileName .= '_' . $namaBulan[$filters['bulan']] . '_' . $filters['tahun'];
+                        } else {
+                            $fileName .= '_' . date('Y-m-d');
+                        }
+                        
                         header('Content-Type: text/csv; charset=utf-8');
-                        header('Content-Disposition: attachment; filename="data_pengadaan_' . date('Y-m-d') . '.csv"');
+                        header('Content-Disposition: attachment; filename="' . $fileName . '.csv"');
 
                         $output = fopen('php://output', 'w');
 

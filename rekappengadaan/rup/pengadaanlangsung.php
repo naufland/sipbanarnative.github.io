@@ -1,6 +1,6 @@
 <?php
 // =================================================================
-// == BLOK PHP LENGKAP DENGAN PERBAIKAN ============================
+// == BLOK PHP DENGAN FILTER BULAN DEFAULT JULI ====================
 // =================================================================
 
 // URL API dasar
@@ -10,11 +10,19 @@ $apiBaseUrl = "http://sipbanar-phpnative.id/api/pengadaan.php";
 $currentPage = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $limit = $_GET['limit'] ?? 100; // Default limit 100 data
 
+// TAMBAHAN: Dapatkan filter bulan dan tahun
+// Default bulan Juli (07) dan tahun sekarang
+$currentYear = date('Y');
+$selectedBulan = $_GET['bulan'] ?? '07'; // Default Juli
+$selectedTahun = $_GET['tahun'] ?? $currentYear;
+
 // 2. Siapkan parameter query untuk API
 // Ambil semua parameter filter dari URL
 $queryParams = $_GET;
 $queryParams['page'] = $currentPage;
 $queryParams['limit'] = $limit;
+$queryParams['bulan'] = $selectedBulan;
+$queryParams['tahun'] = $selectedTahun;
 
 // Hapus parameter kosong agar URL bersih
 $queryParams = array_filter($queryParams, function ($value) {
@@ -22,7 +30,6 @@ $queryParams = array_filter($queryParams, function ($value) {
 });
 $queryString = http_build_query($queryParams);
 $apiUrl = $apiBaseUrl . '?' . $queryString;
-
 
 // 3. Siapkan parameter untuk mengambil data SUMMARY (statistik)
 // Gunakan semua filter KECUALI 'page' dan 'limit'
@@ -35,40 +42,29 @@ $summaryParams['action'] = 'summary';
 $summaryQueryString = http_build_query($summaryParams);
 $apiSummaryUrl = $apiBaseUrl . '?' . $summaryQueryString;
 
-
 // 4. Panggil API: satu untuk data tabel, satu untuk statistik
-// @ digunakan untuk menekan warning jika API gagal, akan dicek manual di bawah
 $response = @file_get_contents($apiUrl);
 $data = json_decode($response, true);
 
 $summaryResponse = @file_get_contents($apiSummaryUrl);
 $summaryData = json_decode($summaryResponse, true);
 
-
 // 5. Inisialisasi variabel statistik dengan nilai default
 $totalPagu = 0;
 $totalPaket = 0;
 $formattedTotalPagu = 'Rp 0';
-$formattedAvgPagu = 'Rp 0';
-$klpdCount = 0;
 
 // 6. Proses data statistik dari API summary
-// API Anda HARUS mengembalikan struktur seperti: { "success": true, "summary": { "total_paket": 123, "total_pagu": 4560000, ... } }
 if ($summaryData && isset($summaryData['success']) && $summaryData['success'] && isset($summaryData['summary'])) {
     $summary = $summaryData['summary'];
-
     $totalPaket = $summary['total_paket'] ?? 0;
     $totalPagu = $summary['total_pagu'] ?? 0;
-
-    // Format nilai untuk ditampilkan
     $formattedTotalPagu = 'Rp ' . number_format($totalPagu, 0, ',', '.');
-    
 }
 
 // 7. Siapkan variabel untuk paginasi
 $totalPages = $data['pagination']['total_pages'] ?? 1;
 $totalRecords = $data['pagination']['total_records'] ?? 0;
-// Jika summary memberikan total paket, gunakan itu karena lebih akurat
 if ($totalPaket > 0) {
     $totalRecords = $totalPaket;
 }
@@ -76,22 +72,29 @@ if ($totalPaket > 0) {
 // Set page title untuk header
 $page_title = "Data Pengadaan - SIP BANAR";
 
+// Array nama bulan untuk tampilan
+$namaBulan = [
+    '01' => 'Januari', '02' => 'Februari', '03' => 'Maret',
+    '04' => 'April', '05' => 'Mei', '06' => 'Juni',
+    '07' => 'Juli', '08' => 'Agustus', '09' => 'September',
+    '10' => 'Oktober', '11' => 'November', '12' => 'Desember'
+];
+
 // Include header
 include '../../navbar/header.php';
-
 ?>
 
 <script src="../../js/submenu.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
 <style>
-    /* Custom CSS untuk halaman pengadaan - Perbaikan Filter Layout */
+    /* Custom CSS untuk halaman pengadaan */
     .container {
         max-width: 1400px;
         margin: 0 auto;
         padding: 20px;
     }
 
-    /* Filter Section Styles - Diperbaiki */
+    /* Filter Section Styles */
     .filter-section {
         background: white;
         border-radius: 15px;
@@ -136,24 +139,24 @@ include '../../navbar/header.php';
         padding: 30px 25px;
     }
 
-    /* Grid Layout untuk Filter - Layout Rapi */
+    /* Grid Layout untuk Filter */
     .filter-row {
         display: grid;
         gap: 25px;
         margin-bottom: 25px;
     }
 
-    /* Baris pertama: Periode Tanggal (2 kolom) + Jenis Pengadaan (1 kolom) */
+    /* Baris pertama: Bulan + Tahun + Jenis Pengadaan */
     .filter-row:nth-child(1) {
-        grid-template-columns: 2fr 1fr;
+        grid-template-columns: 1fr 1fr 1fr;
     }
 
-    /* Baris kedua: KLPD + Metode + Pencarian Paket (3 kolom sama) */
+    /* Baris kedua: KLPD + Metode + Pencarian Paket */
     .filter-row:nth-child(2) {
         grid-template-columns: 1fr 1fr 1fr;
     }
 
-    /* Baris ketiga: Limit Data (1 kolom, rata kiri) */
+    /* Baris ketiga: Limit Data */
     .filter-row:nth-child(3) {
         grid-template-columns: 300px 1fr;
     }
@@ -169,6 +172,16 @@ include '../../navbar/header.php';
         color: #2c3e50;
         font-size: 14px;
         letter-spacing: 0.3px;
+    }
+
+    .filter-group label .badge-default {
+        background: #ffc107;
+        color: #000;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 700;
+        margin-left: 8px;
     }
 
     .filter-group select,
@@ -196,7 +209,7 @@ include '../../navbar/header.php';
         border-color: #dc3545;
     }
 
-    /* Date Range Styles - Diperbaiki */
+    /* Date Range Styles */
     .date-range-group {
         position: relative;
     }
@@ -347,7 +360,7 @@ include '../../navbar/header.php';
         padding: 20px 25px;
         display: flex;
         align-items: center;
-        gap: 12px;
+        justify-content: space-between;
         position: relative;
     }
 
@@ -361,6 +374,12 @@ include '../../navbar/header.php';
         background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
     }
 
+    .summary-header-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
     .summary-header i {
         font-size: 20px;
     }
@@ -370,6 +389,15 @@ include '../../navbar/header.php';
         font-size: 18px;
         font-weight: 600;
         letter-spacing: 0.5px;
+    }
+
+    .period-badge {
+        background: rgba(255, 255, 255, 0.2);
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+        border: 2px solid rgba(255, 255, 255, 0.3);
     }
 
     .summary-content {
@@ -415,14 +443,6 @@ include '../../navbar/header.php';
         background: #27ae60;
     }
 
-    .summary-card.info::before {
-        background: #17a2b8;
-    }
-
-    .summary-card.warning::before {
-        background: #f39c12;
-    }
-
     .summary-card:hover {
         transform: translateY(-3px);
         box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
@@ -445,14 +465,6 @@ include '../../navbar/header.php';
 
     .summary-card.success .card-icon {
         background: linear-gradient(135deg, #27ae60, #58d68d);
-    }
-
-    .summary-card.info .card-icon {
-        background: linear-gradient(135deg, #17a2b8, #5dccda);
-    }
-
-    .summary-card.warning .card-icon {
-        background: linear-gradient(135deg, #f39c12, #f8c471);
     }
 
     .card-content {
@@ -479,101 +491,7 @@ include '../../navbar/header.php';
         color: #6c757d;
     }
 
-    /* Statistics Tables */
-    .stats-tables {
-        display: grid;
-        gap: 30px;
-    }
-
-    .stats-table {
-        background: black;
-        border-radius: 12px;
-        padding: 25px;
-        border: 1px solid #e9ecef;
-    }
-
-    .stats-table h4 {
-        margin: 0 0 20px 0;
-        color: red;
-        font-size: 16px;
-        font-weight: 600;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .stats-table h4 i {
-        color: #dc3545;
-    }
-
-    .stats-table table {
-        width: 100%;
-        background: white;
-        border-radius: 8px;
-        overflow: hidden;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-    }
-
-    .stats-table th {
-        background: #2c3e50;
-        color: white;
-        padding: 15px;
-        font-size: 13px;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        font-weight: 600;
-    }
-
-    .stats-table td {
-        padding: 15px;
-        border-bottom: 1px solid #f1f1f1;
-        vertical-align: middle;
-    }
-
-    .stats-table tr:hover {
-        background: #f8f9fa;
-    }
-
-    /* Progress Bar */
-    .progress-bar {
-        position: relative;
-        background: #e9ecef;
-        border-radius: 10px;
-        height: 24px;
-        overflow: hidden;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .progress-fill {
-        position: absolute;
-        left: 0;
-        top: 0;
-        height: 100%;
-        background: #dc3545;
-        border-radius: 10px;
-        transition: width 0.5s ease;
-    }
-
-    .progress-fill.success {
-        background: #27ae60;
-    }
-
-    .progress-fill.info {
-        background: #17a2b8;
-    }
-
-    .progress-bar span {
-        position: relative;
-        z-index: 2;
-        font-size: 12px;
-        font-weight: 600;
-        color: white;
-        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
-    }
-
-    /* Results Section - Diperbaiki */
+    /* Results Section */
     .results-section {
         background: white;
         border-radius: 15px;
@@ -610,7 +528,6 @@ include '../../navbar/header.php';
         align-items: center;
     }
 
-    /* === CSS BARU UNTUK PAGINASI === */
     .pagination a.btn-pagination {
         text-decoration: none;
         width: 40px;
@@ -626,21 +543,25 @@ include '../../navbar/header.php';
         color: #6c757d;
         transition: all 0.3s ease;
     }
+
     .pagination a.btn-pagination:hover {
         border-color: #dc3545;
         color: #dc3545;
         transform: translateY(-1px);
     }
+
     .pagination a.btn-pagination.active {
         background: #dc3545;
         border-color: #dc3545;
         color: white;
         box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
     }
+
     .pagination a.btn-pagination.disabled {
         pointer-events: none;
         opacity: 0.6;
     }
+
     .pagination .btn-pagination-dots {
         width: 40px;
         height: 40px;
@@ -649,9 +570,8 @@ include '../../navbar/header.php';
         justify-content: center;
         color: #6c757d;
     }
-    /* === AKHIR CSS BARU === */
 
-    /* Table Styles - Diperbaiki */
+    /* Table Styles */
     .table-container {
         overflow-x: auto;
     }
@@ -675,14 +595,6 @@ include '../../navbar/header.php';
         font-size: 13px;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-    }
-
-    table th:first-child {
-        border-top-left-radius: 0;
-    }
-
-    table th:last-child {
-        border-top-right-radius: 0;
     }
 
     table td {
@@ -709,17 +621,6 @@ include '../../navbar/header.php';
         background: #f0f0f0;
     }
 
-    .table-total-row {
-        font-weight: 700;
-        background-color: #f8f9fa;
-        border-top: 3px solid #dc3545;
-        font-size: 15px;
-    }
-
-    .table-total-row td {
-        color: #2c3e50;
-    }
-
     /* Badge Styles */
     .badge {
         display: inline-block;
@@ -742,16 +643,6 @@ include '../../navbar/header.php';
         color: white;
     }
 
-    .badge-warning {
-        background: #f39c12;
-        color: white;
-    }
-
-    .badge-danger {
-        background: #e74c3c;
-        color: white;
-    }
-
     /* Price Formatting */
     .price {
         font-weight: 700;
@@ -765,10 +656,6 @@ include '../../navbar/header.php';
         font-size: 12px;
         color: #6c757d;
         margin-top: 4px;
-    }
-
-    .text-muted {
-        color: #6c757d;
     }
 
     /* Empty State */
@@ -790,24 +677,7 @@ include '../../navbar/header.php';
         margin: 0;
     }
 
-    /* Loading State */
-    .loading {
-        text-align: center;
-        padding: 40px;
-    }
-
-    .loading i {
-        font-size: 32px;
-        color: #dc3545;
-        animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
-
-    /* Footer Info */
+    /* Table Footer */
     .table-footer {
         padding: 20px 25px;
         border-top: 2px solid #e9ecef;
@@ -821,15 +691,10 @@ include '../../navbar/header.php';
 
     /* Responsive Design */
     @media (max-width: 1200px) {
-        .filter-row:nth-child(1) {
-            grid-template-columns: 1fr;
-            gap: 20px;
-        }
-        .filter-row:nth-child(2) {
-            grid-template-columns: 1fr 1fr;
-        }
+        .filter-row:nth-child(1),
+        .filter-row:nth-child(2),
         .filter-row:nth-child(3) {
-            grid-template-columns: 1fr;
+            grid-template-columns: 1fr 1fr;
         }
     }
 
@@ -847,50 +712,14 @@ include '../../navbar/header.php';
         }
         .date-separator {
             transform: rotate(90deg);
-            width: 30px;
-            height: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto;
         }
-        .results-header {
-            flex-direction: column;
-            gap: 15px;
-            align-items: flex-start;
-        }
-        .pagination {
-            align-self: center;
-        }
-        .table-container {
-            border-radius: 0;
-        }
-        table {
-            min-width: 800px;
-        }
-    }
-
-    @media (max-width: 768px) {
-        .container { padding: 15px; }
-        .filter-content { padding: 20px 15px; }
-        .search-row {
-            justify-content: center;
-            flex-direction: column;
-            gap: 12px;
-        }
-        .search-btn, .reset-btn { width: 100%; min-width: auto; }
-        .table-footer {
-            flex-direction: column;
-            gap: 10px;
-            text-align: center;
-        }
-        table th, table td { padding: 12px 8px; font-size: 13px; }
     }
 
     /* Animation */
     .filter-section, .results-section, .summary-section {
         animation: fadeInUp 0.6s ease-out;
     }
+
     @keyframes fadeInUp {
         from { opacity: 0; transform: translateY(30px); }
         to { opacity: 1; transform: translateY(0); }
@@ -906,13 +735,29 @@ include '../../navbar/header.php';
         <div class="filter-content">
             <form method="GET" action="">
                 <div class="filter-row">
-                    <div class="date-range-group">
-                        <label><i class="fas fa-calendar-alt"></i> Periode Tanggal</label>
-                        <div class="date-range-container">
-                            <input type="date" name="tanggal_awal" value="<?= htmlspecialchars($_GET['tanggal_awal'] ?? '') ?>" placeholder="Tanggal Mulai">
-                            <span class="date-separator">S/D</span>
-                            <input type="date" name="tanggal_akhir" value="<?= htmlspecialchars($_GET['tanggal_akhir'] ?? '') ?>" placeholder="Tanggal Akhir">
-                        </div>
+                    <div class="filter-group">
+                        <label>
+                            <i class="fas fa-calendar"></i> Bulan
+                            <span class="badge-default">DEFAULT: JULI</span>
+                        </label>
+                        <select name="bulan">
+                            <?php foreach ($namaBulan as $kode => $nama): ?>
+                                <option value="<?= $kode ?>" <?= $selectedBulan == $kode ? 'selected' : '' ?>>
+                                    <?= $nama ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label><i class="fas fa-calendar-alt"></i> Tahun</label>
+                        <select name="tahun">
+                            <?php for ($y = $currentYear; $y >= 2020; $y--): ?>
+                                <option value="<?= $y ?>" <?= $selectedTahun == $y ? 'selected' : '' ?>>
+                                    <?= $y ?>
+                                </option>
+                            <?php endfor; ?>
+                        </select>
                     </div>
 
                     <div class="filter-group">
@@ -936,6 +781,7 @@ include '../../navbar/header.php';
                             <option value="Kabupaten Banjar" <?= ($_GET['klpd'] ?? '') == 'Kabupaten Banjar' ? 'selected' : '' ?>>Kabupaten Banjar</option>
                         </select>
                     </div>
+
                     <div class="filter-group">
                         <label><i class="fas fa-cogs"></i> Metode</label>
                         <select name="metode">
@@ -947,6 +793,7 @@ include '../../navbar/header.php';
                             <option value="Penunjukan Langsung" <?= ($_GET['metode'] ?? '') == 'Penunjukan Langsung' ? 'selected' : '' ?>>Penunjukan Langsung</option>
                         </select>
                     </div>
+
                     <div class="filter-group">
                         <label><i class="fas fa-search"></i> Pencarian Paket</label>
                         <div class="search-input-wrapper">
@@ -956,20 +803,8 @@ include '../../navbar/header.php';
                     </div>
                 </div>
 
-                <div class="filter-row">
-                    <div class="filter-group">
-                        <label><i class="fas fa-list"></i> Limit Data</label>
-                        <select name="limit">
-                            <option value="10" <?= ($limit == '10') ? 'selected' : '' ?>>10 Data</option>
-                            <option value="25" <?= ($limit == '25') ? 'selected' : '' ?>>25 Data</option>
-                            <option value="50" <?= ($limit == '50') ? 'selected' : '' ?>>50 Data</option>
-                            <option value="100" <?= ($limit == '100') ? 'selected' : '' ?>>100 Data</option>
-                        </select>
-                    </div>
-                </div>
-
                 <div class="search-row">
-                    <button type="button" class="reset-btn" onclick="window.location.href=window.location.pathname">
+                    <button type="button" class="reset-btn" onclick="resetForm()">
                         <i class="fas fa-undo"></i>
                         Reset Filter
                     </button>
@@ -981,10 +816,17 @@ include '../../navbar/header.php';
             </form>
         </div>
     </div>
+
     <div class="summary-section">
         <div class="summary-header">
-            <i class="fas fa-chart-bar"></i>
-            <h3>Ringkasan Data Pengadaan</h3>
+            <div class="summary-header-left">
+                <i class="fas fa-chart-bar"></i>
+                <h3>Ringkasan Data Pengadaan</h3>
+            </div>
+            <div class="period-badge">
+                <i class="fas fa-calendar-check"></i> 
+                <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?>
+            </div>
         </div>
         <div class="summary-content">
             <div class="summary-cards">
@@ -995,7 +837,7 @@ include '../../navbar/header.php';
                     <div class="card-content">
                         <div class="card-value"><?= number_format($totalPaket, 0, ',', '.') ?></div>
                         <div class="card-label">Total Paket</div>
-                        <div class="card-subtitle">Pengadaan</div>
+                        <div class="card-subtitle">Pengadaan - <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?></div>
                     </div>
                 </div>
 
@@ -1006,1120 +848,300 @@ include '../../navbar/header.php';
                     <div class="card-content">
                         <div class="card-value"><?= $formattedTotalPagu ?></div>
                         <div class="card-label">Total Pagu</div>
-                        <div class="card-subtitle">Keseluruhan</div>
+                        <div class="card-subtitle">Keseluruhan - <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?></div>
                     </div>
-                </div>
-
-               
-
-
                 </div>
             </div>
-            <div class="results-section">
-                <div class="results-header">
-                    <div>
-                        <div class="results-title">
-                            <i class="fas fa-table"></i> Hasil Pencarian Data Pengadaan
-                        </div>
-                        <?php if ($data && isset($data['success']) && $data['success']) : ?>
-                            <div class="results-subtitle">
-                                <strong>Menampilkan <?= count($data['data']) ?> dari <?= number_format($totalRecords, 0, ',', '.') ?> total data</strong>
-                            </div>
-                        <?php endif; ?>
-                    </div>
-                    
-                    <div class="pagination">
-                        <?php
-                        // Siapkan base URL untuk link paginasi, dengan semua filter kecuali 'page'
-                        $paginationParams = $_GET;
-                        unset($paginationParams['page']);
-                        $paginationQuery = http_build_query($paginationParams);
-                        ?>
+        </div>
+    </div>
 
-                        <a href="?<?= $paginationQuery ?>&page=<?= max(1, $currentPage - 1) ?>" class="btn-pagination <?= $currentPage <= 1 ? 'disabled' : '' ?>" title="Halaman Sebelumnya">
-                            <i class="fas fa-chevron-left"></i>
-                        </a>
-
-                        <?php
-                        // Tampilkan link halaman
-                        for ($i = 1; $i <= $totalPages; $i++) {
-                            // Tampilkan hanya beberapa halaman di sekitar halaman aktif jika terlalu banyak
-                            if ($i == $currentPage) {
-                                echo '<a href="?'. $paginationQuery .'&page='. $i .'" class="btn-pagination active">'. $i .'</a>';
-                            } elseif (abs($i - $currentPage) < 3 || $i <= 2 || $i > $totalPages - 2) {
-                                echo '<a href="?'. $paginationQuery .'&page='. $i .'" class="btn-pagination">'. $i .'</a>';
-                            } elseif ($i == $currentPage - 3 || $i == $currentPage + 3) {
-                                echo '<span class="btn-pagination-dots">...</span>';
-                            }
-                        }
-                        ?>
-
-                        <a href="?<?= $paginationQuery ?>&page=<?= min($totalPages, $currentPage + 1) ?>" class="btn-pagination <?= $currentPage >= $totalPages ? 'disabled' : '' ?>" title="Halaman Selanjutnya">
-                            <i class="fas fa-chevron-right"></i>
-                        </a>
-                    </div>
-                    </div>
-
-                <?php if ($data && isset($data['success']) && $data['success'] && count($data['data']) > 0) : ?>
-                    <div class="table-container">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th style="width: 280px;"><i class="fas fa-box"></i> Paket Pengadaan</th>
-                                    <th style="width: 130px;"><i class="fas fa-money-bill-wave"></i> Pagu (Rp)</th>
-                                    <th style="width: 140px;"><i class="fas fa-tags"></i> Jenis Pengadaan</th>
-                                    <th style="width: 120px;"><i class="fas fa-store"></i> Usaha Kecil</th>
-                                    <th style="width: 120px;"><i class="fas fa-cogs"></i> Metode</th>
-                                    <th style="width: 120px;"><i class="fas fa-calendar"></i> Pemilihan</th>
-                                    <th style="width: 120px;"><i class="fas fa-building"></i> KLPD</th>
-                                    <th style="width: 200px;"><i class="fas fa-sitemap"></i> Satuan Kerja</th>
-                                    <th style="width: 150px;"><i class="fas fa-map-marker-alt"></i> Lokasi</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($data['data'] as $row) : ?>
-                                    <tr>
-                                        <td>
-                                            <div style="font-weight: 700; color: #2c3e50; margin-bottom: 5px;">
-                                                <?= htmlspecialchars($row['Paket']) ?>
-                                            </div>
-                                            <div class="small-text">
-                                                <i class="fas fa-id-card"></i> ID: <?= htmlspecialchars($row['ID']) ?>
-                                            </div>
-                                        </td>
-                                        <td class="price">
-                                            <?php
-                                                $paguValue = (int) preg_replace('/[^\d]/', '', $row['Pagu_Rp']);
-                                                echo 'Rp ' . number_format($paguValue, 0, ',', '.');
-                                            ?>
-                                        </td>
-                                        <td><span class="badge badge-primary"><?= htmlspecialchars($row['Jenis_Pengadaan']) ?></span></td>
-                                        <td><span class="badge badge-success"><?= htmlspecialchars($row['Usaha_Kecil']) ?></span></td>
-                                        <td><small><?= htmlspecialchars($row['Metode']) ?></small></td>
-                                        <td><small><?= htmlspecialchars($row['Pemilihan']) ?></small></td>
-                                        <td><small><?= htmlspecialchars($row['KLPD']) ?></small></td>
-                                        <td><small><?= htmlspecialchars($row['Satuan_Kerja']) ?></small></td>
-                                        <td><small><?= htmlspecialchars($row['Lokasi']) ?></small></td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div class="table-footer">
-                        <div>
-                            <strong><i class="fas fa-info-circle"></i> Informasi Halaman:</strong>
-                            Halaman <?= $currentPage ?> dari <?= $totalPages ?>
-                        </div>
-                        <div>
-                            <strong>Total Data: <?= number_format($totalRecords, 0, ',', '.') ?></strong> pengadaan
-                        </div>
-                    </div>
-
-                <?php else : ?>
-                    <div class="empty-state">
-                        <i class="fas fa-search-minus"></i>
-                        <p><strong>Tidak ada data pengadaan yang ditemukan</strong></p>
-                        <small class="text-muted">Coba ubah kriteria pencarian atau filter yang Anda gunakan</small>
+    <div class="results-section">
+        <div class="results-header">
+            <div>
+                <div class="results-title">
+                    <i class="fas fa-table"></i> Hasil Pencarian Data Pengadaan
+                </div>
+                <?php if ($data && isset($data['success']) && $data['success']) : ?>
+                    <div class="results-subtitle">
+                        <strong>Menampilkan <?= count($data['data']) ?> dari <?= number_format($totalRecords, 0, ',', '.') ?> total data</strong>
+                        | Periode: <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?>
                     </div>
                 <?php endif; ?>
             </div>
+            
+            <div class="pagination">
+                <?php
+                $paginationParams = $_GET;
+                unset($paginationParams['page']);
+                $paginationQuery = http_build_query($paginationParams);
+                ?>
+
+                <a href="?<?= $paginationQuery ?>&page=<?= max(1, $currentPage - 1) ?>" class="btn-pagination <?= $currentPage <= 1 ? 'disabled' : '' ?>" title="Halaman Sebelumnya">
+                    <i class="fas fa-chevron-left"></i>
+                </a>
+
+                <?php
+                for ($i = 1; $i <= $totalPages; $i++) {
+                    if ($i == $currentPage) {
+                        echo '<a href="?'. $paginationQuery .'&page='. $i .'" class="btn-pagination active">'. $i .'</a>';
+                    } elseif (abs($i - $currentPage) < 3 || $i <= 2 || $i > $totalPages - 2) {
+                        echo '<a href="?'. $paginationQuery .'&page='. $i .'" class="btn-pagination">'. $i .'</a>';
+                    } elseif ($i == $currentPage - 3 || $i == $currentPage + 3) {
+                        echo '<span class="btn-pagination-dots">...</span>';
+                    }
+                }
+                ?>
+
+                <a href="?<?= $paginationQuery ?>&page=<?= min($totalPages, $currentPage + 1) ?>" class="btn-pagination <?= $currentPage >= $totalPages ? 'disabled' : '' ?>" title="Halaman Selanjutnya">
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+            </div>
         </div>
+
+        <?php if ($data && isset($data['success']) && $data['success'] && count($data['data']) > 0) : ?>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 280px;"><i class="fas fa-box"></i> Paket Pengadaan</th>
+                            <th style="width: 130px;"><i class="fas fa-money-bill-wave"></i> Pagu (Rp)</th>
+                            <th style="width: 140px;"><i class="fas fa-tags"></i> Jenis Pengadaan</th>
+                            <th style="width: 120px;"><i class="fas fa-store"></i> Usaha Kecil</th>
+                            <th style="width: 120px;"><i class="fas fa-cogs"></i> Metode</th>
+                            <th style="width: 120px;"><i class="fas fa-calendar"></i> Pemilihan</th>
+                            <th style="width: 120px;"><i class="fas fa-building"></i> KLPD</th>
+                            <th style="width: 200px;"><i class="fas fa-sitemap"></i> Satuan Kerja</th>
+                            <th style="width: 150px;"><i class="fas fa-map-marker-alt"></i> Lokasi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($data['data'] as $row) : ?>
+                            <tr>
+                                <td>
+                                    <div style="font-weight: 700; color: #2c3e50; margin-bottom: 5px;">
+                                        <?= htmlspecialchars($row['Paket']) ?>
+                                    </div>
+                                    <div class="small-text">
+                                        <i class="fas fa-id-card"></i> ID: <?= htmlspecialchars($row['ID']) ?>
+                                    </div>
+                                </td>
+                                <td class="price">
+                                    <?php
+                                        $paguValue = (int) preg_replace('/[^\d]/', '', $row['Pagu_Rp']);
+                                        echo 'Rp ' . number_format($paguValue, 0, ',', '.');
+                                    ?>
+                                </td>
+                                <td><span class="badge badge-primary"><?= htmlspecialchars($row['Jenis_Pengadaan']) ?></span></td>
+                                <td><span class="badge badge-success"><?= htmlspecialchars($row['Usaha_Kecil']) ?></span></td>
+                                <td><small><?= htmlspecialchars($row['Metode']) ?></small></td>
+                                <td><small><?= htmlspecialchars($row['Pemilihan']) ?></small></td>
+                                <td><small><?= htmlspecialchars($row['KLPD']) ?></small></td>
+                                <td><small><?= htmlspecialchars($row['Satuan_Kerja']) ?></small></td>
+                                <td><small><?= htmlspecialchars($row['Lokasi']) ?></small></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="table-footer">
+                <div>
+                    <strong><i class="fas fa-info-circle"></i> Informasi Halaman:</strong>
+                    Halaman <?= $currentPage ?> dari <?= $totalPages ?>
+                </div>
+                <div>
+                    <strong>Total Data: <?= number_format($totalRecords, 0, ',', '.') ?></strong> pengadaan
+                </div>
+            </div>
+
+        <?php else : ?>
+            <div class="empty-state">
+                <i class="fas fa-search-minus"></i>
+                <p><strong>Tidak ada data pengadaan yang ditemukan</strong></p>
+                <small class="text-muted">
+                    Untuk periode <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?>. 
+                    Coba ubah kriteria pencarian atau pilih bulan lain.
+                </small>
+            </div>
+        <?php endif; ?>
     </div>
 </div>
 
 <script>
-    // Seluruh JavaScript Anda dari kode sebelumnya tetap di sini
-    // Tidak ada yang perlu diubah di bagian JavaScript Anda, 
-    // karena perbaikan utama ada di sisi server (PHP)
-    // ... Seluruh JavaScript Anda dari kode sebelumnya tetap di sini ...
-    // Tidak ada yang perlu diubah di bagian JavaScript\\
-
-    // =================================================================
-// == SCRIPT UNTUK MEMPERPENDEK URL ================================
-// =================================================================
-
 document.addEventListener('DOMContentLoaded', function() {
     const filterForm = document.querySelector('form');
 
     if (filterForm) {
         filterForm.addEventListener('submit', function(e) {
-            // Dapatkan semua elemen input dan select di dalam form
             const inputs = this.querySelectorAll('input, select');
             
             inputs.forEach(input => {
-                // Jika nilai input kosong, nonaktifkan (disable) elemen tersebut
-                // Elemen yang nonaktif tidak akan disertakan dalam URL
-                if (!input.value) {
+                // Jangan disable bulan dan tahun karena ini filter wajib
+                if (input.name !== 'bulan' && input.name !== 'tahun' && !input.value) {
                     input.disabled = true;
                 }
             });
 
-            // Lanjutkan proses submit form
             return true;
+        });
+    }
+
+    // Set today's date as max for date inputs (jika ada)
+    const today = new Date().toISOString().split('T')[0];
+
+    // Search input enter key
+    const searchInput = document.querySelector('input[name="search"]');
+    if (searchInput) {
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                this.form.submit();
+            }
+        });
+
+        // Clear search icon functionality
+        searchInput.addEventListener('input', function() {
+            const wrapper = this.closest('.search-input-wrapper');
+            const icon = wrapper.querySelector('i');
+            if (this.value) {
+                icon.className = 'fas fa-times';
+                icon.style.cursor = 'pointer';
+                icon.onclick = () => {
+                    this.value = '';
+                    icon.className = 'fas fa-search';
+                    icon.style.cursor = 'default';
+                    icon.onclick = null;
+                };
+            } else {
+                icon.className = 'fas fa-search';
+                icon.style.cursor = 'default';
+                icon.onclick = null;
+            }
+        });
+    }
+
+    // Table row hover effects
+    const tableRows = document.querySelectorAll('tbody tr');
+    tableRows.forEach(row => {
+        row.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-2px)';
+        });
+
+        row.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0)';
+        });
+    });
+
+    // Format numbers in price columns
+    document.querySelectorAll('.price').forEach(priceCell => {
+        const text = priceCell.textContent.trim();
+        if (text && !isNaN(text.replace(/[^\d]/g, ''))) {
+            const number = parseInt(text.replace(/[^\d]/g, ''));
+            if (number > 0) {
+                priceCell.innerHTML = '<i class="fas fa-rupiah-sign" style="font-size: 12px; margin-right: 3px;"></i>Rp ' + number.toLocaleString('id-ID');
+            }
+        }
+    });
+
+    // Auto submit on month/year change (optional)
+    const bulanSelect = document.querySelector('select[name="bulan"]');
+    const tahunSelect = document.querySelector('select[name="tahun"]');
+    
+    if (bulanSelect) {
+        bulanSelect.addEventListener('change', function() {
+            // Optional: auto-submit when month changes
+            // this.form.submit();
+        });
+    }
+    
+    if (tahunSelect) {
+        tahunSelect.addEventListener('change', function() {
+            // Optional: auto-submit when year changes
+            // this.form.submit();
         });
     }
 });
 
-    function loadSummaryData() {
+// Reset form function - kembali ke default Juli tahun ini
+function resetForm() {
+    window.location.href = window.location.pathname + '?bulan=07&tahun=<?= $currentYear ?>';
+}
 
-        const form = document.getElementById('filterForm');
+// Form validation before submit
+document.querySelector('form').addEventListener('submit', function(e) {
+    const tanggalAwal = document.querySelector('input[name="tanggal_awal"]').value;
+    const tanggalAkhir = document.querySelector('input[name="tanggal_akhir"]').value;
 
-        const formData = new FormData(form);
+    // Show loading state
+    const submitBtn = this.querySelector('.search-btn');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mencari...';
+    submitBtn.disabled = true;
 
-        const params = new URLSearchParams(formData);
-
-
-
-        // Add action parameter for summary endpoint
-
-        params.append('action', 'summary');
-
-
-
-        // Show loading state
-
-        document.getElementById('summarySection').style.display = 'block';
-
-        document.getElementById('summaryLoading').style.display = 'flex';
-
-        document.getElementById('summaryData').style.display = 'none';
-
-
-
-        // Make AJAX request
-
-        fetch('http://sipbanar-phpnative.id/api/pengadaan.php?' + params.toString())
-
-            .then(response => response.json())
-
-            .then(data => {
-
-                if (data.success && data.summary) {
-
-                    displaySummaryData(data.summary);
-
-                } else {
-
-                    console.error('Failed to load summary data');
-
-                    document.getElementById('summarySection').style.display = 'none';
-
-                }
-
-            })
-
-            .catch(error => {
-
-                console.error('Error loading summary:', error);
-
-                document.getElementById('summarySection').style.display = 'none';
-
-            });
-
+    // Validate date range
+    if (tanggalAwal && tanggalAkhir && tanggalAwal > tanggalAkhir) {
+        e.preventDefault();
+        alert('Tanggal awal tidak boleh lebih besar dari tanggal akhir!');
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+        return false;
     }
 
-
-
-    // Function to display summary data
-
-    function displaySummaryData(summary) {
-
-        const summaryDataDiv = document.getElementById('summaryData');
-
-
-
-        // Format numbers
-
-        const formatNumber = (num) => new Intl.NumberFormat('id-ID').format(num);
-
-        const formatRupiah = (num) => 'Rp ' + new Intl.NumberFormat('id-ID').format(num);
-
-
-
-        // Create summary cards HTML
-
-        let summaryHTML = `
-
-        <div class="summary-cards">
-
-            <div class="summary-card primary">
-
-                <div class="card-icon">
-
-                    <i class="fas fa-boxes"></i>
-
-                </div>
-
-                <div class="card-content">
-
-                    <div class="card-value">${formatNumber(summary.total_paket)}</div>
-
-                    <div class="card-label">Total Paket</div>
-
-                    <div class="card-subtitle">Pengadaan</div>
-
-                </div>
-
-            </div>
-
-            
-
-            <div class="summary-card success">
-
-                <div class="card-icon">
-
-                    <i class="fas fa-money-bill-wave"></i>
-
-                </div>
-
-                <div class="card-content">
-
-                    <div class="card-value">${formatRupiah(summary.total_pagu)}</div>
-
-                    <div class="card-label">Total Pagu</div>
-
-                    <div class="card-subtitle">Keseluruhan</div>
-
-                </div>
-
-            </div>
-
-            
-
-            <div class="summary-card info">
-
-                <div class="card-icon">
-
-                    <i class="fas fa-calculator"></i>
-
-                </div>
-
-                <div class="card-content">
-
-                    
-
-                    <div class="card-label">Rata-rata Pagu</div>
-
-                    <div class="card-subtitle">Per Paket</div>
-                
-                </div>
-
-            </div>
-
-            
-
-            <div class="summary-card warning">
-
-                <div class="card-icon">
-
-                    <i class="fas fa-building"></i>
-
-                </div>
-
-                <div class="card-content">
-
-               
-
-                </div>
-
-            </div>
-
-        </div>
-
-
-
-        <div class="stats-tables">`;
-
-
-
-        // Jenis Pengadaan table
-
-        if (summary.breakdown.jenis_pengadaan && Object.keys(summary.breakdown.jenis_pengadaan).length > 0) {
-
-            summaryHTML += `
-
-            <div class="stats-table">
-
-                <h4><i class="fas fa-tags"></i> Berdasarkan Jenis Pengadaan</h4>
-
-                <div class="table-responsive">
-
-                    <table>
-
-                        <thead>
-
-                            <tr>
-
-                                <th>Jenis Pengadaan</th>
-
-                                <th>Jumlah Paket</th>
-
-                                <th>Total Pagu</th>
-
-                                <th>Persentase</th>
-
-                            </tr>
-
-                        </thead>
-
-                        <tbody>`;
-
-
-
-            for (const [jenis, stats] of Object.entries(summary.breakdown.jenis_pengadaan)) {
-
-                const percentage = summary.total_pagu > 0 ? (stats.total_pagu / summary.total_pagu * 100).toFixed(1) : 0;
-
-                summaryHTML += `
-
-                <tr>
-
-                    <td><span class="badge badge-primary">${jenis}</span></td>
-
-                    <td><strong>${formatNumber(stats.count)} paket</strong></td>
-
-                    <td class="price">${formatRupiah(stats.total_pagu)}</td>
-
-                    <td>
-
-                        <div class="progress-bar">
-
-                            <div class="progress-fill" style="width: ${percentage}%"></div>
-
-                            <span>${percentage}%</span>
-
-                        </div>
-
-                    </td>
-
-                </tr>`;
-
+    // Check if date range is too wide
+    if (tanggalAwal && tanggalAkhir) {
+        const startDate = new Date(tanggalAwal);
+        const endDate = new Date(tanggalAkhir);
+        const diffTime = Math.abs(endDate - startDate);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        if (diffDays > 365) {
+            const confirm = window.confirm('Periode pencarian lebih dari 1 tahun. Ini mungkin membutuhkan waktu loading yang lama. Lanjutkan?');
+            if (!confirm) {
+                e.preventDefault();
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+                return false;
             }
-
-
-
-            summaryHTML += `
-
-                        </tbody>
-
-                    </table>
-
-                </div>
-
-            </div>`;
-
         }
-
-
-
-        // KLPD table
-
-        if (summary.breakdown.klpd && Object.keys(summary.breakdown.klpd).length > 0) {
-
-            summaryHTML += `
-
-            <div class="stats-table">
-
-                <h4><i class="fas fa-building"></i> Berdasarkan KLPD</h4>
-
-                <div class="table-responsive">
-
-                    <table>
-
-                        <thead>
-
-                            <tr>
-
-                                <th>Jumlah Paket</th>
-
-                                <th>Total Pagu</th>
-
-                                <th>Persentase</th>
-
-                            </tr>
-
-                        </thead>
-
-                        <tbody>`;
-
-
-
-            for (const [klpd, stats] of Object.entries(summary.breakdown.klpd)) {
-
-                const percentage = summary.total_pagu > 0 ? (stats.total_pagu / summary.total_pagu * 100).toFixed(1) : 0;
-
-                summaryHTML += `
-
-                <tr>
-
-                    <td><strong>${klpd}</strong></td>
-
-                    <td>${formatNumber(stats.count)} paket</td>
-
-                    <td class="price">${formatRupiah(stats.total_pagu)}</td>
-
-                    <td>
-
-                        <div class="progress-bar">
-
-                            <div class="progress-fill success" style="width: ${percentage}%"></div>
-
-                            <span>${percentage}%</span>
-
-                        </div>
-
-                    </td>
-
-                </tr>`;
-
-            }
-
-
-
-            summaryHTML += `
-
-                        </tbody>
-
-                    </table>
-
-                </div>
-
-            </div>`;
-
-        }
-
-
-
-        // Top 5 Metode table
-
-        if (summary.breakdown.metode && Object.keys(summary.breakdown.metode).length > 0) {
-
-            const topMetode = Object.entries(summary.breakdown.metode).slice(0, 5);
-
-
-
-            summaryHTML += `
-
-            <div class="stats-table">
-
-                <h4><i class="fas fa-cogs"></i> Top 5 Metode Pengadaan</h4>
-
-                <div class="table-responsive">
-
-                    <table>
-
-                        <thead>
-
-                            <tr>
-
-                                <th>Metode</th>
-
-                                <th>Jumlah Paket</th>
-
-                                <th>Total Pagu</th>
-
-                                <th>Persentase</th>
-
-                            </tr>
-
-                        </thead>
-
-                        <tbody>`;
-
-
-
-            for (const [metode, stats] of topMetode) {
-
-                const percentage = summary.total_pagu > 0 ? (stats.total_pagu / summary.total_pagu * 100).toFixed(1) : 0;
-
-                summaryHTML += `
-
-                <tr>
-
-                    <td>${metode}</td>
-
-                    <td>${formatNumber(stats.count)} paket</td>
-
-                    <td class="price">${formatRupiah(stats.total_pagu)}</td>
-
-                    <td>
-
-                        <div class="progress-bar">
-
-                            <div class="progress-fill info" style="width: ${percentage}%"></div>
-
-                            <span>${percentage}%</span>
-
-                        </div>
-
-                    </td>
-
-                </tr>`;
-
-            }
-
-
-
-            summaryHTML += `
-
-                        </tbody>
-
-                    </table>
-
-                </div>
-
-            </div>`;
-
-        }
-
-
-
-        summaryHTML += `</div>`;
-
-
-
-        // Hide loading and show data
-
-        document.getElementById('summaryLoading').style.display = 'none';
-
-        summaryDataDiv.innerHTML = summaryHTML;
-
-        summaryDataDiv.style.display = 'block';
-
     }
 
+    // Reset button state after a delay
+    setTimeout(() => {
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    }, 5000);
+});
 
-
-    // Load summary when page loads if there are filters applied
-
-    document.addEventListener('DOMContentLoaded', function() {
-
-        const urlParams = new URLSearchParams(window.location.search);
-
-        if (urlParams.toString()) {
-
-            // If there are URL parameters, load summary
-
-            setTimeout(() => {
-
-                loadSummaryData();
-
-            }, 1000);
-
-        }
-
-    });
-
-
-
-    // Form submission handler
-
-    document.getElementById('filterForm').addEventListener('submit', function(e) {
-
-        // Let the form submit normally first, then load summary
-
-        setTimeout(() => {
-
-            loadSummaryData();
-
-        }, 500);
-
-    });
-
-
-
-    // Reset form function
-
-    function resetForm() {
-
-        const form = document.querySelector('form');
-
-        const inputs = form.querySelectorAll('input, select');
-
-
-
-        inputs.forEach(input => {
-
-            if (input.type === 'text' || input.type === 'date') {
-
-                input.value = '';
-
-            } else if (input.tagName === 'SELECT') {
-
-                input.selectedIndex = 0;
-
-            }
-
+// Add smooth scrolling to results when form is submitted
+window.addEventListener('load', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.toString()) {
+        document.querySelector('.results-section').scrollIntoView({
+            behavior: 'smooth',
+            block: 'start'
         });
-
-
-
-        // Hide summary section when reset
-
-        document.getElementById('summarySection').style.display = 'none';
-
-
-
-        // Optional: auto-submit after reset
-
-        // form.submit();
-
     }
+});
 
-    // JavaScript untuk interaktivitas - Diperbaiki
-
-    document.addEventListener('DOMContentLoaded', function() {
-
-        // Date range validation
-
-        const tanggalAwal = document.querySelector('input[name="tanggal_awal"]');
-
-        const tanggalAkhir = document.querySelector('input[name="tanggal_akhir"]');
-
-
-
-        if (tanggalAwal && tanggalAkhir) {
-
-            tanggalAwal.addEventListener('change', function() {
-
-                tanggalAkhir.min = this.value;
-
-                if (tanggalAkhir.value && tanggalAkhir.value < this.value) {
-
-                    tanggalAkhir.value = this.value;
-
-                }
-
+// Add copy functionality to ID
+document.querySelectorAll('.small-text').forEach(smallText => {
+    if (smallText.textContent.includes('ID:')) {
+        smallText.style.cursor = 'pointer';
+        smallText.title = 'Klik untuk copy ID';
+        smallText.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const idText = this.textContent.replace('ID: ', '').trim();
+            navigator.clipboard.writeText(idText).then(() => {
+                const originalText = this.textContent;
+                this.textContent = '✓ ID Copied!';
+                this.style.color = '#27ae60';
+                setTimeout(() => {
+                    this.textContent = originalText;
+                    this.style.color = '';
+                }, 1500);
             });
-
-
-
-            tanggalAkhir.addEventListener('change', function() {
-
-                tanggalAwal.max = this.value;
-
-                if (tanggalAwal.value && tanggalAwal.value > this.value) {
-
-                    tanggalAwal.value = this.value;
-
-                }
-
-            });
-
-        }
-
-
-
-        // Set today's date as max for date inputs
-
-        const today = new Date().toISOString().split('T')[0];
-
-        if (tanggalAwal) tanggalAwal.max = today;
-
-        if (tanggalAkhir) tanggalAkhir.max = today;
-
-
-
-        // Auto-submit form when filter changes (optional)
-
-        const filterSelects = document.querySelectorAll('.filter-group select:not([name="limit"])');
-
-        filterSelects.forEach(select => {
-
-            select.addEventListener('change', function() {
-
-                // Optional: auto-submit form on filter change
-
-                // this.form.submit();
-
-            });
-
         });
-
-
-
-        // Search input enter key
-
-        const searchInput = document.querySelector('input[name="search"]');
-
-        if (searchInput) {
-
-            searchInput.addEventListener('keypress', function(e) {
-
-                if (e.key === 'Enter') {
-
-                    this.form.submit();
-
-                }
-
-            });
-
-
-
-            // Clear search icon functionality
-
-            searchInput.addEventListener('input', function() {
-
-                const wrapper = this.closest('.search-input-wrapper');
-
-                const icon = wrapper.querySelector('i');
-
-                if (this.value) {
-
-                    icon.className = 'fas fa-times';
-
-                    icon.style.cursor = 'pointer';
-
-                    icon.onclick = () => {
-
-                        this.value = '';
-
-                        icon.className = 'fas fa-search';
-
-                        icon.style.cursor = 'default';
-
-                        icon.onclick = null;
-
-                    };
-
-                } else {
-
-                    icon.className = 'fas fa-search';
-
-                    icon.style.cursor = 'default';
-
-                    icon.onclick = null;
-
-                }
-
-            });
-
-        }
-
-
-
-        // Table row hover effects
-
-        const tableRows = document.querySelectorAll('tbody tr');
-
-        tableRows.forEach(row => {
-
-            row.addEventListener('click', function() {
-
-                // Optional: handle row click for details view
-
-                console.log('Row clicked:', this);
-
-            });
-
-
-
-            // Add subtle hover animation
-
-            row.addEventListener('mouseenter', function() {
-
-                this.style.transform = 'translateY(-2px)';
-
-            });
-
-
-
-            row.addEventListener('mouseleave', function() {
-
-                this.style.transform = 'translateY(0)';
-
-            });
-
-        });
-
-
-
-        // Pagination buttons functionality
-
-        const paginationButtons = document.querySelectorAll('.pagination button');
-
-        paginationButtons.forEach((button, index) => {
-
-            button.addEventListener('click', function() {
-
-                if (!this.classList.contains('active')) {
-
-                    // Remove active class from all buttons
-
-                    paginationButtons.forEach(btn => btn.classList.remove('active'));
-
-                    // Add active class to clicked button (except nav buttons)
-
-                    if (!this.innerHTML.includes('fa-chevron')) {
-
-                        this.classList.add('active');
-
-                    }
-
-                    console.log('Pagination clicked:', this.textContent || 'Navigation');
-
-                }
-
-            });
-
-        });
-
-
-
-        // Format numbers in price columns
-
-        document.querySelectorAll('.price').forEach(priceCell => {
-
-            const text = priceCell.textContent.trim();
-
-            if (text && !isNaN(text.replace(/[^\d]/g, ''))) {
-
-                const number = parseInt(text.replace(/[^\d]/g, ''));
-
-                if (number > 0) {
-
-                    priceCell.innerHTML = '<i class="fas fa-rupiah-sign" style="font-size: 12px; margin-right: 3px;"></i>Rp ' + number.toLocaleString('id-ID');
-
-                }
-
-            }
-
-        });
-
-    });
-
-
-
-    // Reset form function
-
-    function resetForm() {
-
-        const form = document.querySelector('form');
-
-        const inputs = form.querySelectorAll('input, select');
-
-
-
-        inputs.forEach(input => {
-
-            if (input.type === 'text' || input.type === 'date') {
-
-                input.value = '';
-
-            } else if (input.tagName === 'SELECT') {
-
-                input.selectedIndex = 0;
-
-            }
-
-        });
-
-
-
-        // Reset search icon
-
-        const searchIcon = document.querySelector('.search-input-wrapper i');
-
-        if (searchIcon) {
-
-            searchIcon.className = 'fas fa-search';
-
-            searchIcon.style.cursor = 'default';
-
-            searchIcon.onclick = null;
-
-        }
-
-
-
-        // Optional: auto-submit after reset
-
-        // form.submit();
-
     }
-
-
-
-    // Form validation before submit
-
-    document.querySelector('form').addEventListener('submit', function(e) {
-
-        const tanggalAwal = document.querySelector('input[name="tanggal_awal"]').value;
-
-        const tanggalAkhir = document.querySelector('input[name="tanggal_akhir"]').value;
-
-
-
-        // Show loading state
-
-        const submitBtn = this.querySelector('.search-btn');
-
-        const originalText = submitBtn.innerHTML;
-
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mencari...';
-
-        submitBtn.disabled = true;
-
-
-
-        // Validate date range
-
-        if (tanggalAwal && tanggalAkhir && tanggalAwal > tanggalAkhir) {
-
-            e.preventDefault();
-
-            alert('Tanggal awal tidak boleh lebih besar dari tanggal akhir!');
-
-            submitBtn.innerHTML = originalText;
-
-            submitBtn.disabled = false;
-
-            return false;
-
-        }
-
-
-
-        // Check if date range is too wide (optional: limit to 1 year)
-
-        if (tanggalAwal && tanggalAkhir) {
-
-            const startDate = new Date(tanggalAwal);
-
-            const endDate = new Date(tanggalAkhir);
-
-            const diffTime = Math.abs(endDate - startDate);
-
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-
-
-            if (diffDays > 365) {
-
-                const confirm = window.confirm('Periode pencarian lebih dari 1 tahun. Ini mungkin membutuhkan waktu loading yang lama. Lanjutkan?');
-
-                if (!confirm) {
-
-                    e.preventDefault();
-
-                    submitBtn.innerHTML = originalText;
-
-                    submitBtn.disabled = false;
-
-                    return false;
-
-                }
-
-            }
-
-        }
-
-
-
-        // Reset button state after a delay if form doesn't redirect
-
-        setTimeout(() => {
-
-            submitBtn.innerHTML = originalText;
-
-            submitBtn.disabled = false;
-
-        }, 5000);
-
-    });
-
-
-
-    // Add smooth scrolling to results when form is submitted
-
-    window.addEventListener('load', function() {
-
-        const urlParams = new URLSearchParams(window.location.search);
-
-        if (urlParams.toString()) {
-
-            // If there are URL parameters, scroll to results
-
-            document.querySelector('.results-section').scrollIntoView({
-
-                behavior: 'smooth',
-
-                block: 'start'
-
-            });
-
-        }
-
-    });
-
-
-
-    // Add tooltips to badges
-
-    document.querySelectorAll('.badge').forEach(badge => {
-
-        badge.addEventListener('mouseenter', function() {
-
-            const text = this.textContent;
-
-            this.title = `Kategori: ${text}`;
-
-        });
-
-    });
-
-
-
-    // Add copy functionality to ID
-
-    document.querySelectorAll('.small-text').forEach(smallText => {
-
-        if (smallText.textContent.includes('ID:')) {
-
-            smallText.style.cursor = 'pointer';
-
-            smallText.title = 'Klik untuk copy ID';
-
-            smallText.addEventListener('click', function(e) {
-
-                e.stopPropagation();
-
-                const idText = this.textContent.replace('ID: ', '').trim();
-
-                navigator.clipboard.writeText(idText).then(() => {
-
-                    // Show temporary feedback
-
-                    const originalText = this.textContent;
-
-                    this.textContent = '? ID Copied!';
-
-                    this.style.color = '#27ae60';
-
-                    setTimeout(() => {
-
-                        this.textContent = originalText;
-
-                        this.style.color = '';
-
-                    }, 1500);
-
-                });
-
-            });
-
-        }
-
-    });
-    document.addEventListener('DOMContentLoaded', function() {
-        // ... (kode JS Anda yang sudah ada)
-    });
-
-    function resetForm() {
-        // Arahkan ke halaman yang sama tanpa parameter query
-        window.location.href = window.location.pathname;
-    }
+});
 </script>
 
 <?php

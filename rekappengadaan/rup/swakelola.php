@@ -1,35 +1,43 @@
 <?php
 // =================================================================
-// == LOGIC BLOCK REFACTORED TO MATCH PENGADAAN.PHP ================
+// == BLOK PHP DENGAN FILTER BULAN DEFAULT JULI ====================
 // =================================================================
 
-// 1. SETUP API URLS
+// URL API dasar
 $apiBaseUrl = "http://sipbanar-phpnative.id/api/swakelola.php";
 
-// 2. GET PARAMETERS FROM URL
+// 1. Dapatkan parameter dari URL, termasuk halaman saat ini
 $currentPage = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $limit = $_GET['limit'] ?? 25; // Default limit 25 data
 
-// 3. PREPARE QUERY PARAMS FOR MAIN DATA (TABLE)
+// TAMBAHAN: Dapatkan filter bulan dan tahun
+// Default bulan Juli (07) dan tahun sekarang
+$currentYear = date('Y');
+$selectedBulan = $_GET['bulan'] ?? '07'; // Default Juli
+$selectedTahun = $_GET['tahun'] ?? $currentYear;
+
+// 2. Siapkan parameter query untuk API
 $queryParams = $_GET;
 $queryParams['page'] = $currentPage;
 $queryParams['limit'] = $limit;
-$queryParams['action'] = 'list'; // Explicitly ask for list data
+$queryParams['action'] = 'list';
+$queryParams['bulan'] = $selectedBulan;
+$queryParams['tahun'] = $selectedTahun;
 
-// Remove empty/null parameters to keep the URL clean
+// Hapus parameter kosong
 $queryParams = array_filter($queryParams, fn($value) => $value !== '' && $value !== null);
 $queryString = http_build_query($queryParams);
 $apiUrl = $apiBaseUrl . '?' . $queryString;
 
-// 4. PREPARE QUERY PARAMS FOR SUMMARY DATA (STATISTICS)
+// 3. Siapkan parameter untuk SUMMARY
 $summaryParams = $queryParams;
-unset($summaryParams['page'], $summaryParams['limit']); // Summary doesn't need pagination
-$summaryParams['action'] = 'summary'; // Tell the API we only want stats
+unset($summaryParams['page'], $summaryParams['limit']);
+$summaryParams['action'] = 'summary';
 
 $summaryQueryString = http_build_query($summaryParams);
 $apiSummaryUrl = $apiBaseUrl . '?' . $summaryQueryString;
 
-// 5. API CALL FUNCTION (Using cURL for robustness)
+// 4. Fungsi API Call
 function makeApiRequest($url, $timeout = 30)
 {
     $ch = curl_init();
@@ -37,22 +45,20 @@ function makeApiRequest($url, $timeout = 30)
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
     curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
-    // Add other cURL options if needed
     $response = curl_exec($ch);
     $error = curl_error($ch);
     curl_close($ch);
     if ($error) {
-        // Fallback to file_get_contents on cURL error
         $response = @file_get_contents($url);
     }
     return json_decode($response, true);
 }
 
-// 6. EXECUTE API CALLS
+// 5. Execute API Calls
 $data = makeApiRequest($apiUrl);
 $summaryData = makeApiRequest($apiSummaryUrl);
 
-// 7. INITIALIZE VARIABLES TO PREVENT ERRORS
+// 6. Initialize Variables
 $totalPaket = 0;
 $totalPagu = 0;
 $avgPagu = 0;
@@ -60,49 +66,47 @@ $klpdCount = 0;
 $formattedTotalPagu = 'Rp 0';
 $formattedAvgPagu = 'Rp 0';
 
-// 8. PROCESS SUMMARY DATA
+// 7. Process Summary Data
 if ($summaryData && ($summaryData['success'] ?? false) && isset($summaryData['summary'])) {
     $summary = $summaryData['summary'];
-
     $totalPaket = $summary['total_paket'] ?? 0;
     $totalPagu = $summary['total_pagu'] ?? 0;
     $avgPagu = $summary['avg_pagu'] ?? 0;
     $klpdCount = $summary['total_klpd'] ?? 0;
-
-    // Format numbers for display
     $formattedTotalPagu = 'Rp ' . number_format($totalPagu, 0, ',', '.');
     $formattedAvgPagu = 'Rp ' . number_format($avgPagu, 0, ',', '.');
 }
 
-// 9. PREPARE PAGINATION VARIABLES
+// 8. Prepare Pagination
 $totalPages = $data['pagination']['total_pages'] ?? 1;
-$totalRecords = $data['pagination']['total_records'] ?? $totalPaket; // Use summary total if available
+$totalRecords = $data['pagination']['total_records'] ?? $totalPaket;
 
-// 10. DYNAMICALLY GET OPTIONS FOR DROPDOWNS (from API response if available)
+// 9. Get Options for Dropdowns
 $options = [
     'tipe_swakelola' => $data['options']['jenis_pengadaan'] ?? [],
     'klpd' => $data['options']['klpd'] ?? [],
     'satuan_kerja' => $data['options']['satuan_kerja'] ?? []
 ];
 
-// Set page title for header
+// Array nama bulan untuk tampilan
+$namaBulan = [
+    '01' => 'Januari', '02' => 'Februari', '03' => 'Maret',
+    '04' => 'April', '05' => 'Mei', '06' => 'Juni',
+    '07' => 'Juli', '08' => 'Agustus', '09' => 'September',
+    '10' => 'Oktober', '11' => 'November', '12' => 'Desember'
+];
+
+// Set page title
 $page_title = "Data Swakelola - SIP BANAR";
 
 // Include header
 include '../../navbar/header.php';
-
-// =================================================================
-// == END OF REFACTORED LOGIC BLOCK ================================
-// =================================================================
 ?>
 
 <script src="../../js/submenu.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
 
 <style>
-    /* Paste the entire CSS from your pengadaan.php file here */
-    /* This ensures the visual style is identical */
-    /* ... (omitted for brevity, but you should copy it here) ... */
     .container {
         max-width: 1400px;
         margin: 0 auto;
@@ -126,7 +130,6 @@ include '../../navbar/header.php';
             opacity: 0;
             transform: translateY(30px);
         }
-
         to {
             opacity: 1;
             transform: translateY(0);
@@ -140,6 +143,17 @@ include '../../navbar/header.php';
         display: flex;
         align-items: center;
         gap: 12px;
+        position: relative;
+    }
+
+    .filter-header::after {
+        content: '';
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #dc3545, #e74c3c, #dc3545);
     }
 
     .filter-header h3 {
@@ -157,14 +171,17 @@ include '../../navbar/header.php';
         margin-bottom: 25px;
     }
 
+    /* Baris pertama: Bulan + Tahun + Tipe Swakelola */
     .filter-row:nth-child(1) {
-        grid-template-columns: 2fr 1fr;
+        grid-template-columns: 1fr 1fr 1fr;
     }
 
+    /* Baris kedua: KLPD + Satuan Kerja + Range Pagu */
     .filter-row:nth-child(2) {
         grid-template-columns: 1fr 1fr 1fr;
     }
 
+    /* Baris ketiga: Pencarian + Limit */
     .filter-row:nth-child(3) {
         grid-template-columns: 2fr 1fr;
     }
@@ -177,6 +194,16 @@ include '../../navbar/header.php';
         font-size: 14px;
     }
 
+    .filter-group label .badge-default {
+        background: #ffc107;
+        color: #000;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 700;
+        margin-left: 8px;
+    }
+
     .filter-group select,
     .filter-group input {
         width: 100%;
@@ -184,6 +211,14 @@ include '../../navbar/header.php';
         border: 2px solid #e9ecef;
         border-radius: 10px;
         font-size: 14px;
+        transition: all 0.3s ease;
+    }
+
+    .filter-group select:focus,
+    .filter-group input:focus {
+        outline: none;
+        border-color: #dc3545;
+        box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.15);
     }
 
     .date-range-container {
@@ -275,10 +310,20 @@ include '../../navbar/header.php';
         border: none;
     }
 
+    .search-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(220, 53, 69, 0.3);
+    }
+
     .reset-btn {
         background: transparent;
         color: #6c757d;
         border: 2px solid #e9ecef;
+    }
+
+    .reset-btn:hover {
+        border-color: #dc3545;
+        color: #dc3545;
     }
 
     .summary-header {
@@ -287,7 +332,38 @@ include '../../navbar/header.php';
         padding: 20px 25px;
         display: flex;
         align-items: center;
+        justify-content: space-between;
+        position: relative;
+    }
+
+    .summary-header::after {
+        content: '';
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    }
+
+    .summary-header-left {
+        display: flex;
+        align-items: center;
         gap: 12px;
+    }
+
+    .summary-header h3 {
+        margin: 0;
+        font-size: 18px;
+    }
+
+    .period-badge {
+        background: rgba(255, 255, 255, 0.2);
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+        border: 2px solid rgba(255, 255, 255, 0.3);
     }
 
     .summary-content {
@@ -309,6 +385,7 @@ include '../../navbar/header.php';
         gap: 20px;
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
         position: relative;
+        transition: all 0.3s ease;
     }
 
     .summary-card::before {
@@ -328,12 +405,9 @@ include '../../navbar/header.php';
         background: #27ae60;
     }
 
-    .summary-card.info::before {
-        background: #17a2b8;
-    }
-
-    .summary-card.warning::before {
-        background: #f39c12;
+    .summary-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
     }
 
     .card-icon {
@@ -353,14 +427,6 @@ include '../../navbar/header.php';
 
     .summary-card.success .card-icon {
         background: linear-gradient(135deg, #27ae60, #58d68d);
-    }
-
-    .summary-card.info .card-icon {
-        background: linear-gradient(135deg, #17a2b8, #5dccda);
-    }
-
-    .summary-card.warning .card-icon {
-        background: linear-gradient(135deg, #f39c12, #f8c471);
     }
 
     .card-value {
@@ -401,6 +467,11 @@ include '../../navbar/header.php';
         color: #6c757d;
     }
 
+    .pagination {
+        display: flex;
+        gap: 8px;
+    }
+
     .pagination a {
         text-decoration: none;
         width: 40px;
@@ -414,6 +485,7 @@ include '../../navbar/header.php';
         justify-content: center;
         font-weight: 600;
         color: #6c757d;
+        transition: all 0.3s ease;
     }
 
     .pagination a.active {
@@ -425,6 +497,11 @@ include '../../navbar/header.php';
     .pagination a.disabled {
         pointer-events: none;
         opacity: 0.6;
+    }
+
+    .pagination a:hover:not(.disabled):not(.active) {
+        border-color: #dc3545;
+        color: #dc3545;
     }
 
     .table-container {
@@ -479,6 +556,12 @@ include '../../navbar/header.php';
         padding: 60px 40px;
     }
 
+    .empty-state i {
+        font-size: 48px;
+        margin-bottom: 15px;
+        opacity: 0.5;
+    }
+
     .table-footer {
         padding: 20px 25px;
         border-top: 2px solid #e9ecef;
@@ -488,7 +571,6 @@ include '../../navbar/header.php';
     }
 
     @media (max-width: 992px) {
-
         .filter-row:nth-child(1),
         .filter-row:nth-child(2),
         .filter-row:nth-child(3) {
@@ -506,14 +588,31 @@ include '../../navbar/header.php';
         <div class="filter-content">
             <form method="GET" action="">
                 <div class="filter-row">
-                    <div class="date-range-group">
-                        <label><i class="fas fa-calendar-alt"></i> Periode Tanggal</label>
-                        <div class="date-range-container">
-                            <input type="date" name="tanggal_awal" value="<?= htmlspecialchars($_GET['tanggal_awal'] ?? '') ?>">
-                            <span class="date-separator">S/D</span>
-                            <input type="date" name="tanggal_akhir" value="<?= htmlspecialchars($_GET['tanggal_akhir'] ?? '') ?>">
-                        </div>
+                    <div class="filter-group">
+                        <label>
+                            <i class="fas fa-calendar"></i> Bulan
+                            <span class="badge-default">DEFAULT: JULI</span>
+                        </label>
+                        <select name="bulan">
+                            <?php foreach ($namaBulan as $kode => $nama): ?>
+                                <option value="<?= $kode ?>" <?= $selectedBulan == $kode ? 'selected' : '' ?>>
+                                    <?= $nama ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
                     </div>
+
+                    <div class="filter-group">
+                        <label><i class="fas fa-calendar-alt"></i> Tahun</label>
+                        <select name="tahun">
+                            <?php for ($y = $currentYear; $y >= 2020; $y--): ?>
+                                <option value="<?= $y ?>" <?= $selectedTahun == $y ? 'selected' : '' ?>>
+                                    <?= $y ?>
+                                </option>
+                            <?php endfor; ?>
+                        </select>
+                    </div>
+
                     <div class="filter-group">
                         <label><i class="fas fa-tools"></i> Tipe Swakelola</label>
                         <select name="tipe_swakelola">
@@ -526,6 +625,7 @@ include '../../navbar/header.php';
                         </select>
                     </div>
                 </div>
+
                 <div class="filter-row">
                     <div class="filter-group">
                         <label><i class="fas fa-building"></i> KLPD</label>
@@ -558,6 +658,7 @@ include '../../navbar/header.php';
                         </div>
                     </div>
                 </div>
+
                 <div class="filter-row">
                     <div class="filter-group">
                         <label><i class="fas fa-search"></i> Pencarian Paket</label>
@@ -576,8 +677,9 @@ include '../../navbar/header.php';
                         </select>
                     </div>
                 </div>
+
                 <div class="search-row">
-                    <button type="button" class="reset-btn" onclick="window.location.href=window.location.pathname">
+                    <button type="button" class="reset-btn" onclick="resetForm()">
                         <i class="fas fa-undo"></i> Reset Filter
                     </button>
                     <button type="submit" class="search-btn">
@@ -590,8 +692,14 @@ include '../../navbar/header.php';
 
     <div class="summary-section">
         <div class="summary-header">
-            <i class="fas fa-chart-bar"></i>
-            <h3>Ringkasan Data Swakelola</h3>
+            <div class="summary-header-left">
+                <i class="fas fa-chart-bar"></i>
+                <h3>Ringkasan Data Swakelola</h3>
+            </div>
+            <div class="period-badge">
+                <i class="fas fa-calendar-check"></i> 
+                <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?>
+            </div>
         </div>
         <div class="summary-content">
             <div class="summary-cards">
@@ -600,7 +708,7 @@ include '../../navbar/header.php';
                     <div class="card-content">
                         <div class="card-value"><?= number_format($totalPaket, 0, ',', '.') ?></div>
                         <div class="card-label">Total Paket</div>
-                        <div class="card-subtitle">Swakelola</div>
+                        <div class="card-subtitle">Swakelola - <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?></div>
                     </div>
                 </div>
                 <div class="summary-card success">
@@ -608,11 +716,9 @@ include '../../navbar/header.php';
                     <div class="card-content">
                         <div class="card-value"><?= $formattedTotalPagu ?></div>
                         <div class="card-label">Total Pagu</div>
-                        <div class="card-subtitle">Keseluruhan</div>
+                        <div class="card-subtitle">Keseluruhan - <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?></div>
                     </div>
                 </div>
-                
-
             </div>
         </div>
     </div>
@@ -624,6 +730,7 @@ include '../../navbar/header.php';
                 <?php if ($data && ($data['success'] ?? false)) : ?>
                     <div class="results-subtitle">
                         <strong>Menampilkan <?= count($data['data']) ?> dari <?= number_format($totalRecords, 0, ',', '.') ?> total data</strong>
+                        | Periode: <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?>
                     </div>
                 <?php endif; ?>
             </div>
@@ -687,8 +794,11 @@ include '../../navbar/header.php';
             <?php else : ?>
                 <div class="empty-state">
                     <i class="fas fa-search-minus"></i>
-                    <p><strong>Tidak ada data swakelola yang ditemukan.</strong></p>
-                    <small class="text-muted">Coba ubah kriteria pencarian atau filter yang Anda gunakan.</small>
+                    <p><strong>Tidak ada data swakelola yang ditemukan</strong></p>
+                    <small class="text-muted">
+                        Untuk periode <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?>. 
+                        Coba ubah kriteria pencarian atau pilih bulan lain.
+                    </small>
                 </div>
             <?php endif; ?>
         </div>
@@ -706,151 +816,148 @@ include '../../navbar/header.php';
 </div>
 
 <script>
-    // You can keep your enhanced JavaScript from the original swakelola.php here.
-    // The main logic is now handled by PHP, so the JS can focus on UI enhancements.
+document.addEventListener('DOMContentLoaded', function() {
+    // Validasi Rentang Pagu
+    const paguMinInput = document.querySelector('input[name="pagu_min"]');
+    const paguMaxInput = document.querySelector('input[name="pagu_max"]');
 
-    // =================================================================
-    // == JAVASCRIPT LENGKAP UNTUK HALAMAN SWAKELOLA ===================
-    // =================================================================
+    if (paguMinInput && paguMaxInput) {
+        const validatePagu = () => {
+            const minVal = parseInt(paguMinInput.value.replace(/\./g, '')) || 0;
+            const maxVal = parseInt(paguMaxInput.value.replace(/\./g, '')) || 0;
 
-    document.addEventListener('DOMContentLoaded', function() {
-
-        // --- VALIDASI DAN INTERAKSI FORM FILTER ---
-
-        // 1. Validasi Rentang Tanggal (Date Range)
-        const tanggalAwal = document.querySelector('input[name="tanggal_awal"]');
-        const tanggalAkhir = document.querySelector('input[name="tanggal_akhir"]');
-
-        if (tanggalAwal && tanggalAkhir) {
-            tanggalAwal.addEventListener('change', function() {
-                // Tanggal akhir tidak boleh sebelum tanggal awal
-                tanggalAkhir.min = this.value;
-                if (tanggalAkhir.value && tanggalAkhir.value < this.value) {
-                    tanggalAkhir.value = this.value;
-                }
-            });
-            tanggalAkhir.addEventListener('change', function() {
-                // Tanggal awal tidak boleh setelah tanggal akhir
-                tanggalAwal.max = this.value;
-                if (tanggalAwal.value && tanggalAwal.value > this.value) {
-                    tanggalAwal.value = this.value;
-                }
-            });
-        }
-
-        // 2. Validasi Rentang Pagu (Pagu Range)
-        const paguMinInput = document.querySelector('input[name="pagu_min"]');
-        const paguMaxInput = document.querySelector('input[name="pagu_max"]');
-
-        if (paguMinInput && paguMaxInput) {
-            const validatePagu = () => {
-                const minVal = parseInt(paguMinInput.value.replace(/\./g, '')) || 0;
-                const maxVal = parseInt(paguMaxInput.value.replace(/\./g, '')) || 0;
-
-                if (minVal > 0 && maxVal > 0 && minVal > maxVal) {
-                    paguMaxInput.style.borderColor = '#dc3545';
-                    paguMaxInput.title = 'Pagu maks tidak boleh lebih kecil dari pagu min';
-                } else {
-                    paguMaxInput.style.borderColor = '';
-                    paguMaxInput.title = '';
-                }
-            };
-            paguMinInput.addEventListener('input', validatePagu);
-            paguMaxInput.addEventListener('input', validatePagu);
-        }
-
-        // 3. Interaksi Input Pencarian (Search Input)
-        const searchInput = document.querySelector('input[name="search"]');
-        if (searchInput) {
-            searchInput.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    e.preventDefault(); // Mencegah submit ganda
-                    this.form.submit();
-                }
-            });
-        }
-
-        // 4. Penanganan Form Saat Submit
-        const filterForm = document.querySelector('form');
-        if (filterForm) {
-            filterForm.addEventListener('submit', function(e) {
-                // Hapus format titik dari input pagu sebelum submit
-                if (paguMinInput) paguMinInput.value = paguMinInput.value.replace(/\./g, '');
-                if (paguMaxInput) paguMaxInput.value = paguMaxInput.value.replace(/\./g, '');
-
-                // Tampilkan status loading pada tombol
-                const submitBtn = this.querySelector('.search-btn');
-                if (submitBtn) {
-                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mencari...';
-                    submitBtn.disabled = true;
-                }
-            });
-        }
-
-        // --- EFEK VISUAL DAN INTERAKSI HALAMAN ---
-
-        // 5. Gulir Otomatis ke Hasil Pencarian (Auto-scroll)
-        const urlParams = new URLSearchParams(window.location.search);
-        // Cek jika ada parameter filter selain 'page'
-        if (Array.from(urlParams.keys()).some(key => key !== 'page')) {
-            const resultsSection = document.querySelector('.results-section');
-            if (resultsSection) {
-                resultsSection.scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'start'
-                });
+            if (minVal > 0 && maxVal > 0 && minVal > maxVal) {
+                paguMaxInput.style.borderColor = '#dc3545';
+                paguMaxInput.title = 'Pagu maks tidak boleh lebih kecil dari pagu min';
+            } else {
+                paguMaxInput.style.borderColor = '';
+                paguMaxInput.title = '';
             }
-        }
+        };
+        paguMinInput.addEventListener('input', validatePagu);
+        paguMaxInput.addEventListener('input', validatePagu);
+    }
 
-        // 6. Navigasi Paginasi dengan Keyboard (CTRL + Panah Kiri/Kanan)
-        document.addEventListener('keydown', function(e) {
-            if (e.ctrlKey) {
-                if (e.key === 'ArrowLeft') {
-                    const prevButton = document.querySelector('.pagination a:first-child:not(.disabled)');
-                    if (prevButton) prevButton.click();
-                } else if (e.key === 'ArrowRight') {
-                    const nextButton = document.querySelector('.pagination a:last-child:not(.disabled)');
-                    if (nextButton) nextButton.click();
-                }
+    // Interaksi Input Pencarian
+    const searchInput = document.querySelector('input[name="search"]');
+    if (searchInput) {
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                this.form.submit();
             }
         });
+    }
 
+    // Penanganan Form Submit
+    const filterForm = document.querySelector('form');
+    if (filterForm) {
+        filterForm.addEventListener('submit', function(e) {
+            // Hapus format titik dari input pagu sebelum submit
+            if (paguMinInput) paguMinInput.value = paguMinInput.value.replace(/\./g, '');
+            if (paguMaxInput) paguMaxInput.value = paguMaxInput.value.replace(/\./g, '');
+
+            // Tampilkan status loading pada tombol
+            const submitBtn = this.querySelector('.search-btn');
+            if (submitBtn) {
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mencari...';
+                submitBtn.disabled = true;
+            }
+        });
+    }
+
+    // Gulir Otomatis ke Hasil Pencarian
+    const urlParams = new URLSearchParams(window.location.search);
+    if (Array.from(urlParams.keys()).some(key => key !== 'page')) {
+        const resultsSection = document.querySelector('.results-section');
+        if (resultsSection) {
+            resultsSection.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
+            });
+        }
+    }
+
+    // Navigasi Paginasi dengan Keyboard (CTRL + Panah Kiri/Kanan)
+    document.addEventListener('keydown', function(e) {
+        if (e.ctrlKey) {
+            if (e.key === 'ArrowLeft') {
+                const prevButton = document.querySelector('.pagination a:first-child:not(.disabled)');
+                if (prevButton) prevButton.click();
+            } else if (e.key === 'ArrowRight') {
+                const nextButton = document.querySelector('.pagination a:last-child:not(.disabled)');
+                if (nextButton) nextButton.click();
+            }
+        }
     });
 
-    // --- FUNGSI BANTUAN (HELPER FUNCTIONS) ---
+    // Table row hover effects
+    const tableRows = document.querySelectorAll('tbody tr');
+    tableRows.forEach(row => {
+        row.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-2px)';
+        });
 
-    /**
-     * Fungsi untuk mereset semua filter dan kembali ke tampilan awal.
-     * Ini adalah cara paling bersih karena me-reload halaman tanpa parameter.
-     */
-    function resetForm() {
-        window.location.href = window.location.pathname;
-    }
+        row.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0)';
+        });
+    });
 
-    /**
-     * (Opsional) Fungsi untuk mengekspor data berdasarkan filter saat ini.
-     * Membutuhkan penyesuaian di sisi API (backend) untuk menangani parameter 'export=csv'.
-     */
-    function exportData(format = 'csv') {
-        const url = new URL(window.location);
-        url.searchParams.set('export', format);
-        url.searchParams.delete('page'); // Ekspor semua data, bukan hanya satu halaman
-        url.searchParams.set('limit', 10000); // Set limit tinggi untuk ekspor
+    // Format numbers in price columns
+    document.querySelectorAll('.price').forEach(priceCell => {
+        const text = priceCell.textContent.trim();
+        if (text && !isNaN(text.replace(/[^\d]/g, ''))) {
+            const number = parseInt(text.replace(/[^\d]/g, ''));
+            if (number > 0) {
+                priceCell.innerHTML = '<i class="fas fa-rupiah-sign" style="font-size: 12px; margin-right: 3px;"></i>Rp ' + number.toLocaleString('id-ID');
+            }
+        }
+    });
 
-        // Buka di tab baru
-        window.open(url.toString(), '_blank');
-    }
+    // Copy functionality to ID
+    document.querySelectorAll('.text-muted').forEach(smallText => {
+        if (smallText.textContent.includes('ID:')) {
+            smallText.style.cursor = 'pointer';
+            smallText.title = 'Klik untuk copy ID';
+            smallText.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const idText = this.textContent.replace('ID: ', '').trim();
+                navigator.clipboard.writeText(idText).then(() => {
+                    const originalText = this.textContent;
+                    this.textContent = '✓ ID Copied!';
+                    this.style.color = '#27ae60';
+                    setTimeout(() => {
+                        this.textContent = originalText;
+                        this.style.color = '';
+                    }, 1500);
+                });
+            });
+        }
+    });
+});
 
-    /**
-     * (Opsional) Fungsi untuk mencetak tabel hasil pencarian.
-     */
-    function printResults() {
-        const tableHtml = document.querySelector('.table-container').innerHTML;
-        const subtitleHtml = document.querySelector('.results-subtitle').innerHTML;
+// Reset form function - kembali ke default Juli tahun ini
+function resetForm() {
+    window.location.href = window.location.pathname + '?bulan=07&tahun=<?= $currentYear ?>';
+}
 
-        const printWindow = window.open('', '', 'height=600,width=800');
-        printWindow.document.write('<html><head><title>Cetak Data Swakelola</title>');
-        printWindow.document.write(`
+// Export data function (optional)
+function exportData(format = 'csv') {
+    const url = new URL(window.location);
+    url.searchParams.set('export', format);
+    url.searchParams.delete('page');
+    url.searchParams.set('limit', 10000);
+    window.open(url.toString(), '_blank');
+}
+
+// Print results function (optional)
+function printResults() {
+    const tableHtml = document.querySelector('.table-container').innerHTML;
+    const subtitleHtml = document.querySelector('.results-subtitle')?.innerHTML || '';
+
+    const printWindow = window.open('', '', 'height=600,width=800');
+    printWindow.document.write('<html><head><title>Cetak Data Swakelola</title>');
+    printWindow.document.write(`
         <style>
             body { font-family: Arial, sans-serif; }
             table { width: 100%; border-collapse: collapse; font-size: 10px; }
@@ -859,33 +966,82 @@ include '../../navbar/header.php';
             h2, p { text-align: center; }
         </style>
     `);
-        printWindow.document.write('</head><body>');
-        printWindow.document.write('<h2>Laporan Data Swakelola</h2>');
-        printWindow.document.write(`<p>${subtitleHtml}</p>`);
-        printWindow.document.write(tableHtml);
-        printWindow.document.write('</body></html>');
-        printWindow.document.close();
-        printWindow.focus();
-        printWindow.print();
-    }
-    document.addEventListener('DOMContentLoaded', function() {
-        // Example: Client-side validation for date range
-        const tanggalAwal = document.querySelector('input[name="tanggal_awal"]');
-        const tanggalAkhir = document.querySelector('input[name="tanggal_akhir"]');
+    printWindow.document.write('</head><body>');
+    printWindow.document.write('<h2>Laporan Data Swakelola</h2>');
+    printWindow.document.write(`<p>${subtitleHtml}</p>`);
+    printWindow.document.write(tableHtml);
+    printWindow.document.write('</body></html>');
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+}
 
-        if (tanggalAwal && tanggalAkhir) {
-            tanggalAwal.addEventListener('change', function() {
-                tanggalAkhir.min = this.value;
-            });
+// Form validation before submit
+document.querySelector('form').addEventListener('submit', function(e) {
+    // Show loading state
+    const submitBtn = this.querySelector('.search-btn');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mencari...';
+    submitBtn.disabled = true;
+
+    // Reset button state after a delay
+    setTimeout(() => {
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    }, 5000);
+});
+
+// Add smooth scrolling to results when form is submitted
+window.addEventListener('load', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.toString() && !urlParams.has('page')) {
+        const resultsSection = document.querySelector('.results-section');
+        if (resultsSection) {
+            setTimeout(() => {
+                resultsSection.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }, 300);
         }
+    }
+});
 
-        // Example: Add loading indicator on form submit
-        document.querySelector('form').addEventListener('submit', function(e) {
-            const submitBtn = this.querySelector('.search-btn');
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mencari...';
-            submitBtn.disabled = true;
-        });
+// Highlight selected filters
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    const inputs = form.querySelectorAll('select, input[type="text"]');
+    
+    inputs.forEach(input => {
+        if (input.value && input.name !== 'bulan' && input.name !== 'tahun') {
+            input.style.borderColor = '#27ae60';
+            input.style.background = '#f0fff4';
+        }
     });
+});
+
+// Auto-format pagu inputs with thousand separator
+const paguInputs = document.querySelectorAll('input[name="pagu_min"], input[name="pagu_max"]');
+paguInputs.forEach(input => {
+    input.addEventListener('blur', function() {
+        if (this.value) {
+            const number = parseInt(this.value.replace(/\D/g, ''));
+            if (!isNaN(number)) {
+                this.value = number.toLocaleString('id-ID');
+            }
+        }
+    });
+
+    input.addEventListener('focus', function() {
+        this.value = this.value.replace(/\./g, '');
+    });
+});
+
+console.log('Swakelola Page Loaded');
+console.log('Selected Period:', '<?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?>');
+console.log('Total Records:', <?= $totalRecords ?>);
+console.log('Total Paket:', <?= $totalPaket ?>);
+console.log('Total Pagu:', <?= $totalPagu ?>);
 </script>
 
 <?php
