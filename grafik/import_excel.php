@@ -2,11 +2,18 @@
 require_once '../navbar/header.php';
 ?>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<style>
+.card-header-gradient {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%) !important;
+}
+</style>
+
 <div class="container mt-4">
     <div class="row">
         <div class="col-md-12">
             <div class="card">
-                <div class="card-header bg-primary text-white">
+                <div class="card-header card-header-gradient text-white">
                     <h4 class="mb-0">
                         <i class="fas fa-file-excel"></i> Import Data Excel
                     </h4>
@@ -111,7 +118,7 @@ require_once '../navbar/header.php';
 
             <!-- Tabel Hasil Import -->
             <div class="card mt-4" id="resultCard" style="display: none;">
-                <div class="card-header bg-success text-white">
+                <div class="card-header card-header-gradient text-white">
                     <h5 class="mb-0"><i class="fas fa-check-circle"></i> Hasil Import</h5>
                 </div>
                 <div class="card-body">

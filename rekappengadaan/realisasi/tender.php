@@ -10,11 +10,28 @@ $apiBaseUrl = "http://sipbanar-phpnative.id/api/realisasi_tender.php";
 $currentPage = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $limit = $_GET['limit'] ?? 50;
 
+// TAMBAHAN: Dapatkan filter bulan dan tahun
+// Default bulan Juli (07) dan tahun sekarang
+$currentYear = date('Y');
+// Pastikan bulan dalam format 2 digit dengan leading zero
+$selectedBulan = isset($_GET['bulan']) ? str_pad($_GET['bulan'], 2, '0', STR_PAD_LEFT) : '07';
+$selectedTahun = isset($_GET['tahun']) ? $_GET['tahun'] : $currentYear;
+
+// Debug: Log nilai bulan dan tahun yang dipilih
+error_log("Selected Bulan: " . $selectedBulan);
+error_log("Selected Tahun: " . $selectedTahun);
+
 // 3. Siapkan parameter query untuk API
 $queryParams = $_GET;
 $queryParams['page'] = $currentPage;
 $queryParams['limit'] = $limit;
-$queryParams = array_filter($queryParams);
+$queryParams['bulan'] = $selectedBulan;
+$queryParams['tahun'] = $selectedTahun;
+
+// Hapus parameter kosong agar URL bersih
+$queryParams = array_filter($queryParams, function ($value) {
+    return $value !== '' && $value !== null;
+});
 $queryString = http_build_query($queryParams);
 $apiUrl = $apiBaseUrl . '?' . $queryString;
 
@@ -66,6 +83,14 @@ $totalRecords = $data['pagination']['total_records'] ?? 0;
 if ($totalPaket > 0) {
     $totalRecords = $totalPaket;
 }
+
+// Array nama bulan untuk tampilan
+$namaBulan = [
+    '01' => 'Januari', '02' => 'Februari', '03' => 'Maret',
+    '04' => 'April', '05' => 'Mei', '06' => 'Juni',
+    '07' => 'Juli', '08' => 'Agustus', '09' => 'September',
+    '10' => 'Oktober', '11' => 'November', '12' => 'Desember'
+];
 
 $page_title = "Data Realisasi Tender - SIP BANAR";
 include '../../navbar/header.php';
@@ -131,7 +156,7 @@ include '../../navbar/header.php';
     }
 
     .filter-row:nth-child(1) {
-        grid-template-columns: 2fr 1fr;
+        grid-template-columns: 1fr 1fr 1fr 1fr;
     }
 
     .filter-row:nth-child(2) {
@@ -153,6 +178,16 @@ include '../../navbar/header.php';
         color: #2c3e50;
         font-size: 14px;
         letter-spacing: 0.3px;
+    }
+
+    .filter-group label .badge-default {
+        background: #ffc107;
+        color: #000;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 700;
+        margin-left: 8px;
     }
 
     .filter-group select,
@@ -267,7 +302,7 @@ include '../../navbar/header.php';
         padding: 20px 25px;
         display: flex;
         align-items: center;
-        gap: 12px;
+        justify-content: space-between;
         position: relative;
     }
 
@@ -281,6 +316,12 @@ include '../../navbar/header.php';
         background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
     }
 
+    .summary-header-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
     .summary-header i {
         font-size: 20px;
     }
@@ -290,6 +331,15 @@ include '../../navbar/header.php';
         font-size: 18px;
         font-weight: 600;
         letter-spacing: 0.5px;
+    }
+
+    .period-badge {
+        background: rgba(255, 255, 255, 0.2);
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+        border: 2px solid rgba(255, 255, 255, 0.3);
     }
 
     .summary-content {
@@ -391,6 +441,11 @@ include '../../navbar/header.php';
         font-weight: 600;
         color: #2c3e50;
         margin-bottom: 2px;
+    }
+
+    .card-subtitle {
+        font-size: 12px;
+        color: #6c757d;
     }
 
     .results-section {
@@ -586,7 +641,7 @@ include '../../navbar/header.php';
 
     @media (max-width: 1200px) {
         .filter-row:nth-child(1) {
-            grid-template-columns: 1fr;
+            grid-template-columns: 1fr 1fr;
         }
 
         .filter-row:nth-child(2) {
@@ -595,7 +650,6 @@ include '../../navbar/header.php';
     }
 
     @media (max-width: 992px) {
-
         .filter-row:nth-child(1),
         .filter-row:nth-child(2),
         .filter-row:nth-child(3) {
@@ -676,14 +730,33 @@ include '../../navbar/header.php';
             <form method="GET" action="">
                 <div class="filter-row">
                     <div class="filter-group">
-                        <label><i class="fas fa-calendar-alt"></i> Tahun Anggaran</label>
+                        <label>
+                            <i class="fas fa-calendar"></i> Bulan
+                            <span class="badge-default">DEFAULT: JULI</span>
+                        </label>
+                        <select name="bulan">
+                            <?php foreach ($namaBulan as $kode => $nama): ?>
+                                <option value="<?= $kode ?>" <?= $selectedBulan == $kode ? 'selected' : '' ?>>
+                                    <?= $nama ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label><i class="fas fa-calendar-alt"></i> Tahun</label>
                         <select name="tahun">
-                            <option value="">Semua Tahun</option>
-                            <?php for ($y = date('Y'); $y >= 2020; $y--): ?>
-                                <option value="<?= $y ?>" <?= ($_GET['tahun'] ?? '') == $y ? 'selected' : '' ?>><?= $y ?></option>
+                            <?php 
+                            $startYear = date('Y'); // Tahun sekarang sebagai awal
+                            for ($y = $startYear; $y >= 2020; $y--): 
+                            ?>
+                                <option value="<?= $y ?>" <?= $selectedTahun == $y ? 'selected' : '' ?>>
+                                    <?= $y ?>
+                                </option>
                             <?php endfor; ?>
                         </select>
                     </div>
+
                     <div class="filter-group">
                         <label><i class="fas fa-tags"></i> Jenis Pengadaan</label>
                         <select name="jenis_pengadaan">
@@ -692,6 +765,17 @@ include '../../navbar/header.php';
                             <option value="Pekerjaan Konstruksi" <?= ($_GET['jenis_pengadaan'] ?? '') == 'Pekerjaan Konstruksi' ? 'selected' : '' ?>>Pekerjaan Konstruksi</option>
                             <option value="Barang" <?= ($_GET['jenis_pengadaan'] ?? '') == 'Barang' ? 'selected' : '' ?>>Barang</option>
                             <option value="Jasa Konsultansi" <?= ($_GET['jenis_pengadaan'] ?? '') == 'Jasa Konsultansi' ? 'selected' : '' ?>>Jasa Konsultansi</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label><i class="fas fa-cogs"></i> Metode Pengadaan</label>
+                        <select name="metode_pengadaan">
+                            <option value="">Semua Metode</option>
+                            <option value="Tender" <?= ($_GET['metode_pengadaan'] ?? '') == 'Tender' ? 'selected' : '' ?>>Tender</option>
+                            <option value="Tender Cepat" <?= ($_GET['metode_pengadaan'] ?? '') == 'Tender Cepat' ? 'selected' : '' ?>>Tender Cepat</option>
+                            <option value="Seleksi" <?= ($_GET['metode_pengadaan'] ?? '') == 'Seleksi' ? 'selected' : '' ?>>Seleksi</option>
+                            <option value="Pascakualifikasi Satu File" <?= ($_GET['metode_pengadaan'] ?? '') == 'Pascakualifikasi Satu File' ? 'selected' : '' ?>>Pascakualifikasi Satu File</option>
                         </select>
                     </div>
                 </div>
@@ -716,16 +800,7 @@ include '../../navbar/header.php';
                             <option value="Pemerintah Daerah Kota Banjarbaru" <?= ($_GET['klpd'] ?? '') == 'Pemerintah Daerah Kota Banjarbaru' ? 'selected' : '' ?>>Pemerintah Daerah Kota Banjarbaru</option>
                         </select>
                     </div>
-                    <div class="filter-group">
-                        <label><i class="fas fa-cogs"></i> Metode Pengadaan</label>
-                        <select name="metode_pengadaan">
-                            <option value="">Semua Metode</option>
-                            <option value="Tender" <?= ($_GET['metode_pengadaan'] ?? '') == 'Tender' ? 'selected' : '' ?>>Tender</option>
-                            <option value="Tender Cepat" <?= ($_GET['metode_pengadaan'] ?? '') == 'Tender Cepat' ? 'selected' : '' ?>>Tender Cepat</option>
-                            <option value="Seleksi" <?= ($_GET['metode_pengadaan'] ?? '') == 'Seleksi' ? 'selected' : '' ?>>Seleksi</option>
-                            <option value="Pascakualifikasi Satu File" <?= ($_GET['metode_pengadaan'] ?? '') == 'Pascakualifikasi Satu File' ? 'selected' : '' ?>>Pascakualifikasi Satu File</option>
-                        </select>
-                    </div>
+
                     <div class="filter-group">
                         <label><i class="fas fa-money-check-alt"></i> Sumber Dana</label>
                         <select name="sumber_dana">
@@ -734,9 +809,7 @@ include '../../navbar/header.php';
                             <option value="APBN" <?= ($_GET['sumber_dana'] ?? '') == 'APBN' ? 'selected' : '' ?>>APBN</option>
                         </select>
                     </div>
-                </div>
 
-                <div class="filter-row">
                     <div class="filter-group">
                         <label><i class="fas fa-search"></i> Pencarian</label>
                         <div class="search-input-wrapper">
@@ -747,7 +820,7 @@ include '../../navbar/header.php';
                 </div>
 
                 <div class="search-row">
-                    <button type="button" class="reset-btn" onclick="window.location.href=window.location.pathname">
+                    <button type="button" class="reset-btn" onclick="resetForm()">
                         <i class="fas fa-undo"></i> Reset Filter
                     </button>
                     <button type="submit" class="search-btn">
@@ -760,8 +833,14 @@ include '../../navbar/header.php';
 
     <div class="summary-section">
         <div class="summary-header">
-            <i class="fas fa-chart-bar"></i>
-            <h3>Ringkasan Data Realisasi Tender</h3>
+            <div class="summary-header-left">
+                <i class="fas fa-chart-bar"></i>
+                <h3>Ringkasan Data Realisasi Tender</h3>
+            </div>
+            <div class="period-badge">
+                <i class="fas fa-calendar-check"></i> 
+                <?= isset($namaBulan[$selectedBulan]) ? $namaBulan[$selectedBulan] : 'Bulan ' . $selectedBulan ?> <?= $selectedTahun ?>
+            </div>
         </div>
         <div class="summary-content">
             <div class="summary-cards">
@@ -770,6 +849,7 @@ include '../../navbar/header.php';
                     <div class="card-content">
                         <div class="card-value"><?= number_format($totalPaket, 0, ',', '.') ?></div>
                         <div class="card-label">Total Paket</div>
+                        <div class="card-subtitle">Realisasi - <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?></div>
                     </div>
                 </div>
                 <div class="summary-card warning">
@@ -777,6 +857,7 @@ include '../../navbar/header.php';
                     <div class="card-content">
                         <div class="card-value"><?= $formattedTotalPagu ?></div>
                         <div class="card-label">Total Pagu</div>
+                        <div class="card-subtitle">Keseluruhan - <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?></div>
                     </div>
                 </div>
                 <div class="summary-card success">
@@ -784,6 +865,7 @@ include '../../navbar/header.php';
                     <div class="card-content">
                         <div class="card-value"><?= $formattedTotalKontrak ?></div>
                         <div class="card-label">Total Nilai Kontrak</div>
+                        <div class="card-subtitle">Terealisasi - <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?></div>
                     </div>
                 </div>
                 <div class="summary-card info">
@@ -791,6 +873,7 @@ include '../../navbar/header.php';
                     <div class="card-content">
                         <div class="card-value"><?= $formattedEfisiensi ?></div>
                         <div class="card-label">Efisiensi Anggaran</div>
+                        <div class="card-subtitle">Periode - <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?></div>
                     </div>
                 </div>
             </div>
@@ -801,9 +884,12 @@ include '../../navbar/header.php';
         <div class="results-header">
             <div>
                 <div class="results-title"><i class="fas fa-table"></i> Hasil Data Realisasi Tender</div>
-                <div class="results-subtitle">
-                    <strong>Menampilkan <?= count($data['data'] ?? []) ?> dari <?= number_format($totalRecords, 0, ',', '.') ?> total data</strong>
-                </div>
+                <?php if ($data && isset($data['success']) && $data['success']) : ?>
+                    <div class="results-subtitle">
+                        <strong>Menampilkan <?= count($data['data']) ?> dari <?= number_format($totalRecords, 0, ',', '.') ?> total data</strong>
+                        | Periode: <?= isset($namaBulan[$selectedBulan]) ? $namaBulan[$selectedBulan] : 'Bulan ' . $selectedBulan ?> <?= $selectedTahun ?>
+                    </div>
+                <?php endif; ?>
             </div>
             <div class="pagination">
                 <?php
@@ -908,7 +994,10 @@ include '../../navbar/header.php';
             <div class="empty-state">
                 <i class="fas fa-search-minus"></i>
                 <p><strong>Tidak ada data realisasi yang ditemukan</strong></p>
-                <small class="text-muted">Coba ubah kriteria pencarian atau filter yang Anda gunakan</small>
+                <small class="text-muted">
+                    Untuk periode <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?>. 
+                    Coba ubah kriteria pencarian atau pilih bulan lain.
+                </small>
             </div>
         <?php endif; ?>
     </div>
@@ -918,33 +1007,115 @@ include '../../navbar/header.php';
     document.addEventListener('DOMContentLoaded', function() {
         const filterForm = document.querySelector('form');
 
-        // Auto submit on select change (optional)
-        const selects = filterForm.querySelectorAll('select');
-        selects.forEach(select => {
-            select.addEventListener('change', function() {
-                // Uncomment line below to enable auto-submit
-                // filterForm.submit();
+        if (filterForm) {
+            filterForm.addEventListener('submit', function(e) {
+                const inputs = this.querySelectorAll('input, select');
+                
+                inputs.forEach(input => {
+                    // Jangan disable bulan dan tahun karena ini filter wajib
+                    if (input.name !== 'bulan' && input.name !== 'tahun' && !input.value) {
+                        input.disabled = true;
+                    }
+                });
+
+                return true;
+            });
+        }
+
+        // Search input enter key
+        const searchInput = document.querySelector('input[name="search"]');
+        if (searchInput) {
+            searchInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    this.form.submit();
+                }
+            });
+
+            // Clear search icon functionality
+            searchInput.addEventListener('input', function() {
+                const wrapper = this.closest('.search-input-wrapper');
+                const icon = wrapper.querySelector('i');
+                if (this.value) {
+                    icon.className = 'fas fa-times';
+                    icon.style.cursor = 'pointer';
+                    icon.onclick = () => {
+                        this.value = '';
+                        icon.className = 'fas fa-search';
+                        icon.style.cursor = 'default';
+                        icon.onclick = null;
+                    };
+                } else {
+                    icon.className = 'fas fa-search';
+                    icon.style.cursor = 'default';
+                    icon.onclick = null;
+                }
+            });
+        }
+
+        // Table row hover effects
+        const tableRows = document.querySelectorAll('tbody tr');
+        tableRows.forEach(row => {
+            row.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-2px)';
+            });
+
+            row.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0)';
             });
         });
 
-        // Smooth scroll animation
-        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function(e) {
-                e.preventDefault();
-                const target = document.querySelector(this.getAttribute('href'));
-                if (target) {
-                    target.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'start'
+        // Add copy functionality to Tender ID
+        document.querySelectorAll('.small-text').forEach(smallText => {
+            if (smallText.textContent.includes('Tender:')) {
+                smallText.style.cursor = 'pointer';
+                smallText.title = 'Klik untuk copy Kode Tender';
+                smallText.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const tenderText = this.textContent.replace('Tender: ', '').trim();
+                    navigator.clipboard.writeText(tenderText).then(() => {
+                        const originalText = this.textContent;
+                        this.textContent = '✓ Kode Copied!';
+                        this.style.color = '#27ae60';
+                        setTimeout(() => {
+                            this.textContent = originalText;
+                            this.style.color = '';
+                        }, 1500);
                     });
-                }
-            });
+                });
+            }
         });
     });
 
+    // Reset form function - kembali ke default Juli tahun ini
     function resetForm() {
-        window.location.href = window.location.pathname;
+        window.location.href = window.location.pathname + '?bulan=07&tahun=<?= $currentYear ?>';
     }
+
+    // Form validation before submit
+    document.querySelector('form').addEventListener('submit', function(e) {
+        // Show loading state
+        const submitBtn = this.querySelector('.search-btn');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mencari...';
+        submitBtn.disabled = true;
+
+        // Reset button state after a delay
+        setTimeout(() => {
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        }, 5000);
+    });
+
+    // Add smooth scrolling to results when form is submitted
+    window.addEventListener('load', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.toString()) {
+            document.querySelector('.results-section').scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
+            });
+        }
+    });
 </script>
 
 <?php
