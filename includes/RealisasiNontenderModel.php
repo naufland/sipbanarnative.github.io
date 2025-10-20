@@ -11,21 +11,57 @@ class RealisasiNontenderModel
         $this->conn = $db;
     }
 
+    // BARU: Helper - Konversi angka bulan ke nama bulan Indonesia
+    private function getBulanNama($bulanAngka) {
+        $mapping = [
+            '01' => 'Januari', '02' => 'Februari', '03' => 'Maret',
+            '04' => 'April', '05' => 'Mei', '06' => 'Juni',
+            '07' => 'Juli', '08' => 'Agustus', '09' => 'September',
+            '10' => 'Oktober', '11' => 'November', '12' => 'Desember'
+        ];
+        return $mapping[$bulanAngka] ?? null;
+    }
+
     private function buildWhereClause($filters)
     {
         $whereClause = " WHERE 1=1";
         $params = [];
 
-        // Filter berdasarkan tahun anggaran
-        if (!empty($filters['tahun'])) {
-            $whereClause .= " AND Tahun_Anggaran = :tahun";
+        // BARU: Filter bulan dan tahun
+        // Konversi bulan angka (07) ke nama (Juli)
+        if (!empty($filters['bulan']) && !empty($filters['tahun'])) {
+            $bulanNama = $this->getBulanNama($filters['bulan']);
+            if ($bulanNama) {
+                $whereClause .= " AND bulan = :bulan AND tahun = :tahun";
+                $params[':bulan'] = $bulanNama;
+                $params[':tahun'] = $filters['tahun'];
+            }
+        } elseif (!empty($filters['tahun'])) {
+            $whereClause .= " AND tahun = :tahun";
             $params[':tahun'] = $filters['tahun'];
+        } elseif (!empty($filters['bulan'])) {
+            $bulanNama = $this->getBulanNama($filters['bulan']);
+            if ($bulanNama) {
+                $whereClause .= " AND bulan = :bulan AND tahun = :tahun_sekarang";
+                $params[':bulan'] = $bulanNama;
+                $params[':tahun_sekarang'] = date('Y');
+            }
         }
 
-        // Filter berdasarkan KLPD
-        if (!empty($filters['klpd'])) {
-            $whereClause .= " AND KLPD = :klpd";
-            $params[':klpd'] = $filters['klpd'];
+        // Filter range tanggal (opsional, untuk detail lebih spesifik)
+        if (!empty($filters['tanggal_awal'])) {
+            $whereClause .= " AND Tanggal_Kontrak >= :tanggal_awal";
+            $params[':tanggal_awal'] = $filters['tanggal_awal'];
+        }
+        if (!empty($filters['tanggal_akhir'])) {
+            $whereClause .= " AND Tanggal_Kontrak <= :tanggal_akhir";
+            $params[':tanggal_akhir'] = $filters['tanggal_akhir'];
+        }
+
+        // DIGANTI: dari klpd ke nama_satker
+        if (!empty($filters['nama_satker'])) {
+            $whereClause .= " AND Nama_Satker = :nama_satker";
+            $params[':nama_satker'] = $filters['nama_satker'];
         }
 
         // Filter berdasarkan Metode Pengadaan
@@ -40,7 +76,7 @@ class RealisasiNontenderModel
             $params[':jenis_pengadaan'] = $filters['jenis_pengadaan'];
         }
 
-        // Filter berdasarkan pencarian
+        // DIUPDATE: Tambahkan Nama_Satker di pencarian
         if (!empty($filters['search'])) {
             $whereClause .= " AND (Nama_Paket LIKE :search OR Nama_Pemenang LIKE :search OR Nama_Satker LIKE :search OR Kode_Paket LIKE :search)";
             $params[':search'] = "%" . $filters['search'] . "%";
@@ -49,6 +85,7 @@ class RealisasiNontenderModel
         return [$whereClause, $params];
     }
 
+    // Ambil data utama dengan filter + pagination
     public function getRealisasiNontenderData($filters = [], $limit = 50, $offset = 0)
     {
         list($whereClause, $params) = $this->buildWhereClause($filters);
@@ -63,25 +100,26 @@ class RealisasiNontenderModel
         
         $stmt = $this->conn->prepare($sql);
         
-        // Bind semua parameter dari filter
-        foreach ($params as $key => $value) { 
-            $stmt->bindValue($key, $value); 
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value);
         }
         
-        // Bind parameter limit dan offset
         $stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);
         $stmt->bindValue(':offset', (int)$offset, PDO::PARAM_INT);
-        
         $stmt->execute();
+        
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    // Hitung total data (untuk pagination)
     public function getTotalCount($filters = [])
     {
         list($whereClause, $params) = $this->buildWhereClause($filters);
         $sql = "SELECT COUNT(*) as total FROM " . $this->table_name . $whereClause;
+        
         $stmt = $this->conn->prepare($sql);
         $stmt->execute($params);
+        
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         return $row['total'] ?? 0;
     }
@@ -110,44 +148,61 @@ class RealisasiNontenderModel
         ];
     }
 
-    public function getAllDataForSummary($filters = []) 
+    // DIUPDATE: Ambil semua data untuk summary dengan kolom Nama_Satker
+    public function getAllDataForSummary($filters = [])
     {
         list($whereClause, $params) = $this->buildWhereClause($filters);
+        
+        // DIGANTI: KLPD menjadi Nama_Satker
         $sql = "SELECT 
                     Metode_Pengadaan,
                     Jenis_Pengadaan,
-                    KLPD, 
+                    Nama_Satker, 
                     Nilai_Pagu, 
                     Nilai_Kontrak,
                     Nama_Pemenang
                 FROM " . $this->table_name . $whereClause;
+        
         $stmt = $this->conn->prepare($sql);
         $stmt->execute($params);
+        
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    // DIUPDATE: Tambahkan Nama_Satker di allowed columns
     public function getDistinctValues($column)
     {
-        $allowedColumns = ['Metode_Pengadaan', 'Jenis_Pengadaan', 'KLPD', 'Tahun_Anggaran'];
-        if (!in_array($column, $allowedColumns)) return [];
+        // DIGANTI: KLPD menjadi Nama_Satker
+        $allowedColumns = ['Metode_Pengadaan', 'Jenis_Pengadaan', 'Nama_Satker', 'Tahun_Anggaran'];
         
-        $sql = "SELECT DISTINCT $column FROM " . $this->table_name . " WHERE $column IS NOT NULL AND $column != '' ORDER BY $column ASC";
+        if (!in_array($column, $allowedColumns)) {
+            return [];
+        }
+        
+        $sql = "SELECT DISTINCT $column 
+                FROM " . $this->table_name . " 
+                WHERE $column IS NOT NULL AND $column != '' 
+                ORDER BY $column ASC";
+        
         $stmt = $this->conn->prepare($sql);
         $stmt->execute();
+        
         return $stmt->fetchAll(PDO::FETCH_COLUMN);
     }
     
     /**
-     * Fungsi untuk mengambil semua tahun unik dari kolom Tahun_Anggaran
+     * Fungsi untuk mengambil semua tahun unik
      */
     public function getAvailableYears()
     {
-        $sql = "SELECT DISTINCT Tahun_Anggaran as tahun 
+        $sql = "SELECT DISTINCT tahun 
                 FROM " . $this->table_name . " 
-                WHERE Tahun_Anggaran IS NOT NULL 
+                WHERE tahun IS NOT NULL 
                 ORDER BY tahun DESC";
+        
         $stmt = $this->conn->prepare($sql);
         $stmt->execute();
+        
         return $stmt->fetchAll(PDO::FETCH_COLUMN);
     }
 }

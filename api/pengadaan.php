@@ -29,7 +29,7 @@ try {
                 case 'list':
                     // Get filters from query parameters
                     $filters = [
-                        'bulan' => $_GET['bulan'] ?? '',           // BARU: Filter bulan
+                        'bulan' => $_GET['bulan'] ?? '',
                         'tahun' => $_GET['tahun'] ?? '',
                         'tanggal_awal' => $_GET['tanggal_awal'] ?? '',
                         'tanggal_akhir' => $_GET['tanggal_akhir'] ?? '',
@@ -37,6 +37,7 @@ try {
                         'klpd' => $_GET['klpd'] ?? '',
                         'usaha_kecil' => $_GET['usaha_kecil'] ?? '',
                         'metode' => $_GET['metode'] ?? '',
+                        'perubahan' => $_GET['perubahan'] ?? '',  // TAMBAHAN: Filter Perubahan
                         'search' => $_GET['search'] ?? ''
                     ];
 
@@ -71,14 +72,14 @@ try {
                             'has_next' => $page < $totalPages,
                             'has_prev' => $page > 1
                         ],
-                        'filters_applied' => $filters  // BARU: Tampilkan filter yang diterapkan
+                        'filters_applied' => $filters
                     ]);
                     break;
 
                 case 'summary':
-                    // Get summary/statistics data dengan support filter bulan
+                    // Get summary/statistics data dengan support filter bulan dan perubahan
                     $filters = [
-                        'bulan' => $_GET['bulan'] ?? '',           // BARU: Filter bulan
+                        'bulan' => $_GET['bulan'] ?? '',
                         'tahun' => $_GET['tahun'] ?? '',
                         'tanggal_awal' => $_GET['tanggal_awal'] ?? '',
                         'tanggal_akhir' => $_GET['tanggal_akhir'] ?? '',
@@ -86,6 +87,7 @@ try {
                         'klpd' => $_GET['klpd'] ?? '',
                         'usaha_kecil' => $_GET['usaha_kecil'] ?? '',
                         'metode' => $_GET['metode'] ?? '',
+                        'perubahan' => $_GET['perubahan'] ?? '',  // TAMBAHAN: Filter Perubahan
                         'search' => $_GET['search'] ?? ''
                     ];
 
@@ -104,6 +106,7 @@ try {
                     $klpdStats = [];
                     $metodeStats = [];
                     $usahaKecilStats = [];
+                    $perubahanStats = [];  // TAMBAHAN: Stats perubahan
                     
                     foreach ($allData as $row) {
                         // Calculate total pagu - remove non-numeric characters
@@ -142,6 +145,14 @@ try {
                         }
                         $usahaKecilStats[$usahaKecil]['count']++;
                         $usahaKecilStats[$usahaKecil]['total_pagu'] += $paguValue;
+                        
+                        // TAMBAHAN: Count by Perubahan
+                        $perubahan = $row['perubahan'] ?? 'Tidak';
+                        if (!isset($perubahanStats[$perubahan])) {
+                            $perubahanStats[$perubahan] = ['count' => 0, 'total_pagu' => 0];
+                        }
+                        $perubahanStats[$perubahan]['count']++;
+                        $perubahanStats[$perubahan]['total_pagu'] += $paguValue;
                     }
                     
                     // Sort arrays by total_pagu descending
@@ -155,6 +166,9 @@ try {
                         return $b['total_pagu'] - $a['total_pagu'];
                     });
                     uasort($usahaKecilStats, function($a, $b) {
+                        return $b['total_pagu'] - $a['total_pagu'];
+                    });
+                    uasort($perubahanStats, function($a, $b) {
                         return $b['total_pagu'] - $a['total_pagu'];
                     });
                     
@@ -174,12 +188,14 @@ try {
                             'jenis_pengadaan' => $jenisPengadaanStats,
                             'klpd' => $klpdStats,
                             'metode' => $metodeStats,
-                            'usaha_kecil' => $usahaKecilStats
+                            'usaha_kecil' => $usahaKecilStats,
+                            'perubahan' => $perubahanStats  // TAMBAHAN: Breakdown perubahan
                         ],
-                        'filters_applied' => $filters,  // BARU: Tampilkan filter yang diterapkan
-                        'period_info' => [              // BARU: Info periode
+                        'filters_applied' => $filters,
+                        'period_info' => [
                             'bulan' => $filters['bulan'] ?? null,
                             'tahun' => $filters['tahun'] ?? null,
+                            'perubahan' => $filters['perubahan'] ?? null,  // TAMBAHAN
                             'bulan_nama' => isset($filters['bulan']) ? [
                                 '01' => 'Januari', '02' => 'Februari', '03' => 'Maret',
                                 '04' => 'April', '05' => 'Mei', '06' => 'Juni',
@@ -196,9 +212,9 @@ try {
                     $klpd = $pengadaan->getDistinctValues('KLPD');
                     $usahaKecil = $pengadaan->getDistinctValues('Usaha_Kecil');
                     $metode = $pengadaan->getDistinctValues('Metode');
+                    $perubahan = $pengadaan->getDistinctValues('perubahan');  // TAMBAHAN
                     $years = $pengadaan->getAvailableYears();
                     
-                    // BARU: Get available months
                     $tahunFilter = $_GET['tahun'] ?? null;
                     $months = $pengadaan->getAvailableMonths($tahunFilter);
 
@@ -209,16 +225,18 @@ try {
                             'klpd' => $klpd,
                             'usaha_kecil' => $usahaKecil,
                             'metode' => $metode,
+                            'perubahan' => $perubahan,  // TAMBAHAN
                             'years' => $years,
-                            'months' => $months  // BARU: Daftar bulan yang tersedia
+                            'months' => $months
                         ]
                     ]);
                     break;
 
                 case 'statistics':
                     $filters = [
-                        'bulan' => $_GET['bulan'] ?? '',  // BARU: Filter bulan
-                        'tahun' => $_GET['tahun'] ?? ''
+                        'bulan' => $_GET['bulan'] ?? '',
+                        'tahun' => $_GET['tahun'] ?? '',
+                        'perubahan' => $_GET['perubahan'] ?? ''  // TAMBAHAN
                     ];
                     $filters = array_filter($filters);
 
@@ -232,11 +250,9 @@ try {
                     break;
 
                 case 'months':
-                    // BARU: Endpoint khusus untuk mendapatkan daftar bulan
                     $tahun = $_GET['tahun'] ?? null;
                     $months = $pengadaan->getAvailableMonths($tahun);
                     
-                    // Format nama bulan
                     $monthsWithNames = [];
                     $namaBulan = [
                         1 => 'Januari', 2 => 'Februari', 3 => 'Maret',
@@ -260,24 +276,24 @@ try {
                     break;
 
                 case 'export':
-                    // Export functionality dengan support filter bulan
+                    // Export functionality dengan support filter bulan dan perubahan
                     $filters = [
-                        'bulan' => $_GET['bulan'] ?? '',     // BARU: Filter bulan
+                        'bulan' => $_GET['bulan'] ?? '',
                         'tahun' => $_GET['tahun'] ?? '',
                         'tanggal_awal' => $_GET['tanggal_awal'] ?? '',
                         'tanggal_akhir' => $_GET['tanggal_akhir'] ?? '',
                         'jenis_pengadaan' => $_GET['jenis_pengadaan'] ?? '',
                         'klpd' => $_GET['klpd'] ?? '',
                         'metode' => $_GET['metode'] ?? '',
+                        'perubahan' => $_GET['perubahan'] ?? '',  // TAMBAHAN
                         'search' => $_GET['search'] ?? ''
                     ];
                     $filters = array_filter($filters);
 
                     $format = $_GET['format'] ?? 'csv';
-                    $data = $pengadaan->getPengadaanData($filters, 10000, 0); // Get all data for export
+                    $data = $pengadaan->getPengadaanData($filters, 10000, 0);
 
                     if ($format == 'csv') {
-                        // BARU: Tambahkan info bulan di nama file jika ada filter bulan
                         $fileName = 'data_pengadaan';
                         if (!empty($filters['bulan']) && !empty($filters['tahun'])) {
                             $namaBulan = [
@@ -287,24 +303,25 @@ try {
                                 '10' => 'oktober', '11' => 'november', '12' => 'desember'
                             ];
                             $fileName .= '_' . $namaBulan[$filters['bulan']] . '_' . $filters['tahun'];
-                        } else {
-                            $fileName .= '_' . date('Y-m-d');
+                        }
+                        // TAMBAHAN: Tambahkan status perubahan di nama file
+                        if (!empty($filters['perubahan'])) {
+                            $fileName .= '_' . strtolower($filters['perubahan']);
                         }
                         
                         header('Content-Type: text/csv; charset=utf-8');
                         header('Content-Disposition: attachment; filename="' . $fileName . '.csv"');
 
                         $output = fopen('php://output', 'w');
-
-                        // Add BOM for proper UTF-8 encoding in Excel
                         fprintf($output, chr(0xEF) . chr(0xBB) . chr(0xBF));
 
-                        // Headers
+                        // Headers - TAMBAHAN: Kolom Perubahan
                         fputcsv($output, [
                             'No',
                             'Paket',
                             'Pagu (Rp)',
                             'Jenis Pengadaan',
+                            'Perubahan',  // TAMBAHAN
                             'Produk Dalam Negeri',
                             'Usaha Kecil',
                             'Metode',
@@ -322,6 +339,7 @@ try {
                                 $row['Paket'],
                                 $row['Pagu_Rp'],
                                 $row['Jenis_Pengadaan'],
+                                $row['perubahan'] ?? 'Tidak',  // TAMBAHAN
                                 $row['Produk_Dalam_Negeri'],
                                 $row['Usaha_Kecil'],
                                 $row['Metode'],

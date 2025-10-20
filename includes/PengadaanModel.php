@@ -67,6 +67,11 @@ class PengadaanModel {
             $sql .= " AND Metode = :metode";
             $params[':metode'] = $filters['metode'];
         }
+        // TAMBAHAN: Filter Perubahan
+        if (!empty($filters['perubahan'])) {
+            $sql .= " AND perubahan = :perubahan";
+            $params[':perubahan'] = $filters['perubahan'];
+        }
         if (!empty($filters['search'])) {
             $sql .= " AND (Paket LIKE :search OR Lokasi LIKE :search)";
             $params[':search'] = "%" . $filters['search'] . "%";
@@ -133,6 +138,11 @@ class PengadaanModel {
             $sql .= " AND Metode = :metode";
             $params[':metode'] = $filters['metode'];
         }
+        // TAMBAHAN: Filter Perubahan
+        if (!empty($filters['perubahan'])) {
+            $sql .= " AND perubahan = :perubahan";
+            $params[':perubahan'] = $filters['perubahan'];
+        }
         if (!empty($filters['search'])) {
             $sql .= " AND (Paket LIKE :search OR Lokasi LIKE :search)";
             $params[':search'] = "%" . $filters['search'] . "%";
@@ -196,6 +206,11 @@ class PengadaanModel {
             $sql .= " AND Metode = :metode";
             $params[':metode'] = $filters['metode'];
         }
+        // TAMBAHAN: Filter Perubahan
+        if (!empty($filters['perubahan'])) {
+            $sql .= " AND perubahan = :perubahan";
+            $params[':perubahan'] = $filters['perubahan'];
+        }
         if (!empty($filters['search'])) {
             $sql .= " AND (Paket LIKE :search OR Lokasi LIKE :search)";
             $params[':search'] = "%" . $filters['search'] . "%";
@@ -247,6 +262,12 @@ class PengadaanModel {
         if (!empty($filters['klpd'])) {
             $sql .= " AND KLPD = :klpd";
             $params[':klpd'] = $filters['klpd'];
+        }
+
+        // TAMBAHAN: Filter Perubahan
+        if (!empty($filters['perubahan'])) {
+            $sql .= " AND perubahan = :perubahan";
+            $params[':perubahan'] = $filters['perubahan'];
         }
 
         $sql .= " GROUP BY Jenis_Pengadaan ORDER BY total_pagu DESC";
@@ -305,6 +326,12 @@ class PengadaanModel {
         if (!empty($filters['jenis_pengadaan'])) {
             $sql .= " AND Jenis_Pengadaan = :jenis_pengadaan";
             $params[':jenis_pengadaan'] = $filters['jenis_pengadaan'];
+        }
+
+        // TAMBAHAN: Filter Perubahan
+        if (!empty($filters['perubahan'])) {
+            $sql .= " AND perubahan = :perubahan";
+            $params[':perubahan'] = $filters['perubahan'];
         }
 
         $sql .= " GROUP BY KLPD ORDER BY total_pagu DESC";
@@ -370,6 +397,12 @@ class PengadaanModel {
             $params[':klpd'] = $filters['klpd'];
         }
 
+        // TAMBAHAN: Filter Perubahan
+        if (!empty($filters['perubahan'])) {
+            $sql .= " AND perubahan = :perubahan";
+            $params[':perubahan'] = $filters['perubahan'];
+        }
+
         $sql .= " GROUP BY Metode ORDER BY total_pagu DESC";
 
         $stmt = $this->conn->prepare($sql);
@@ -381,6 +414,69 @@ class PengadaanModel {
         $result = [];
         while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
             $result[$row['Metode']] = [
+                'count' => (int)$row['count'],
+                'total_pagu' => (float)$row['total_pagu']
+            ];
+        }
+
+        return $result;
+    }
+
+    // BARU: Breakdown berdasarkan Status Perubahan
+    public function getBreakdownByPerubahan($filters = []) {
+        $sql = "SELECT 
+                perubahan,
+                COUNT(*) as count,
+                SUM(Pagu_Rp) as total_pagu
+                FROM " . $this->table_name . " WHERE 1=1";
+        $params = [];
+
+        if (!empty($filters['bulan']) && !empty($filters['tahun'])) {
+            $bulanNama = $this->getBulanNama($filters['bulan']);
+            if ($bulanNama) {
+                $sql .= " AND bulan = :bulan AND tahun = :tahun";
+                $params[':bulan'] = $bulanNama;
+                $params[':tahun'] = $filters['tahun'];
+            }
+        } elseif (!empty($filters['tahun'])) {
+            $sql .= " AND tahun = :tahun";
+            $params[':tahun'] = $filters['tahun'];
+        } elseif (!empty($filters['bulan'])) {
+            $bulanNama = $this->getBulanNama($filters['bulan']);
+            if ($bulanNama) {
+                $sql .= " AND bulan = :bulan AND tahun = :tahun_sekarang";
+                $params[':bulan'] = $bulanNama;
+                $params[':tahun_sekarang'] = date('Y');
+            }
+        }
+
+        if (!empty($filters['tanggal_awal']) && !empty($filters['tanggal_akhir'])) {
+            $sql .= " AND Pemilihan BETWEEN :tanggal_awal AND :tanggal_akhir";
+            $params[':tanggal_awal'] = $filters['tanggal_awal'];
+            $params[':tanggal_akhir'] = $filters['tanggal_akhir'];
+        }
+
+        if (!empty($filters['jenis_pengadaan'])) {
+            $sql .= " AND Jenis_Pengadaan = :jenis_pengadaan";
+            $params[':jenis_pengadaan'] = $filters['jenis_pengadaan'];
+        }
+
+        if (!empty($filters['klpd'])) {
+            $sql .= " AND KLPD = :klpd";
+            $params[':klpd'] = $filters['klpd'];
+        }
+
+        $sql .= " GROUP BY perubahan ORDER BY total_pagu DESC";
+
+        $stmt = $this->conn->prepare($sql);
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value);
+        }
+        $stmt->execute();
+
+        $result = [];
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $result[$row['perubahan']] = [
                 'count' => (int)$row['count'],
                 'total_pagu' => (float)$row['total_pagu']
             ];
@@ -460,6 +556,12 @@ class PengadaanModel {
             $sql .= " AND Pemilihan BETWEEN :tanggal_awal AND :tanggal_akhir";
             $params[':tanggal_awal'] = $filters['tanggal_awal'];
             $params[':tanggal_akhir'] = $filters['tanggal_akhir'];
+        }
+
+        // TAMBAHAN: Filter Perubahan
+        if (!empty($filters['perubahan'])) {
+            $sql .= " AND perubahan = :perubahan";
+            $params[':perubahan'] = $filters['perubahan'];
         }
 
         $sql .= " GROUP BY Jenis_Pengadaan ORDER BY total DESC";

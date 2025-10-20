@@ -1,6 +1,6 @@
 <?php
 // =================================================================
-// == BLOK PHP DENGAN FILTER BULAN DEFAULT JULI ====================
+// == BLOK PHP DENGAN FILTER BULAN DEFAULT JULI + FILTER PERUBAHAN ==
 // =================================================================
 
 // URL API dasar
@@ -16,6 +16,9 @@ $currentYear = date('Y');
 $selectedBulan = $_GET['bulan'] ?? '07'; // Default Juli
 $selectedTahun = $_GET['tahun'] ?? $currentYear;
 
+// TAMBAHAN: Filter Perubahan
+$selectedPerubahan = $_GET['perubahan'] ?? 'Tidak'; // Default: Tidak
+
 // 2. Siapkan parameter query untuk API
 // Ambil semua parameter filter dari URL
 $queryParams = $_GET;
@@ -23,6 +26,11 @@ $queryParams['page'] = $currentPage;
 $queryParams['limit'] = $limit;
 $queryParams['bulan'] = $selectedBulan;
 $queryParams['tahun'] = $selectedTahun;
+
+// Tambahkan filter perubahan jika ada
+if (!empty($selectedPerubahan)) {
+    $queryParams['perubahan'] = $selectedPerubahan;
+}
 
 // Hapus parameter kosong agar URL bersih
 $queryParams = array_filter($queryParams, function ($value) {
@@ -146,9 +154,9 @@ include '../../navbar/header.php';
         margin-bottom: 25px;
     }
 
-    /* Baris pertama: Bulan + Tahun + Jenis Pengadaan */
+    /* Baris pertama: Bulan + Tahun + Jenis Pengadaan + Perubahan */
     .filter-row:nth-child(1) {
-        grid-template-columns: 1fr 1fr 1fr;
+        grid-template-columns: 1fr 1fr 1fr 1fr;
     }
 
     /* Baris kedua: KLPD + Metode + Pencarian Paket */
@@ -643,6 +651,16 @@ include '../../navbar/header.php';
         color: white;
     }
 
+    .badge-warning {
+        background: #f39c12;
+        color: white;
+    }
+
+    .badge-info {
+        background: #17a2b8;
+        color: white;
+    }
+
     /* Price Formatting */
     .price {
         font-weight: 700;
@@ -770,6 +788,18 @@ include '../../navbar/header.php';
                             <option value="Konstruksi" <?= ($_GET['jenis_pengadaan'] ?? '') == 'Konstruksi' ? 'selected' : '' ?>>Konstruksi</option>
                         </select>
                     </div>
+
+                    <div class="filter-group">
+                        <label>
+                            <i class="fas fa-exchange-alt"></i> Perubahan
+                            <span class="badge-default">DEFAULT: TIDAK</span>
+                        </label>
+                        <select name="perubahan">
+                            <option value="">Semua Status</option>
+                            <option value="Perubahan" <?= $selectedPerubahan == 'Perubahan' ? 'selected' : '' ?>>Perubahan</option>
+                            <option value="Tidak" <?= $selectedPerubahan == 'Tidak' ? 'selected' : '' ?>>Tidak</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div class="filter-row">
@@ -826,6 +856,9 @@ include '../../navbar/header.php';
             <div class="period-badge">
                 <i class="fas fa-calendar-check"></i> 
                 <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?>
+                <?php if (!empty($selectedPerubahan)): ?>
+                    | <?= $selectedPerubahan ?>
+                <?php endif; ?>
             </div>
         </div>
         <div class="summary-content">
@@ -865,6 +898,9 @@ include '../../navbar/header.php';
                     <div class="results-subtitle">
                         <strong>Menampilkan <?= count($data['data']) ?> dari <?= number_format($totalRecords, 0, ',', '.') ?> total data</strong>
                         | Periode: <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?>
+                        <?php if (!empty($selectedPerubahan)): ?>
+                            | Status: <span class="badge <?= $selectedPerubahan == 'Perubahan' ? 'badge-warning' : 'badge-info' ?>"><?= $selectedPerubahan ?></span>
+                        <?php endif; ?>
                     </div>
                 <?php endif; ?>
             </div>
@@ -906,6 +942,7 @@ include '../../navbar/header.php';
                             <th style="width: 280px;"><i class="fas fa-box"></i> Paket Pengadaan</th>
                             <th style="width: 130px;"><i class="fas fa-money-bill-wave"></i> Pagu (Rp)</th>
                             <th style="width: 140px;"><i class="fas fa-tags"></i> Jenis Pengadaan</th>
+                            <th style="width: 100px;"><i class="fas fa-exchange-alt"></i> Perubahan</th>
                             <th style="width: 120px;"><i class="fas fa-store"></i> Usaha Kecil</th>
                             <th style="width: 120px;"><i class="fas fa-cogs"></i> Metode</th>
                             <th style="width: 120px;"><i class="fas fa-calendar"></i> Pemilihan</th>
@@ -932,6 +969,11 @@ include '../../navbar/header.php';
                                     ?>
                                 </td>
                                 <td><span class="badge badge-primary"><?= htmlspecialchars($row['Jenis_Pengadaan']) ?></span></td>
+                                <td>
+                                    <span class="badge <?= $row['perubahan'] == 'Perubahan' ? 'badge-warning' : 'badge-info' ?>">
+                                        <?= htmlspecialchars($row['perubahan']) ?>
+                                    </span>
+                                </td>
                                 <td><span class="badge badge-success"><?= htmlspecialchars($row['Usaha_Kecil']) ?></span></td>
                                 <td><small><?= htmlspecialchars($row['Metode']) ?></small></td>
                                 <td><small><?= htmlspecialchars($row['Pemilihan']) ?></small></td>
@@ -959,7 +1001,10 @@ include '../../navbar/header.php';
                 <i class="fas fa-search-minus"></i>
                 <p><strong>Tidak ada data pengadaan yang ditemukan</strong></p>
                 <small class="text-muted">
-                    Untuk periode <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?>. 
+                    Untuk periode <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?>
+                    <?php if (!empty($selectedPerubahan)): ?>
+                        dengan status <strong><?= $selectedPerubahan ?></strong>
+                    <?php endif; ?>. 
                     Coba ubah kriteria pencarian atau pilih bulan lain.
                 </small>
             </div>
@@ -1061,48 +1106,18 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Reset form function - kembali ke default Juli tahun ini
+// Reset form function - kembali ke default Juli tahun ini + Perubahan: Tidak
 function resetForm() {
-    window.location.href = window.location.pathname + '?bulan=07&tahun=<?= $currentYear ?>';
+    window.location.href = window.location.pathname + '?bulan=07&tahun=<?= $currentYear ?>&perubahan=Tidak';
 }
 
 // Form validation before submit
 document.querySelector('form').addEventListener('submit', function(e) {
-    const tanggalAwal = document.querySelector('input[name="tanggal_awal"]').value;
-    const tanggalAkhir = document.querySelector('input[name="tanggal_akhir"]').value;
-
     // Show loading state
     const submitBtn = this.querySelector('.search-btn');
     const originalText = submitBtn.innerHTML;
     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mencari...';
     submitBtn.disabled = true;
-
-    // Validate date range
-    if (tanggalAwal && tanggalAkhir && tanggalAwal > tanggalAkhir) {
-        e.preventDefault();
-        alert('Tanggal awal tidak boleh lebih besar dari tanggal akhir!');
-        submitBtn.innerHTML = originalText;
-        submitBtn.disabled = false;
-        return false;
-    }
-
-    // Check if date range is too wide
-    if (tanggalAwal && tanggalAkhir) {
-        const startDate = new Date(tanggalAwal);
-        const endDate = new Date(tanggalAkhir);
-        const diffTime = Math.abs(endDate - startDate);
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-        if (diffDays > 365) {
-            const confirm = window.confirm('Periode pencarian lebih dari 1 tahun. Ini mungkin membutuhkan waktu loading yang lama. Lanjutkan?');
-            if (!confirm) {
-                e.preventDefault();
-                submitBtn.innerHTML = originalText;
-                submitBtn.disabled = false;
-                return false;
-            }
-        }
-    }
 
     // Reset button state after a delay
     setTimeout(() => {

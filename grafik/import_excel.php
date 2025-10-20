@@ -71,6 +71,20 @@ require_once '../navbar/header.php';
                             </div>
                         </div>
 
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="perubahan">Perubahan</label>
+                                    <select class="form-control" id="perubahan" name="perubahan">
+                                        <option value="">-- Pilih Status --</option>
+                                        <option value="Perubahan">Perubahan</option>
+                                        <option value="Tidak">Tidak</option>
+                                    </select>
+                                    <small class="form-text text-muted">Opsional jika tabel memiliki kolom perubahan</small>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="form-group mb-3">
                             <label for="excel_file">File Excel <span class="text-danger">*</span></label>
                             <div class="custom-file">
@@ -165,6 +179,7 @@ $(document).ready(function() {
             data: formData,
             processData: false,
             contentType: false,
+            dataType: 'json',
             success: function(response) {
                 $('#progressArea').hide();
                 $('#btnImport').prop('disabled', false);
@@ -194,7 +209,20 @@ $(document).ready(function() {
             error: function(xhr, status, error) {
                 $('#progressArea').hide();
                 $('#btnImport').prop('disabled', false);
-                showAlert('danger', 'Terjadi kesalahan: ' + error);
+                
+                console.log('Response Text:', xhr.responseText);
+                
+                try {
+                    var response = JSON.parse(xhr.responseText);
+                    if (response.message) {
+                        showAlert('danger', response.message);
+                    } else {
+                        showAlert('danger', 'Terjadi kesalahan saat import data');
+                    }
+                } catch(e) {
+                    showAlert('danger', 'Terjadi kesalahan: Server mengembalikan response yang tidak valid. Silakan cek console untuk detail.');
+                    console.error('Raw response:', xhr.responseText);
+                }
             }
         });
     });
@@ -219,14 +247,12 @@ $(document).ready(function() {
     }
 
     function showAlert(type, message) {
-        let alertHtml = `
-            <div class="alert alert-${type} alert-dismissible fade show" role="alert">
-                ${message}
-                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-        `;
+        let alertHtml = '<div class="alert alert-' + type + ' alert-dismissible fade show" role="alert">' +
+                        message +
+                        '<button type="button" class="close" data-dismiss="alert" aria-label="Close">' +
+                        '<span aria-hidden="true">&times;</span>' +
+                        '</button>' +
+                        '</div>';
         $('#alertArea').html(alertHtml);
     }
 });

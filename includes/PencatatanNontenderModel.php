@@ -11,21 +11,46 @@ class PencatatanNontenderModel
         $this->conn = $db;
     }
 
+    // Helper: Konversi angka bulan ke nama bulan Indonesia
+    private function getBulanNama($bulanAngka) {
+        $mapping = [
+            '01' => 'Januari', '02' => 'Februari', '03' => 'Maret',
+            '04' => 'April', '05' => 'Mei', '06' => 'Juni',
+            '07' => 'Juli', '08' => 'Agustus', '09' => 'September',
+            '10' => 'Oktober', '11' => 'November', '12' => 'Desember'
+        ];
+        return $mapping[$bulanAngka] ?? null;
+    }
+
     private function buildWhereClause($filters)
     {
         $whereClause = " WHERE 1=1";
         $params = [];
 
-        // Filter berdasarkan tahun anggaran
-        if (!empty($filters['tahun'])) {
-            $whereClause .= " AND Tahun_Anggaran = :tahun";
+        // Filter berdasarkan bulan dan tahun
+        if (!empty($filters['bulan']) && !empty($filters['tahun'])) {
+            $bulanNama = $this->getBulanNama($filters['bulan']);
+            if ($bulanNama) {
+                $whereClause .= " AND bulan = :bulan AND tahun = :tahun";
+                $params[':bulan'] = $bulanNama;
+                $params[':tahun'] = $filters['tahun'];
+            }
+        } elseif (!empty($filters['tahun'])) {
+            $whereClause .= " AND tahun = :tahun";
             $params[':tahun'] = $filters['tahun'];
+        } elseif (!empty($filters['bulan'])) {
+            $bulanNama = $this->getBulanNama($filters['bulan']);
+            if ($bulanNama) {
+                $whereClause .= " AND bulan = :bulan AND tahun = :tahun_sekarang";
+                $params[':bulan'] = $bulanNama;
+                $params[':tahun_sekarang'] = date('Y');
+            }
         }
 
-        // Filter berdasarkan KLPD
-        if (!empty($filters['klpd'])) {
-            $whereClause .= " AND KLPD = :klpd";
-            $params[':klpd'] = $filters['klpd'];
+        // Filter berdasarkan Nama_Satker (bukan KLPD)
+        if (!empty($filters['nama_satker'])) {
+            $whereClause .= " AND Nama_Satker = :nama_satker";
+            $params[':nama_satker'] = $filters['nama_satker'];
         }
 
         // Filter berdasarkan Metode Pengadaan
@@ -51,42 +76,35 @@ class PencatatanNontenderModel
             $whereClause .= " AND (Nama_Paket LIKE :search OR Nama_Pemenang LIKE :search OR Nama_Satker LIKE :search OR Kode_Paket LIKE :search)";
             $params[':search'] = "%" . $filters['search'] . "%";
         }
-        
+
         return [$whereClause, $params];
     }
 
-    /**
-     * Helper function untuk mengkonversi nilai string ke float
-     */
     private function convertToFloat($value)
     {
         if (is_null($value) || $value === '') {
             return 0.0;
         }
-        
-        // Jika sudah numeric, langsung return
+
         if (is_numeric($value)) {
             return floatval($value);
         }
-        
-        // Jika string, bersihkan formatnya
+
         if (is_string($value)) {
-            // Hapus titik sebagai pemisah ribuan
             $value = str_replace('.', '', $value);
-            // Ubah koma desimal jadi titik
             $value = str_replace(',', '.', $value);
         }
-        
+
         return floatval($value);
     }
 
     public function getPencatatanNontenderData($filters = [], $limit = 50, $offset = 0)
     {
         list($whereClause, $params) = $this->buildWhereClause($filters);
-        
-        // Pastikan nama kolom sesuai dengan struktur tabel
+
         $sql = "SELECT 
-                Tahun_Anggaran, 
+                tahun,
+                bulan,
                 Kode_Paket, 
                 Nama_Paket, 
                 Kode_RUP, 
@@ -102,31 +120,28 @@ class PencatatanNontenderModel
                 Sumber_Dana, 
                 Status_Paket 
                 FROM " . $this->table_name . $whereClause . " 
-                ORDER BY Tahun_Anggaran DESC, Kode_Paket ASC 
+                ORDER BY tahun DESC, bulan DESC, Kode_Paket ASC 
                 LIMIT :limit OFFSET :offset";
-        
+
         $stmt = $this->conn->prepare($sql);
-        
-        // Bind semua parameter dari filter
-        foreach ($params as $key => $value) { 
-            $stmt->bindValue($key, $value); 
+
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value);
         }
-        
-        // Bind parameter limit dan offset
+
         $stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);
         $stmt->bindValue(':offset', (int)$offset, PDO::PARAM_INT);
-        
+
         $stmt->execute();
         $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        // Konversi semua nilai numerik ke float
+
         foreach ($results as &$row) {
             $row['Nilai_Pagu'] = $this->convertToFloat($row['Nilai_Pagu'] ?? 0);
             $row['Nilai_Total_Realisasi'] = $this->convertToFloat($row['Nilai_Total_Realisasi'] ?? 0);
             $row['Nilai_PDN'] = $this->convertToFloat($row['Nilai_PDN'] ?? 0);
             $row['Nilai_UMK'] = $this->convertToFloat($row['Nilai_UMK'] ?? 0);
         }
-        
+
         return $results;
     }
 
@@ -140,14 +155,10 @@ class PencatatanNontenderModel
         return $row['total'] ?? 0;
     }
 
-    /**
-     * Fungsi untuk mendapatkan summary data
-     */
     public function getSummaryData($filters = [])
     {
         list($whereClause, $params) = $this->buildWhereClause($filters);
-        
-        // Gunakan fungsi REPLACE untuk handle format angka dengan titik
+
         $sql = "SELECT 
                     COUNT(*) as total_paket,
                     COALESCE(SUM(
@@ -163,7 +174,7 @@ class PencatatanNontenderModel
                             THEN CAST(REPLACE(Nilai_Total_Realisasi, '.', '') AS DECIMAL(20,2))
                             ELSE 0 
                         END
-                    ), 0) as total_realisasi,
+                    ), 0) as total_nilai_realisasi,
                     COALESCE(SUM(
                         CASE 
                             WHEN Nilai_PDN REGEXP '^[0-9.]+$' 
@@ -179,27 +190,27 @@ class PencatatanNontenderModel
                         END
                     ), 0) as total_umk
                 FROM " . $this->table_name . $whereClause;
-        
+
         $stmt = $this->conn->prepare($sql);
         $stmt->execute($params);
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        
+
         return [
             'total_paket' => (int)($result['total_paket'] ?? 0),
             'total_pagu' => $this->convertToFloat($result['total_pagu'] ?? 0),
-            'total_realisasi' => $this->convertToFloat($result['total_realisasi'] ?? 0),
+            'total_realisasi' => $this->convertToFloat($result['total_nilai_realisasi'] ?? 0),
             'total_pdn' => $this->convertToFloat($result['total_pdn'] ?? 0),
             'total_umk' => $this->convertToFloat($result['total_umk'] ?? 0)
         ];
     }
 
-    public function getAllDataForSummary($filters = []) 
+    public function getAllDataForSummary($filters = [])
     {
         list($whereClause, $params) = $this->buildWhereClause($filters);
         $sql = "SELECT 
                     Metode_pengadaan,
                     Jenis_Pengadaan,
-                    KLPD,
+                    Nama_Satker,
                     Status_Paket,
                     Nilai_Pagu, 
                     Nilai_Total_Realisasi,
@@ -210,39 +221,70 @@ class PencatatanNontenderModel
         $stmt = $this->conn->prepare($sql);
         $stmt->execute($params);
         $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        // Konversi nilai ke float
+
         foreach ($results as &$row) {
             $row['Nilai_Pagu'] = $this->convertToFloat($row['Nilai_Pagu'] ?? 0);
             $row['Nilai_Total_Realisasi'] = $this->convertToFloat($row['Nilai_Total_Realisasi'] ?? 0);
             $row['Nilai_PDN'] = $this->convertToFloat($row['Nilai_PDN'] ?? 0);
             $row['Nilai_UMK'] = $this->convertToFloat($row['Nilai_UMK'] ?? 0);
         }
-        
+
         return $results;
     }
 
     public function getDistinctValues($column)
     {
-        $allowedColumns = ['Metode_pengadaan', 'Jenis_Pengadaan', 'KLPD', 'Status_Paket', 'Tahun_Anggaran'];
+        $allowedColumns = ['Metode_pengadaan', 'Jenis_Pengadaan', 'Nama_Satker', 'Status_Paket'];
         if (!in_array($column, $allowedColumns)) return [];
-        
+
         $sql = "SELECT DISTINCT $column FROM " . $this->table_name . " WHERE $column IS NOT NULL AND $column != '' ORDER BY $column ASC";
         $stmt = $this->conn->prepare($sql);
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_COLUMN);
     }
-    
-    /**
-     * Fungsi untuk mengambil semua tahun unik dari kolom Tahun_Anggaran
-     */
+
     public function getAvailableYears()
     {
-        $sql = "SELECT DISTINCT Tahun_Anggaran as tahun 
+        $sql = "SELECT DISTINCT tahun 
                 FROM " . $this->table_name . " 
-                WHERE Tahun_Anggaran IS NOT NULL 
+                WHERE tahun IS NOT NULL 
                 ORDER BY tahun DESC";
         $stmt = $this->conn->prepare($sql);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_COLUMN);
+    }
+
+    // BARU: Ambil bulan yang tersedia (dalam format nama Indonesia)
+    public function getAvailableMonths($tahun = null)
+    {
+        $sql = "SELECT DISTINCT bulan FROM " . $this->table_name . " WHERE bulan IS NOT NULL";
+        
+        if ($tahun) {
+            $sql .= " AND tahun = :tahun";
+        }
+        
+        $sql .= " ORDER BY 
+            CASE bulan
+                WHEN 'Januari' THEN 1
+                WHEN 'Februari' THEN 2
+                WHEN 'Maret' THEN 3
+                WHEN 'April' THEN 4
+                WHEN 'Mei' THEN 5
+                WHEN 'Juni' THEN 6
+                WHEN 'Juli' THEN 7
+                WHEN 'Agustus' THEN 8
+                WHEN 'September' THEN 9
+                WHEN 'Oktober' THEN 10
+                WHEN 'November' THEN 11
+                WHEN 'Desember' THEN 12
+            END ASC";
+        
+        $stmt = $this->conn->prepare($sql);
+        
+        if ($tahun) {
+            $stmt->bindValue(':tahun', $tahun, PDO::PARAM_STR);
+        }
+        
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_COLUMN);
     }

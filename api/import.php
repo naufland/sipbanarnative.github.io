@@ -3,7 +3,6 @@ header('Content-Type: application/json');
 require_once __DIR__ . '/../vendor/autoload.php'; // PhpSpreadsheet
 require_once __DIR__ . '/../includes/ImportModel.php';
 
-
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
 $response = ['success' => false, 'message' => ''];
@@ -20,6 +19,7 @@ try {
     $tableName = $_POST['table_name'] ?? '';
     $tahun = $_POST['tahun'] ?? null;
     $bulan = $_POST['bulan'] ?? null;
+    $perubahan = $_POST['perubahan'] ?? null;
 
     if (empty($tableName)) {
         throw new Exception('Nama tabel harus dipilih');
@@ -41,27 +41,40 @@ try {
         throw new Exception('File Excel kosong atau tidak memiliki data');
     }
 
-    // Ambil header (baris pertama)
+    // Ambil header (baris pertama) - FIX: Handle null values
     $headers = array_shift($rows);
-    $headers = array_map('trim', $headers);
+    $headers = array_map(function($header) {
+        // Konversi null ke string kosong sebelum trim
+        return trim((string)($header ?? ''));
+    }, $headers);
     
     // Konversi data ke array associative
     $data = [];
     foreach ($rows as $row) {
         $rowData = [];
         foreach ($headers as $index => $header) {
+            // Skip header yang kosong
             if (!empty($header)) {
-                $rowData[$header] = $row[$index] ?? null;
+                // Handle null values di cell
+                $cellValue = isset($row[$index]) ? $row[$index] : null;
+                $rowData[$header] = $cellValue;
             }
         }
-        if (!empty(array_filter($rowData))) { // Skip baris kosong
+        // Skip baris kosong (semua nilai null/empty)
+        if (!empty(array_filter($rowData, function($value) {
+            return $value !== null && $value !== '';
+        }))) {
             $data[] = $rowData;
         }
     }
 
+    if (empty($data)) {
+        throw new Exception('Tidak ada data valid untuk diimport');
+    }
+
     // Import data
     $model = new ImportModel();
-    $result = $model->importData($tableName, $data, $tahun, $bulan);
+    $result = $model->importData($tableName, $data, $tahun, $bulan, $perubahan);
 
     if ($result['success']) {
         $response['success'] = true;

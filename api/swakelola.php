@@ -4,7 +4,6 @@ header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
 
-// Handle preflight request
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     exit(0);
 }
@@ -24,45 +23,30 @@ try {
         case 'GET':
             switch ($action) {
                 case 'list':
-                    // FILTER LENGKAP DENGAN BULAN DAN TAHUN
                     $filters = [
-                        // Filter Bulan & Tahun (PRIORITAS)
-                        'bulan'           => $_GET['bulan'] ?? '',           // Format: 01-12 atau 1-12
-                        'tahun'           => $_GET['tahun'] ?? '',           // Format: 2024
-                        
-                        // Filter Range Tanggal (Opsional)
-                        'tanggal_awal'    => $_GET['tanggal_awal'] ?? '',
-                        'tanggal_akhir'   => $_GET['tanggal_akhir'] ?? '',
-                        
-                        // Filter Tipe Swakelola (mendukung 2 parameter name)
-                        'tipe_swakelola'  => $_GET['tipe_swakelola'] ?? ($_GET['jenis_pengadaan'] ?? ''),
-                        
-                        // Filter KLPD & Satuan Kerja
-                        'klpd'            => $_GET['klpd'] ?? '',
-                        'satuan_kerja'    => $_GET['satuan_kerja'] ?? '',
-                        
-                        // Filter Range Pagu
-                        'pagu_min'        => $_GET['pagu_min'] ?? '',
-                        'pagu_max'        => $_GET['pagu_max'] ?? '',
-                        
-                        // Filter Pencarian
-                        'search'          => $_GET['search'] ?? ''
+                        'bulan' => $_GET['bulan'] ?? '',
+                        'tahun' => $_GET['tahun'] ?? '',
+                        'tanggal_awal' => $_GET['tanggal_awal'] ?? '',
+                        'tanggal_akhir' => $_GET['tanggal_akhir'] ?? '',
+                        'tipe_swakelola' => $_GET['tipe_swakelola'] ?? ($_GET['jenis_pengadaan'] ?? ''),
+                        'klpd' => $_GET['klpd'] ?? '',
+                        'satuan_kerja' => $_GET['satuan_kerja'] ?? '',
+                        'perubahan' => $_GET['perubahan'] ?? '',
+                        'pagu_min' => $_GET['pagu_min'] ?? '',
+                        'pagu_max' => $_GET['pagu_max'] ?? '',
+                        'search' => $_GET['search'] ?? ''
                     ];
 
-                    // Hapus nilai kosong
                     $filters = array_filter($filters, fn($value) => $value !== '' && $value !== null);
 
-                    // Pagination
-                    $page   = intval($_GET['page'] ?? 1);
-                    $limit  = intval($_GET['limit'] ?? 25);
+                    $page = intval($_GET['page'] ?? 1);
+                    $limit = intval($_GET['limit'] ?? 25);
                     $offset = ($page - 1) * $limit;
 
-                    // Query data
-                    $data  = $swakelola->getSwakelolaData($filters, $limit, $offset);
+                    $data = $swakelola->getSwakelolaData($filters, $limit, $offset);
                     $total = $swakelola->getTotalCount($filters);
                     $totalPages = ceil($total / $limit);
 
-                    // Get options berdasarkan filter bulan/tahun yang aktif
                     $optionFilters = [];
                     if (!empty($filters['bulan'])) {
                         $optionFilters['bulan'] = $filters['bulan'];
@@ -73,43 +57,44 @@ try {
 
                     echo json_encode([
                         'success' => true,
-                        'data'    => $data,
-                        'filters' => $filters, // Kirim balik filter yang digunakan
+                        'data' => $data,
+                        'filters' => $filters,
                         'options' => [
                             'jenis_pengadaan' => $swakelola->getDistinctValues('Tipe_Swakelola', $optionFilters),
-                            'klpd'            => $swakelola->getDistinctValues('KLPD', $optionFilters),
-                            'satuan_kerja'    => $swakelola->getDistinctValues('Satuan_Kerja', $optionFilters),
+                            'klpd' => $swakelola->getDistinctValues('KLPD', $optionFilters),
+                            'satuan_kerja' => $swakelola->getDistinctValues('Satuan_Kerja', $optionFilters),
+                            'perubahan' => $swakelola->getDistinctValues('perubahan', $optionFilters),
                         ],
                         'pagination' => [
-                            'current_page'  => $page,
-                            'total_pages'   => $totalPages,
+                            'current_page' => $page,
+                            'total_pages' => $totalPages,
                             'total_records' => $total,
-                            'per_page'      => $limit
+                            'per_page' => $limit
                         ],
-                        'period' => [ // Informasi periode
+                        'period' => [
                             'bulan' => $filters['bulan'] ?? null,
-                            'tahun' => $filters['tahun'] ?? null
+                            'tahun' => $filters['tahun'] ?? null,
+                            'perubahan' => $filters['perubahan'] ?? null
                         ]
                     ], JSON_PRETTY_PRINT);
                     break;
 
                 case 'summary':
-                    // SUMMARY DENGAN FILTER BULAN DAN TAHUN
                     $filters = [
-                        'bulan'           => $_GET['bulan'] ?? '',
-                        'tahun'           => $_GET['tahun'] ?? '',
-                        'tanggal_awal'    => $_GET['tanggal_awal'] ?? '',
-                        'tanggal_akhir'   => $_GET['tanggal_akhir'] ?? '',
-                        'tipe_swakelola'  => $_GET['tipe_swakelola'] ?? ($_GET['jenis_pengadaan'] ?? ''),
-                        'klpd'            => $_GET['klpd'] ?? '',
-                        'satuan_kerja'    => $_GET['satuan_kerja'] ?? '',
-                        'pagu_min'        => $_GET['pagu_min'] ?? '',
-                        'pagu_max'        => $_GET['pagu_max'] ?? '',
-                        'search'          => $_GET['search'] ?? ''
+                        'bulan' => $_GET['bulan'] ?? '',
+                        'tahun' => $_GET['tahun'] ?? '',
+                        'tanggal_awal' => $_GET['tanggal_awal'] ?? '',
+                        'tanggal_akhir' => $_GET['tanggal_akhir'] ?? '',
+                        'tipe_swakelola' => $_GET['tipe_swakelola'] ?? ($_GET['jenis_pengadaan'] ?? ''),
+                        'klpd' => $_GET['klpd'] ?? '',
+                        'satuan_kerja' => $_GET['satuan_kerja'] ?? '',
+                        'perubahan' => $_GET['perubahan'] ?? '',
+                        'pagu_min' => $_GET['pagu_min'] ?? '',
+                        'pagu_max' => $_GET['pagu_max'] ?? '',
+                        'search' => $_GET['search'] ?? ''
                     ];
                     $filters = array_filter($filters, fn($value) => $value !== '' && $value !== null);
 
-                    // Panggil fungsi summary dari model
                     $summary = $swakelola->getSummary($filters);
 
                     echo json_encode([
@@ -117,13 +102,13 @@ try {
                         'summary' => $summary,
                         'period' => [
                             'bulan' => $filters['bulan'] ?? null,
-                            'tahun' => $filters['tahun'] ?? null
+                            'tahun' => $filters['tahun'] ?? null,
+                            'perubahan' => $filters['perubahan'] ?? null
                         ]
                     ], JSON_PRETTY_PRINT);
                     break;
 
                 case 'options':
-                    // OPTIONS DENGAN FILTER BULAN/TAHUN (OPSIONAL)
                     $filters = [];
                     if (!empty($_GET['bulan'])) {
                         $filters['bulan'] = $_GET['bulan'];
@@ -136,8 +121,9 @@ try {
                         'success' => true,
                         'options' => [
                             'jenis_pengadaan' => $swakelola->getDistinctValues('Tipe_Swakelola', $filters),
-                            'klpd'            => $swakelola->getDistinctValues('KLPD', $filters),
-                            'satuan_kerja'    => $swakelola->getDistinctValues('Satuan_Kerja', $filters),
+                            'klpd' => $swakelola->getDistinctValues('KLPD', $filters),
+                            'satuan_kerja' => $swakelola->getDistinctValues('Satuan_Kerja', $filters),
+                            'perubahan' => $swakelola->getDistinctValues('perubahan', $filters),
                         ],
                         'years' => $swakelola->getAvailableYears(),
                         'period' => [
@@ -148,12 +134,12 @@ try {
                     break;
 
                 case 'statistics':
-                    // STATISTIK DENGAN FILTER BULAN DAN TAHUN
                     $filters = [
-                        'bulan'        => $_GET['bulan'] ?? '',
-                        'tahun'        => $_GET['tahun'] ?? '',
+                        'bulan' => $_GET['bulan'] ?? '',
+                        'tahun' => $_GET['tahun'] ?? '',
                         'tanggal_awal' => $_GET['tanggal_awal'] ?? '',
-                        'tanggal_akhir'=> $_GET['tanggal_akhir'] ?? ''
+                        'tanggal_akhir' => $_GET['tanggal_akhir'] ?? '',
+                        'perubahan' => $_GET['perubahan'] ?? ''
                     ];
                     $filters = array_filter($filters, fn($value) => $value !== '' && $value !== null);
 
@@ -164,13 +150,13 @@ try {
                         'statistics' => $stats,
                         'period' => [
                             'bulan' => $filters['bulan'] ?? null,
-                            'tahun' => $filters['tahun'] ?? null
+                            'tahun' => $filters['tahun'] ?? null,
+                            'perubahan' => $filters['perubahan'] ?? null
                         ]
                     ], JSON_PRETTY_PRINT);
                     break;
 
                 case 'monthly':
-                    // STATISTIK BULANAN UNTUK TAHUN TERTENTU
                     $tahun = $_GET['tahun'] ?? date('Y');
                     $monthlyStats = $swakelola->getMonthlyStatistics($tahun);
 
@@ -182,10 +168,10 @@ try {
                     break;
 
                 case 'klpd_statistics':
-                    // STATISTIK PER KLPD DENGAN FILTER BULAN
                     $filters = [
                         'bulan' => $_GET['bulan'] ?? '',
-                        'tahun' => $_GET['tahun'] ?? ''
+                        'tahun' => $_GET['tahun'] ?? '',
+                        'perubahan' => $_GET['perubahan'] ?? ''
                     ];
                     $filters = array_filter($filters, fn($value) => $value !== '' && $value !== null);
 
@@ -196,13 +182,13 @@ try {
                         'data' => $klpdStats,
                         'period' => [
                             'bulan' => $filters['bulan'] ?? null,
-                            'tahun' => $filters['tahun'] ?? null
+                            'tahun' => $filters['tahun'] ?? null,
+                            'perubahan' => $filters['perubahan'] ?? null
                         ]
                     ], JSON_PRETTY_PRINT);
                     break;
 
                 case 'check_data':
-                    // CEK KETERSEDIAAN DATA UNTUK BULAN TERTENTU
                     $bulan = $_GET['bulan'] ?? '';
                     $tahun = $_GET['tahun'] ?? date('Y');
 
@@ -225,11 +211,9 @@ try {
                     break;
 
                 case 'available_months':
-                    // DAFTAR BULAN YANG MEMILIKI DATA
                     $tahun = $_GET['tahun'] ?? date('Y');
                     $months = $swakelola->getAvailableMonths($tahun);
 
-                    // Mapping bulan ke nama
                     $namaBulan = [
                         '1' => 'Januari', '2' => 'Februari', '3' => 'Maret',
                         '4' => 'April', '5' => 'Mei', '6' => 'Juni',
@@ -252,12 +236,12 @@ try {
                     break;
 
                 case 'export':
-                    // EXPORT DATA DENGAN FILTER BULAN
                     $filters = [
-                        'bulan'          => $_GET['bulan'] ?? '',
-                        'tahun'          => $_GET['tahun'] ?? '',
+                        'bulan' => $_GET['bulan'] ?? '',
+                        'tahun' => $_GET['tahun'] ?? '',
                         'tipe_swakelola' => $_GET['tipe_swakelola'] ?? '',
-                        'klpd'           => $_GET['klpd'] ?? ''
+                        'klpd' => $_GET['klpd'] ?? '',
+                        'perubahan' => $_GET['perubahan'] ?? ''
                     ];
                     $filters = array_filter($filters, fn($value) => $value !== '' && $value !== null);
 
@@ -269,7 +253,8 @@ try {
                         'total_records' => count($exportData),
                         'period' => [
                             'bulan' => $filters['bulan'] ?? null,
-                            'tahun' => $filters['tahun'] ?? null
+                            'tahun' => $filters['tahun'] ?? null,
+                            'perubahan' => $filters['perubahan'] ?? null
                         ]
                     ], JSON_PRETTY_PRINT);
                     break;
@@ -277,11 +262,11 @@ try {
                 default:
                     http_response_code(400);
                     echo json_encode([
-                        'success' => false, 
+                        'success' => false,
                         'message' => 'Invalid action specified',
                         'available_actions' => [
-                            'list', 'summary', 'options', 'statistics', 
-                            'monthly', 'klpd_statistics', 'check_data', 
+                            'list', 'summary', 'options', 'statistics',
+                            'monthly', 'klpd_statistics', 'check_data',
                             'available_months', 'export'
                         ]
                     ], JSON_PRETTY_PRINT);
@@ -292,7 +277,7 @@ try {
         default:
             http_response_code(405);
             echo json_encode([
-                'success' => false, 
+                'success' => false,
                 'message' => 'Method not allowed. Only GET requests are supported.'
             ], JSON_PRETTY_PRINT);
             break;
@@ -301,14 +286,13 @@ try {
     http_response_code(500);
     error_log("API Error: " . $e->getMessage());
     error_log("Stack Trace: " . $e->getTraceAsString());
-    
+
     echo json_encode([
         'success' => false,
         'message' => 'Server error: ' . $e->getMessage(),
         'error_detail' => [
             'file' => $e->getFile(),
-            'line' => $e->getLine(),
-            'trace' => explode("\n", $e->getTraceAsString())
+            'line' => $e->getLine()
         ]
     ], JSON_PRETTY_PRINT);
 }

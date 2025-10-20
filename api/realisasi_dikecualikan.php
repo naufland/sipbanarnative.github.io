@@ -1,5 +1,5 @@
 <?php
-// File: api/pencatatan_nontender.php
+// File: api/realisasi_dikecualikan.php
 
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
@@ -11,21 +11,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 }
 
 require_once '../config/database.php';
-require_once '../includes/PencatatanNontenderModel.php';
+require_once '../includes/RealisasiDikecualikanModel.php';
 
 try {
     $database = new Database();
     $db = $database->getConnection();
-    $pencatatanNontender = new PencatatanNontenderModel($db);
+    $realisasiDikecualikan = new RealisasiDikecualikanModel($db);
     $action = $_GET['action'] ?? 'list';
 
-    // Build filters untuk Pencatatan Non-Tender
+    // Build filters untuk Realisasi Dikecualikan dengan support bulan
     $filters = array_filter([
+        'bulan' => $_GET['bulan'] ?? '',           // BARU: Filter bulan
         'tahun' => $_GET['tahun'] ?? '',
-        'klpd' => $_GET['klpd'] ?? '',
+        'nama_satker' => $_GET['nama_satker'] ?? '',  // Ganti dari klpd ke nama_satker
         'metode_pengadaan' => $_GET['metode_pengadaan'] ?? '',
         'jenis_pengadaan' => $_GET['jenis_pengadaan'] ?? '',
-        'status_paket' => $_GET['status_paket'] ?? '',
         'search' => $_GET['search'] ?? ''
     ], function($value) {
         return $value !== null && $value !== '';
@@ -37,8 +37,8 @@ try {
             $limit = intval($_GET['limit'] ?? 50);
             $offset = ($page - 1) * $limit;
 
-            $data = $pencatatanNontender->getPencatatanNontenderData($filters, $limit, $offset);
-            $total = $pencatatanNontender->getTotalCount($filters);
+            $data = $realisasiDikecualikan->getRealisasiDikecualikanData($filters, $limit, $offset);
+            $total = $realisasiDikecualikan->getTotalCount($filters);
             $totalPages = $total > 0 ? ceil($total / $limit) : 1;
             
             // Pastikan $data adalah array
@@ -62,28 +62,28 @@ try {
                     'total_pages' => $totalPages,
                     'total_records' => (int)$total,
                     'per_page' => $limit
-                ]
+                ],
+                'filters_applied' => $filters  // BARU: Tampilkan filter yang diterapkan
             ], JSON_PRETTY_PRINT);
             break;
 
         case 'summary':
-            // Gunakan fungsi getSummaryData()
-            $summary = $pencatatanNontender->getSummaryData($filters);
+            // Gunakan fungsi getSummaryData() dengan support filter bulan
+            $summary = $realisasiDikecualikan->getSummaryData($filters);
             
             // Ambil data detail untuk breakdown
-            $allData = $pencatatanNontender->getAllDataForSummary($filters);
+            $allData = $realisasiDikecualikan->getAllDataForSummary($filters);
             
             // Pastikan $allData adalah array
             if (!is_array($allData)) {
                 $allData = [];
             }
             
-            // Breakdown berdasarkan berbagai kategori
+            // Breakdown berdasarkan berbagai kategori (HAPUS status_paket)
             $breakdown = [
                 'metode_pengadaan' => [],
                 'jenis_pengadaan' => [],
-                'klpd' => [],
-                'status_paket' => []
+                'nama_satker' => []  // Ganti dari klpd ke nama_satker
             ];
             
             foreach ($allData as $row) {
@@ -126,10 +126,10 @@ try {
                 $breakdown['jenis_pengadaan'][$jenis]['total_pdn'] += $pdn;
                 $breakdown['jenis_pengadaan'][$jenis]['total_umk'] += $umk;
                 
-                // Breakdown KLPD
-                $klpd = $row['KLPD'] ?? 'Tidak Diketahui';
-                if (!isset($breakdown['klpd'][$klpd])) {
-                    $breakdown['klpd'][$klpd] = [
+                // Breakdown Satker (ganti dari KLPD)
+                $satker = $row['Nama_Satker'] ?? 'Tidak Diketahui';
+                if (!isset($breakdown['nama_satker'][$satker])) {
+                    $breakdown['nama_satker'][$satker] = [
                         'count' => 0,
                         'total_pagu' => 0,
                         'total_realisasi' => 0,
@@ -137,28 +137,11 @@ try {
                         'total_umk' => 0
                     ];
                 }
-                $breakdown['klpd'][$klpd]['count']++;
-                $breakdown['klpd'][$klpd]['total_pagu'] += $pagu;
-                $breakdown['klpd'][$klpd]['total_realisasi'] += $totalRealisasi;
-                $breakdown['klpd'][$klpd]['total_pdn'] += $pdn;
-                $breakdown['klpd'][$klpd]['total_umk'] += $umk;
-                
-                // Breakdown Status Paket
-                $status = $row['Status_Paket'] ?? 'Tidak Diketahui';
-                if (!isset($breakdown['status_paket'][$status])) {
-                    $breakdown['status_paket'][$status] = [
-                        'count' => 0,
-                        'total_pagu' => 0,
-                        'total_realisasi' => 0,
-                        'total_pdn' => 0,
-                        'total_umk' => 0
-                    ];
-                }
-                $breakdown['status_paket'][$status]['count']++;
-                $breakdown['status_paket'][$status]['total_pagu'] += $pagu;
-                $breakdown['status_paket'][$status]['total_realisasi'] += $totalRealisasi;
-                $breakdown['status_paket'][$status]['total_pdn'] += $pdn;
-                $breakdown['status_paket'][$status]['total_umk'] += $umk;
+                $breakdown['nama_satker'][$satker]['count']++;
+                $breakdown['nama_satker'][$satker]['total_pagu'] += $pagu;
+                $breakdown['nama_satker'][$satker]['total_realisasi'] += $totalRealisasi;
+                $breakdown['nama_satker'][$satker]['total_pdn'] += $pdn;
+                $breakdown['nama_satker'][$satker]['total_umk'] += $umk;
             }
             
             // Urutkan breakdown berdasarkan total_pagu
@@ -205,20 +188,63 @@ try {
                     'persentase_pdn' => round($persentase_pdn, 2),
                     'persentase_umk' => round($persentase_umk, 2),
                     'breakdown' => $breakdown
+                ],
+                'filters_applied' => $filters,  // BARU: Tampilkan filter yang diterapkan
+                'period_info' => [              // BARU: Info periode
+                    'bulan' => $filters['bulan'] ?? null,
+                    'tahun' => $filters['tahun'] ?? null,
+                    'bulan_nama' => isset($filters['bulan']) ? [
+                        '01' => 'Januari', '02' => 'Februari', '03' => 'Maret',
+                        '04' => 'April', '05' => 'Mei', '06' => 'Juni',
+                        '07' => 'Juli', '08' => 'Agustus', '09' => 'September',
+                        '10' => 'Oktober', '11' => 'November', '12' => 'Desember'
+                    ][$filters['bulan']] ?? null : null
                 ]
             ], JSON_PRETTY_PRINT);
             break;
         
         case 'options':
+            // BARU: Get available months
+            $tahunFilter = $_GET['tahun'] ?? null;
+            $months = $realisasiDikecualikan->getAvailableMonths($tahunFilter);
+            
             echo json_encode([
                 'success' => true,
                 'options' => [
-                    'metode_pengadaan' => $pencatatanNontender->getDistinctValues('Metode_pengadaan'),
-                    'jenis_pengadaan' => $pencatatanNontender->getDistinctValues('Jenis_Pengadaan'),
-                    'klpd' => $pencatatanNontender->getDistinctValues('KLPD'),
-                    'status_paket' => $pencatatanNontender->getDistinctValues('Status_Paket'),
-                    'years' => $pencatatanNontender->getAvailableYears()
+                    'metode_pengadaan' => $realisasiDikecualikan->getDistinctValues('Metode_pengadaan'),
+                    'jenis_pengadaan' => $realisasiDikecualikan->getDistinctValues('Jenis_Pengadaan'),
+                    'nama_satker' => $realisasiDikecualikan->getDistinctValues('Nama_Satker'),  // Ganti dari klpd
+                    'years' => $realisasiDikecualikan->getAvailableYears(),
+                    'months' => $months  // BARU: Daftar bulan yang tersedia
                 ]
+            ], JSON_PRETTY_PRINT);
+            break;
+
+        case 'months':
+            // BARU: Endpoint khusus untuk mendapatkan daftar bulan
+            $tahun = $_GET['tahun'] ?? null;
+            $months = $realisasiDikecualikan->getAvailableMonths($tahun);
+            
+            // Format nama bulan
+            $monthsWithNames = [];
+            $namaBulan = [
+                1 => 'Januari', 2 => 'Februari', 3 => 'Maret',
+                4 => 'April', 5 => 'Mei', 6 => 'Juni',
+                7 => 'Juli', 8 => 'Agustus', 9 => 'September',
+                10 => 'Oktober', 11 => 'November', 12 => 'Desember'
+            ];
+            
+            foreach ($months as $month) {
+                $monthsWithNames[] = [
+                    'value' => str_pad($month, 2, '0', STR_PAD_LEFT),
+                    'label' => $namaBulan[$month]
+                ];
+            }
+
+            echo json_encode([
+                'success' => true,
+                'months' => $monthsWithNames,
+                'tahun' => $tahun
             ], JSON_PRETTY_PRINT);
             break;
             
@@ -230,7 +256,7 @@ try {
             break;
     }
 } catch (Exception $e) {
-    error_log("API Error in pencatatan_nontender: " . $e->getMessage());
+    error_log("API Error in realisasi_dikecualikan: " . $e->getMessage());
     http_response_code(500);
     echo json_encode([
         'success' => false,

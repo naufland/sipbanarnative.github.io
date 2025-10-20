@@ -1,7 +1,6 @@
 <?php
 // =================================================================
-// == RealisasiTenderModel.php (MODEL) - DIPERBAIKI ================
-// == Menyesuaikan dengan struktur database yang benar =============
+// == RealisasiTenderModel.php (MODEL) - FIXED =====================
 // =================================================================
 
 class RealisasiTenderModel
@@ -54,7 +53,13 @@ class RealisasiTenderModel
             $params[':jenis_pengadaan'] = $filters['jenis_pengadaan'];
         }
 
-        // Filter KLPD
+        // ✅ Filter Nama Satker - DITAMBAHKAN
+        if (!empty($filters['nama_satker'])) {
+            $whereClause .= " AND Nama_Satker = :nama_satker";
+            $params[':nama_satker'] = $filters['nama_satker'];
+        }
+
+        // Filter KLPD (tetap ada untuk backward compatibility)
         if (!empty($filters['klpd'])) {
             $whereClause .= " AND KLPD = :klpd";
             $params[':klpd'] = $filters['klpd'];
@@ -143,7 +148,7 @@ class RealisasiTenderModel
 
     public function getAllDataForSummary($filters = []) {
         list($whereClause, $params) = $this->buildWhereClause($filters);
-        $sql = "SELECT Jenis_Pengadaan, KLPD, Metode_Pengadaan, Sumber_Dana, Jenis_Kontrak, Nilai_Pagu, Nilai_HPS, Nilai_Kontrak FROM " . $this->table_name . $whereClause;
+        $sql = "SELECT Jenis_Pengadaan, KLPD, Nama_Satker, Metode_Pengadaan, Sumber_Dana, Jenis_Kontrak, Nilai_Pagu, Nilai_HPS, Nilai_Kontrak FROM " . $this->table_name . $whereClause;
         $stmt = $this->conn->prepare($sql);
         $stmt->execute($params);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -223,6 +228,16 @@ class RealisasiTenderModel
     {
         list($whereClause, $params) = $this->buildWhereClause($filters);
         $sql = "SELECT KLPD, COUNT(No) as total_paket, SUM(Nilai_Pagu) as total_pagu, SUM(Nilai_Kontrak) as total_kontrak FROM " . $this->table_name . $whereClause . " GROUP BY KLPD ORDER BY total_paket DESC";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    // ✅ Fungsi baru untuk summary berdasarkan Satker
+    public function getSummaryBySatker($filters = [])
+    {
+        list($whereClause, $params) = $this->buildWhereClause($filters);
+        $sql = "SELECT Nama_Satker, COUNT(No) as total_paket, SUM(Nilai_Pagu) as total_pagu, SUM(Nilai_Kontrak) as total_kontrak FROM " . $this->table_name . $whereClause . " GROUP BY Nama_Satker ORDER BY total_paket DESC";
         $stmt = $this->conn->prepare($sql);
         $stmt->execute($params);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);

@@ -1,6 +1,7 @@
 <?php
 // =================================================================
 // == FILE DASHBOARD UNTUK REALISASI DIKECUALIKAN ==================
+// == DENGAN FILTER BULAN + SATKER (UPDATE) =======================
 // =================================================================
 
 // 1. URL API untuk Realisasi Dikecualikan
@@ -10,10 +11,20 @@ $apiBaseUrl = "http://sipbanar-phpnative.id/api/realisasi_dikecualikan.php";
 $currentPage = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $limit = $_GET['limit'] ?? 50;
 
+// TAMBAHAN: Dapatkan filter bulan dan tahun
+// Default bulan Januari (01) dan tahun sekarang
+$currentYear = date('Y');
+$selectedBulan = $_GET['bulan'] ?? '01'; // Default Januari
+$selectedTahun = $_GET['tahun'] ?? $currentYear;
+
 // 3. Siapkan parameter query untuk API data tabel
-$queryParams = array_filter($_GET); // Ambil semua filter dari URL
+$queryParams = array_filter($_GET, function ($value) {
+    return $value !== '' && $value !== null;
+});
 $queryParams['page'] = $currentPage;
 $queryParams['limit'] = $limit;
+$queryParams['bulan'] = $selectedBulan;
+$queryParams['tahun'] = $selectedTahun;
 $queryString = http_build_query($queryParams);
 $apiUrl = $apiBaseUrl . '?' . $queryString;
 
@@ -30,14 +41,13 @@ $data = json_decode($response, true);
 $summaryResponse = @file_get_contents($apiSummaryUrl);
 $summaryData = json_decode($summaryResponse, true);
 
-// 6. Inisialisasi dan proses variabel statistik (disesuaikan untuk Realisasi Dikecualikan)
-// 6. Inisialisasi dan proses variabel statistik (disesuaikan untuk Realisasi Dikecualikan)
+// 6. Inisialisasi dan proses variabel statistik
 $totalPaket = 0;
 $totalPagu = 0;
 $totalRealisasi = 0;
 $totalPDN = 0;
 $totalUMK = 0;
-$efisiensi = 0; // Tambahan
+$efisiensi = 0;
 $persentaseRealisasi = 0;
 $formattedTotalPagu = 'Rp 0';
 $formattedTotalRealisasi = 'Rp 0';
@@ -53,7 +63,6 @@ if ($summaryData && ($summaryData['success'] ?? false) && isset($summaryData['su
     $totalUMK = $summary['total_umk'] ?? 0;
     $persentaseRealisasi = $summary['persentase_realisasi'] ?? 0;
 
-    // Hitung efisiensi anggaran
     if ($totalPagu > 0) {
         $efisiensi = (($totalPagu - $totalRealisasi) / $totalPagu) * 100;
     }
@@ -74,6 +83,22 @@ if ($totalPaket > 0) {
 
 // 8. Set judul halaman
 $page_title = "Data Realisasi Dikecualikan - SIP BANAR";
+
+// Array nama bulan untuk tampilan
+$namaBulan = [
+    '01' => 'Januari',
+    '02' => 'Februari',
+    '03' => 'Maret',
+    '04' => 'April',
+    '05' => 'Mei',
+    '06' => 'Juni',
+    '07' => 'Juli',
+    '08' => 'Agustus',
+    '09' => 'September',
+    '10' => 'Oktober',
+    '11' => 'November',
+    '12' => 'Desember'
+];
 
 // --- Mulai Output HTML ---
 include '../../navbar/header.php';
@@ -105,7 +130,7 @@ include '../../navbar/header.php';
 
     .filter-header,
     .summary-header {
-        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
         color: white;
         padding: 20px 25px;
         display: flex;
@@ -113,10 +138,27 @@ include '../../navbar/header.php';
         gap: 12px;
     }
 
+    .filter-header::after,
+    .summary-header::after {
+        content: '';
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #e74c3c, #f39c12, #e74c3c);
+    }
+
+    .filter-header,
+    .summary-header {
+        position: relative;
+    }
+
     .filter-header h3,
     .summary-header h3 {
         margin: 0;
         font-size: 18px;
+        font-weight: 600;
     }
 
     .filter-content,
@@ -130,11 +172,30 @@ include '../../navbar/header.php';
         margin-bottom: 25px;
     }
 
+    .filter-row:nth-child(1) {
+        grid-template-columns: 1fr 1fr 1fr 1fr;
+    }
+
+    .filter-row:nth-child(2) {
+        grid-template-columns: 1fr 1fr 1fr;
+    }
+
     .filter-group label {
         display: block;
         margin-bottom: 10px;
         font-weight: 600;
         color: #2c3e50;
+        font-size: 14px;
+    }
+
+    .filter-group label .badge-default {
+        background: #ffc107;
+        color: #000;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 700;
+        margin-left: 8px;
     }
 
     .filter-group select,
@@ -191,6 +252,8 @@ include '../../navbar/header.php';
         align-items: center;
         gap: 8px;
         transition: all 0.3s ease;
+        min-width: 120px;
+        justify-content: center;
     }
 
     .search-btn {
@@ -212,13 +275,35 @@ include '../../navbar/header.php';
     .reset-btn:hover {
         border-color: #e74c3c;
         color: #e74c3c;
+        background: #fff5f5;
+    }
+
+    .summary-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .summary-header-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .period-badge {
+        background: rgba(255, 255, 255, 0.2);
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+        border: 2px solid rgba(255, 255, 255, 0.3);
     }
 
     .summary-cards {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr); /* Ubah dari auto-fit menjadi 4 kolom tetap */
-    gap: 20px;
-}
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+    }
 
     .summary-card {
         padding: 25px;
@@ -227,6 +312,29 @@ include '../../navbar/header.php';
         gap: 20px;
         border-radius: 12px;
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        border-top: 4px solid transparent;
+        transition: all 0.3s ease;
+    }
+
+    .summary-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    }
+
+    .summary-card.primary {
+        border-top-color: #e74c3c;
+    }
+
+    .summary-card.warning {
+        border-top-color: #d35400;
+    }
+
+    .summary-card.success {
+        border-top-color: #c0392b;
+    }
+
+    .summary-card.info {
+        border-top-color: #a93226;
     }
 
     .card-icon {
@@ -256,10 +364,6 @@ include '../../navbar/header.php';
         background: linear-gradient(135deg, #a93226, #cb4335);
     }
 
-    .summary-card.secondary .card-icon {
-        background: linear-gradient(135deg, #943126, #a93226);
-    }
-
     .card-value {
         font-size: 24px;
         font-weight: 700;
@@ -284,6 +388,7 @@ include '../../navbar/header.php';
         font-size: 20px;
         font-weight: 700;
         color: #2c3e50;
+        margin-bottom: 8px;
     }
 
     .results-subtitle {
@@ -314,12 +419,14 @@ include '../../navbar/header.php';
     .pagination a.btn-pagination:hover {
         border-color: #e74c3c;
         color: #e74c3c;
+        transform: translateY(-1px);
     }
 
     .pagination a.btn-pagination.active {
         background: #e74c3c;
         border-color: #e74c3c;
         color: white;
+        box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
     }
 
     .pagination a.btn-pagination.disabled {
@@ -447,6 +554,32 @@ include '../../navbar/header.php';
             transform: translateY(0);
         }
     }
+
+    @media (max-width: 1200px) {
+        .filter-row:nth-child(1) {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .filter-row:nth-child(2) {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .summary-cards {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @media (max-width: 768px) {
+
+        .filter-row:nth-child(1),
+        .filter-row:nth-child(2) {
+            grid-template-columns: 1fr;
+        }
+
+        .summary-cards {
+            grid-template-columns: 1fr;
+        }
+    }
 </style>
 
 <div class="container">
@@ -456,33 +589,53 @@ include '../../navbar/header.php';
             <h3>Filter Data Realisasi Dikecualikan</h3>
         </div>
         <div class="filter-content">
-            <form id="filterForm" method="GET" action="">
-                <div class="filter-row" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+            <form method="GET" action="">
+                <div class="filter-row">
                     <div class="filter-group">
-                        <label><i class="fas fa-calendar-alt"></i> Tahun Anggaran</label>
+                        <label>
+                            <i class="fas fa-calendar"></i> Bulan
+                            <span class="badge-default">PILIH</span>
+                        </label>
+                        <select name="bulan">
+                            <?php foreach ($namaBulan as $kode => $nama): ?>
+                                <option value="<?= $kode ?>" <?= $selectedBulan == $kode ? 'selected' : '' ?>>
+                                    <?= $nama ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label><i class="fas fa-calendar-alt"></i> Tahun</label>
                         <select name="tahun">
-                            <option value="">Semua Tahun</option>
-                            <?php for ($y = date('Y'); $y >= 2020; $y--): ?>
-                                <option value="<?= $y ?>" <?= ($_GET['tahun'] ?? '') == $y ? 'selected' : '' ?>><?= $y ?></option>
+                            <?php for ($y = $currentYear; $y >= 2020; $y--): ?>
+                                <option value="<?= $y ?>" <?= $selectedTahun == $y ? 'selected' : '' ?>>
+                                    <?= $y ?>
+                                </option>
                             <?php endfor; ?>
                         </select>
                     </div>
+
                     <div class="filter-group">
-                        <label><i class="fas fa-building"></i> KLPD</label>
-                        <select name="klpd">
-                            <option value="">Semua KLPD</option>
-                            <option value="Pemerintah Daerah Kota Banjarmasin" <?= ($_GET['klpd'] ?? '') == 'Pemerintah Daerah Kota Banjarmasin' ? 'selected' : '' ?>>Kota Banjarmasin</option>
-                            <option value="Pemerintah Daerah Kabupaten Banjar" <?= ($_GET['klpd'] ?? '') == 'Pemerintah Daerah Kabupaten Banjar' ? 'selected' : '' ?>>Kabupaten Banjar</option>
+                        <label><i class="fas fa-sitemap"></i> Satker</label>
+                        <select name="satker">
+                            <option value="">Semua Satker</option>
+                            <option value="Satker A" <?= ($_GET['satker'] ?? '') == 'Satker A' ? 'selected' : '' ?>>Satker A</option>
+                            <option value="Satker B" <?= ($_GET['satker'] ?? '') == 'Satker B' ? 'selected' : '' ?>>Satker B</option>
                         </select>
                     </div>
+
                     <div class="filter-group">
-                        <label><i class="fas fa-handshake"></i> Metode Pengadaan</label>
+                        <label><i class="fas fa-handshake"></i> Metode</label>
                         <select name="metode_pengadaan">
                             <option value="">Semua Metode</option>
                             <option value="Penunjukan Langsung" <?= ($_GET['metode_pengadaan'] ?? '') == 'Penunjukan Langsung' ? 'selected' : '' ?>>Penunjukan Langsung</option>
                             <option value="Pengadaan Langsung" <?= ($_GET['metode_pengadaan'] ?? '') == 'Pengadaan Langsung' ? 'selected' : '' ?>>Pengadaan Langsung</option>
                         </select>
                     </div>
+                </div>
+
+                <div class="filter-row">
                     <div class="filter-group">
                         <label><i class="fas fa-box"></i> Jenis Pengadaan</label>
                         <select name="jenis_pengadaan">
@@ -493,6 +646,7 @@ include '../../navbar/header.php';
                             <option value="Jasa Lainnya" <?= ($_GET['jenis_pengadaan'] ?? '') == 'Jasa Lainnya' ? 'selected' : '' ?>>Jasa Lainnya</option>
                         </select>
                     </div>
+
                     <div class="filter-group">
                         <label><i class="fas fa-info-circle"></i> Status Paket</label>
                         <select name="status_paket">
@@ -502,17 +656,19 @@ include '../../navbar/header.php';
                             <option value="Batal" <?= ($_GET['status_paket'] ?? '') == 'Batal' ? 'selected' : '' ?>>Batal</option>
                         </select>
                     </div>
+
                     <div class="filter-group">
                         <label><i class="fas fa-search"></i> Pencarian</label>
                         <div class="search-input-wrapper">
                             <i class="fas fa-search"></i>
-                            <input type="text" name="search" placeholder="Cari Nama Paket atau Pemenang..." value="<?= htmlspecialchars($_GET['search'] ?? '') ?>">
+                            <input type="text" name="search" placeholder="Cari Nama Paket..." value="<?= htmlspecialchars($_GET['search'] ?? '') ?>">
                         </div>
                     </div>
                 </div>
+
                 <div class="search-row">
-                    <button type="button" class="reset-btn" onclick="window.location.href=window.location.pathname">
-                        <i class="fas fa-undo"></i> Reset
+                    <button type="button" class="reset-btn" onclick="resetForm()">
+                        <i class="fas fa-undo"></i> Reset Filter
                     </button>
                     <button type="submit" class="search-btn">
                         <i class="fas fa-search"></i> Cari Data
@@ -524,8 +680,14 @@ include '../../navbar/header.php';
 
     <div class="summary-section">
         <div class="summary-header">
-            <i class="fas fa-chart-bar"></i>
-            <h3>Ringkasan Data Realisasi Dikecualikan</h3>
+            <div class="summary-header-left">
+                <i class="fas fa-chart-bar"></i>
+                <h3>Ringkasan Data Realisasi Dikecualikan</h3>
+            </div>
+            <div class="period-badge">
+                <i class="fas fa-calendar-check"></i>
+                <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?>
+            </div>
         </div>
         <div class="summary-content">
             <div class="summary-cards">
@@ -565,9 +727,12 @@ include '../../navbar/header.php';
         <div class="results-header">
             <div>
                 <div class="results-title"><i class="fas fa-table"></i> Hasil Data Realisasi Dikecualikan</div>
-                <div class="results-subtitle">
-                    <strong>Menampilkan <?= count($tableData) ?> dari <?= number_format($totalRecords, 0, ',', '.') ?> total data</strong>
-                </div>
+                <?php if ($data && isset($data['success']) && $data['success']) : ?>
+                    <div class="results-subtitle">
+                        <strong>Menampilkan <?= count($tableData) ?> dari <?= number_format($totalRecords, 0, ',', '.') ?> total data</strong>
+                        | Periode: <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?>
+                    </div>
+                <?php endif; ?>
             </div>
             <div class="pagination">
                 <?php
@@ -593,11 +758,10 @@ include '../../navbar/header.php';
                     <thead>
                         <tr>
                             <th style="width: 3%;">No</th>
+                            <th style="width: 5%;">Bulan</th>
                             <th style="width: 5%;">Tahun</th>
                             <th style="width: 16%;">Nama Paket</th>
                             <th style="width: 7%;">Kode Paket</th>
-                            <th style="width: 7%;">Kode RUP</th>
-                            <th style="width: 8%;">KLPD</th>
                             <th style="width: 10%;">Satker</th>
                             <th style="width: 6%;">Metode</th>
                             <th style="width: 6%;">Jenis</th>
@@ -614,14 +778,28 @@ include '../../navbar/header.php';
                                 <td style="text-align: center; font-weight: bold;">
                                     <?= htmlspecialchars($row['No_Urut'] ?? '-') ?>
                                 </td>
-                                <td style="text-align: center;"><?= htmlspecialchars($row['Tahun_Anggaran'] ?? '-') ?></td>
+                                <td style="text-align: center;">
+                                    <?= htmlspecialchars($row['Bulan'] ?? '-') ?>
+                                </td>
+                                <td style="text-align: center;">
+                                    <?= htmlspecialchars($row['Tahun_Anggaran'] ?? '-') ?>
+                                </td>
                                 <td><?= htmlspecialchars($row['Nama_Paket'] ?? '-') ?></td>
-                                <td><i class="fas fa-barcode" style="margin-right: 5px; color: #6c757d;"></i> <?= htmlspecialchars($row['Kode_Paket'] ?? '-') ?></td>
-                                <td><i class="fas fa-trophy" style="margin-right: 5px; color: #f39c12;"></i> <?= htmlspecialchars($row['Kode_RUP'] ?? '-') ?></td>
-                                <td><i class="fas fa-building" style="margin-right: 5px; color: #e74c3c;"></i> <?= htmlspecialchars($row['KLPD'] ?? '-') ?></td>
+                                <td>
+                                    <i class="fas fa-barcode" style="margin-right: 5px; color: #6c757d;"></i>
+                                    <?= htmlspecialchars($row['Kode_Paket'] ?? '-') ?>
+                                </td>
                                 <td><?= htmlspecialchars($row['Nama_Satker'] ?? '-') ?></td>
-                                <td style="text-align: center;"><span class="badge badge-danger"><?= htmlspecialchars($row['Metode_pengadaan'] ?? '-') ?></span></td>
-                                <td style="text-align: center;"><span class="badge badge-info"><?= htmlspecialchars($row['Jenis_Pengadaan'] ?? '-') ?></span></td>
+                                <td style="text-align: center;">
+                                    <span class="badge badge-danger">
+                                        <?= htmlspecialchars($row['Metode_pengadaan'] ?? '-') ?>
+                                    </span>
+                                </td>
+                                <td style="text-align: center;">
+                                    <span class="badge badge-info">
+                                        <?= htmlspecialchars($row['Jenis_Pengadaan'] ?? '-') ?>
+                                    </span>
+                                </td>
                                 <td class="text-right">
                                     <?php
                                     $nilaiPagu = $row['Nilai_Pagu'] ?? 0;
@@ -656,7 +834,9 @@ include '../../navbar/header.php';
                                         $badgeClass = 'badge-info';
                                     }
                                     ?>
-                                    <span class="badge <?= $badgeClass ?>"><?= htmlspecialchars($status) ?></span>
+                                    <span class="badge <?= $badgeClass ?>">
+                                        <?= htmlspecialchars($status) ?>
+                                    </span>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -665,13 +845,13 @@ include '../../navbar/header.php';
             </div>
             <div class="table-footer">
                 <div><strong>Halaman:</strong> <?= $currentPage ?> dari <?= $totalPages ?></div>
-                <div><strong>Total Data:</strong> <?= number_format($totalRecords, 0, ',', '.') ?> paket realisasi dikecualikan</div>
+                <div><strong>Total Data:</strong> <?= number_format($totalRecords, 0, ',', '.') ?> paket</div>
             </div>
         <?php else : ?>
             <div class="empty-state">
                 <i class="fas fa-search-minus"></i>
                 <p><strong>Tidak ada data realisasi dikecualikan yang ditemukan</strong></p>
-                <small class="text-muted">Silakan ubah kriteria filter Anda.</small>
+                <small class="text-muted">Untuk periode <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?>. Coba ubah kriteria pencarian.</small>
             </div>
         <?php endif; ?>
     </div>
@@ -679,34 +859,57 @@ include '../../navbar/header.php';
 
 <script>
     function resetForm() {
-        window.location.href = window.location.pathname;
+        window.location.href = window.location.pathname + '?bulan=01&tahun=<?= $currentYear ?>';
     }
 
     document.addEventListener('DOMContentLoaded', function() {
         const filterForm = document.querySelector('form');
 
-        // Auto submit on select change (optional)
-        const selects = filterForm.querySelectorAll('select');
-        selects.forEach(select => {
-            select.addEventListener('change', function() {
-                // Uncomment line below to enable auto-submit
-                // filterForm.submit();
-            });
-        });
+        if (filterForm) {
+            filterForm.addEventListener('submit', function(e) {
+                const inputs = this.querySelectorAll('input, select');
 
-        // Smooth scroll animation
-        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function(e) {
-                e.preventDefault();
-                const target = document.querySelector(this.getAttribute('href'));
-                if (target) {
-                    target.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'start'
-                    });
+                inputs.forEach(input => {
+                    if (input.name !== 'bulan' && input.name !== 'tahun' && !input.value) {
+                        input.disabled = true;
+                    }
+                });
+
+                return true;
+            });
+        }
+
+        // Search input enter key
+        const searchInput = document.querySelector('input[name="search"]');
+        if (searchInput) {
+            searchInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    this.form.submit();
                 }
             });
+        }
+
+        // Table row hover effects
+        const tableRows = document.querySelectorAll('tbody tr');
+        tableRows.forEach(row => {
+            row.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-1px)';
+            });
+            row.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0)';
+            });
         });
+    });
+
+    // Auto scroll to results
+    window.addEventListener('load', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.toString()) {
+            document.querySelector('.results-section').scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
+            });
+        }
     });
 </script>
 
