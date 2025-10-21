@@ -65,6 +65,44 @@ $namaBulan = [
     '10' => 'Oktober', '11' => 'November', '12' => 'Desember'
 ];
 
+// TAMBAHAN: Ambil daftar Satuan Kerja untuk dropdown
+$satuanKerjaList = [];
+
+// Metode 1: Coba dari API
+$apiOptionsUrl = $apiBaseUrl . '?action=options';
+$optionsResponse = @file_get_contents($apiOptionsUrl);
+if ($optionsResponse) {
+    $optionsData = json_decode($optionsResponse, true);
+    if ($optionsData && isset($optionsData['success']) && $optionsData['success']) {
+        $satuanKerjaList = $optionsData['options']['satuan_kerja'] ?? [];
+    }
+}
+
+// Metode 2: Jika API gagal, query langsung ke database (FALLBACK)
+if (empty($satuanKerjaList)) {
+    try {
+        // Include database connection jika belum ada
+        if (!isset($db)) {
+            include_once '../../config/database.php';
+            $database = new Database();
+            $db = $database->getConnection();
+        }
+        
+        // Query langsung untuk ambil distinct Satuan_Kerja dari tabel swakelola
+        $sql = "SELECT DISTINCT Satuan_Kerja FROM rup_keseluruhan_swakelola 
+                WHERE Satuan_Kerja IS NOT NULL AND Satuan_Kerja != '' 
+                ORDER BY Satuan_Kerja ASC 
+                LIMIT 500";
+        $stmt = $db->prepare($sql);
+        $stmt->execute();
+        $satuanKerjaList = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    } catch (Exception $e) {
+        // Log error tapi jangan stop eksekusi
+        error_log("Error fetching Satuan Kerja (Swakelola): " . $e->getMessage());
+        $satuanKerjaList = [];
+    }
+}
+
 include '../../navbar/header.php';
 ?>
 
@@ -745,8 +783,24 @@ include '../../navbar/header.php';
 
                     <div class="filter-group">
                         <label><i class="fas fa-sitemap"></i> Satuan Kerja</label>
-                        <select name="satuan_kerja">
+                        <select name="satuan_kerja" id="satuan_kerja">
                             <option value="">Semua Satuan Kerja</option>
+                            <?php
+                            if (!empty($satuanKerjaList) && is_array($satuanKerjaList)) {
+                                $selectedSatker = $_GET['satuan_kerja'] ?? '';
+                                foreach ($satuanKerjaList as $satker) {
+                                    if (!empty($satker)) {
+                                        $selected = $selectedSatker == $satker ? 'selected' : '';
+                                        echo '<option value="' . htmlspecialchars($satker) . '" ' . $selected . '>';
+                                        echo htmlspecialchars($satker);
+                                        echo '</option>';
+                                    }
+                                }
+                            } else {
+                                // Fallback: tampilkan pesan jika data tidak tersedia
+                                echo '<option value="" disabled>Tidak ada data Satuan Kerja</option>';
+                            }
+                            ?>
                         </select>
                     </div>
 
@@ -959,6 +1013,19 @@ include '../../navbar/header.php';
 document.addEventListener('DOMContentLoaded', function() {
     const filterForm = document.querySelector('form');
 
+    // DEBUG: Check Satuan Kerja dropdown
+    const satuanKerjaSelect = document.querySelector('#satuan_kerja');
+    if (satuanKerjaSelect) {
+        console.log('✅ Satuan Kerja dropdown found (Swakelola)');
+        console.log('Total options:', satuanKerjaSelect.options.length);
+        
+        if (satuanKerjaSelect.options.length <= 1) {
+            console.warn('⚠️ Satuan Kerja dropdown kosong (Swakelola)! Cek API response.');
+        } else {
+            console.log('✅ Satuan Kerja loaded:', satuanKerjaSelect.options.length - 1, 'items');
+        }
+    }
+
     if (filterForm) {
         filterForm.addEventListener('submit', function(e) {
             const inputs = this.querySelectorAll('input, select');
@@ -1141,13 +1208,14 @@ document.querySelectorAll('.small-text').forEach(smallText => {
     }
 });
 
-console.log('Swakelola Page Loaded');
-console.log('Selected Period: <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?>');
-console.log('Total Records: <?= $totalRecords ?>');
-console.log('Total Paket: <?= $totalPaket ?>');
-console.log('Total Pagu: <?= $totalPagu ?>');
+console.log('🎯 Swakelola Page Loaded');
+console.log('📅 Selected Period: <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?>');
+console.log('📦 Total Records: <?= $totalRecords ?>');
+console.log('📦 Total Paket: <?= $totalPaket ?>');
+console.log('💰 Total Pagu: <?= $totalPagu ?>');
+console.log('🔧 Satuan Kerja Options: <?= count($satuanKerjaList) ?>');
 </script>
 
 <?php
 include '../../navbar/footer.php';
-?>  
+?>

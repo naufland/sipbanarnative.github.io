@@ -1,6 +1,7 @@
 <?php
 // =================================================================
 // == BLOK PHP DENGAN FILTER BULAN DEFAULT JULI + FILTER PERUBAHAN ==
+// == FILTER KLPD DIGANTI MENJADI SATUAN_KERJA ==
 // =================================================================
 
 // URL API dasar
@@ -88,6 +89,20 @@ $namaBulan = [
     '10' => 'Oktober', '11' => 'November', '12' => 'Desember'
 ];
 
+// 8. Ambil daftar Satuan Kerja untuk dropdown
+$satuanKerjaList = [];
+$apiOptionsUrl = $apiBaseUrl . '?action=options';
+$optionsResponse = @file_get_contents($apiOptionsUrl);
+if ($optionsResponse) {
+    $optionsData = json_decode($optionsResponse, true);
+    if ($optionsData && isset($optionsData['success']) && $optionsData['success']) {
+        $satuanKerjaList = $optionsData['options']['satuan_kerja'] ?? [];
+    }
+}
+
+// Debug: Uncomment baris di bawah untuk melihat data yang diterima
+// echo '<pre>'; print_r($satuanKerjaList); echo '</pre>'; exit;
+
 // Include header
 include '../../navbar/header.php';
 ?>
@@ -159,7 +174,7 @@ include '../../navbar/header.php';
         grid-template-columns: 1fr 1fr 1fr 1fr;
     }
 
-    /* Baris kedua: KLPD + Metode + Pencarian Paket */
+    /* Baris kedua: Satuan Kerja + Metode + Pencarian Paket */
     .filter-row:nth-child(2) {
         grid-template-columns: 1fr 1fr 1fr;
     }
@@ -804,11 +819,25 @@ include '../../navbar/header.php';
 
                 <div class="filter-row">
                     <div class="filter-group">
-                        <label><i class="fas fa-building"></i> KLPD</label>
-                        <select name="klpd">
-                            <option value="">Semua KLPD</option>
-                            <option value="Kota Banjarmasin" <?= ($_GET['klpd'] ?? '') == 'Kota Banjarmasin' ? 'selected' : '' ?>>Kota Banjarmasin</option>
-                            <option value="Kabupaten Banjar" <?= ($_GET['klpd'] ?? '') == 'Kabupaten Banjar' ? 'selected' : '' ?>>Kabupaten Banjar</option>
+                        <label><i class="fas fa-sitemap"></i> Satuan Kerja</label>
+                        <select name="satuan_kerja" id="satuan_kerja">
+                            <option value="">Semua Satuan Kerja</option>
+                            <?php
+                            if (!empty($satuanKerjaList) && is_array($satuanKerjaList)) {
+                                $selectedSatker = $_GET['satuan_kerja'] ?? '';
+                                foreach ($satuanKerjaList as $satker) {
+                                    if (!empty($satker)) {
+                                        $selected = $selectedSatker == $satker ? 'selected' : '';
+                                        echo '<option value="' . htmlspecialchars($satker) . '" ' . $selected . '>';
+                                        echo htmlspecialchars($satker);
+                                        echo '</option>';
+                                    }
+                                }
+                            } else {
+                                // Fallback: tampilkan pesan jika data tidak tersedia
+                                echo '<option value="" disabled>Tidak ada data Satuan Kerja</option>';
+                            }
+                            ?>
                         </select>
                     </div>
 
@@ -946,7 +975,6 @@ include '../../navbar/header.php';
                             <th style="width: 120px;"><i class="fas fa-store"></i> Usaha Kecil</th>
                             <th style="width: 120px;"><i class="fas fa-cogs"></i> Metode</th>
                             <th style="width: 120px;"><i class="fas fa-calendar"></i> Pemilihan</th>
-                            <th style="width: 120px;"><i class="fas fa-building"></i> KLPD</th>
                             <th style="width: 200px;"><i class="fas fa-sitemap"></i> Satuan Kerja</th>
                             <th style="width: 150px;"><i class="fas fa-map-marker-alt"></i> Lokasi</th>
                         </tr>
@@ -977,7 +1005,6 @@ include '../../navbar/header.php';
                                 <td><span class="badge badge-success"><?= htmlspecialchars($row['Usaha_Kecil']) ?></span></td>
                                 <td><small><?= htmlspecialchars($row['Metode']) ?></small></td>
                                 <td><small><?= htmlspecialchars($row['Pemilihan']) ?></small></td>
-                                <td><small><?= htmlspecialchars($row['KLPD']) ?></small></td>
                                 <td><small><?= htmlspecialchars($row['Satuan_Kerja']) ?></small></td>
                                 <td><small><?= htmlspecialchars($row['Lokasi']) ?></small></td>
                             </tr>
@@ -1015,6 +1042,19 @@ include '../../navbar/header.php';
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const filterForm = document.querySelector('form');
+
+    // DEBUG: Check Satuan Kerja dropdown
+    const satuanKerjaSelect = document.querySelector('#satuan_kerja');
+    if (satuanKerjaSelect) {
+        console.log('Satuan Kerja dropdown found');
+        console.log('Total options:', satuanKerjaSelect.options.length);
+        console.log('Options:', Array.from(satuanKerjaSelect.options).map(opt => opt.value));
+        
+        // Jika hanya ada 1 option (default), mungkin data tidak terload
+        if (satuanKerjaSelect.options.length <= 1) {
+            console.warn('⚠️ Satuan Kerja dropdown kosong! Cek API response.');
+        }
+    }
 
     if (filterForm) {
         filterForm.addEventListener('submit', function(e) {

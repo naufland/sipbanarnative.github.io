@@ -55,9 +55,10 @@ class PengadaanModel {
             $sql .= " AND Jenis_Pengadaan = :jenis_pengadaan";
             $params[':jenis_pengadaan'] = $filters['jenis_pengadaan'];
         }
-        if (!empty($filters['klpd'])) {
-            $sql .= " AND KLPD = :klpd";
-            $params[':klpd'] = $filters['klpd'];
+        // PERUBAHAN: Filter Satuan_Kerja menggantikan KLPD
+        if (!empty($filters['satuan_kerja'])) {
+            $sql .= " AND Satuan_Kerja = :satuan_kerja";
+            $params[':satuan_kerja'] = $filters['satuan_kerja'];
         }
         if (!empty($filters['usaha_kecil'])) {
             $sql .= " AND Usaha_Kecil = :usaha_kecil";
@@ -67,13 +68,13 @@ class PengadaanModel {
             $sql .= " AND Metode = :metode";
             $params[':metode'] = $filters['metode'];
         }
-        // TAMBAHAN: Filter Perubahan
+        // Filter Perubahan
         if (!empty($filters['perubahan'])) {
             $sql .= " AND perubahan = :perubahan";
             $params[':perubahan'] = $filters['perubahan'];
         }
         if (!empty($filters['search'])) {
-            $sql .= " AND (Paket LIKE :search OR Lokasi LIKE :search)";
+            $sql .= " AND (Paket LIKE :search OR Lokasi LIKE :search OR Satuan_Kerja LIKE :search)";
             $params[':search'] = "%" . $filters['search'] . "%";
         }
 
@@ -126,9 +127,10 @@ class PengadaanModel {
             $sql .= " AND Jenis_Pengadaan = :jenis_pengadaan";
             $params[':jenis_pengadaan'] = $filters['jenis_pengadaan'];
         }
-        if (!empty($filters['klpd'])) {
-            $sql .= " AND KLPD = :klpd";
-            $params[':klpd'] = $filters['klpd'];
+        // PERUBAHAN: Filter Satuan_Kerja menggantikan KLPD
+        if (!empty($filters['satuan_kerja'])) {
+            $sql .= " AND Satuan_Kerja = :satuan_kerja";
+            $params[':satuan_kerja'] = $filters['satuan_kerja'];
         }
         if (!empty($filters['usaha_kecil'])) {
             $sql .= " AND Usaha_Kecil = :usaha_kecil";
@@ -138,13 +140,13 @@ class PengadaanModel {
             $sql .= " AND Metode = :metode";
             $params[':metode'] = $filters['metode'];
         }
-        // TAMBAHAN: Filter Perubahan
+        // Filter Perubahan
         if (!empty($filters['perubahan'])) {
             $sql .= " AND perubahan = :perubahan";
             $params[':perubahan'] = $filters['perubahan'];
         }
         if (!empty($filters['search'])) {
-            $sql .= " AND (Paket LIKE :search OR Lokasi LIKE :search)";
+            $sql .= " AND (Paket LIKE :search OR Lokasi LIKE :search OR Satuan_Kerja LIKE :search)";
             $params[':search'] = "%" . $filters['search'] . "%";
         }
 
@@ -158,13 +160,13 @@ class PengadaanModel {
         return $row['total'] ?? 0;
     }
 
-    // BARU: Ambil summary data dengan filter bulan
+    // Ambil summary data dengan filter bulan
     public function getSummaryData($filters = []) {
         $sql = "SELECT 
                 COUNT(*) as total_paket,
                 SUM(Pagu_Rp) as total_pagu,
                 AVG(Pagu_Rp) as avg_pagu,
-                COUNT(DISTINCT KLPD) as total_klpd
+                COUNT(DISTINCT Satuan_Kerja) as total_satker
                 FROM " . $this->table_name . " WHERE 1=1";
         $params = [];
 
@@ -198,21 +200,22 @@ class PengadaanModel {
             $sql .= " AND Jenis_Pengadaan = :jenis_pengadaan";
             $params[':jenis_pengadaan'] = $filters['jenis_pengadaan'];
         }
-        if (!empty($filters['klpd'])) {
-            $sql .= " AND KLPD = :klpd";
-            $params[':klpd'] = $filters['klpd'];
+        // PERUBAHAN: Filter Satuan_Kerja menggantikan KLPD
+        if (!empty($filters['satuan_kerja'])) {
+            $sql .= " AND Satuan_Kerja = :satuan_kerja";
+            $params[':satuan_kerja'] = $filters['satuan_kerja'];
         }
         if (!empty($filters['metode'])) {
             $sql .= " AND Metode = :metode";
             $params[':metode'] = $filters['metode'];
         }
-        // TAMBAHAN: Filter Perubahan
+        // Filter Perubahan
         if (!empty($filters['perubahan'])) {
             $sql .= " AND perubahan = :perubahan";
             $params[':perubahan'] = $filters['perubahan'];
         }
         if (!empty($filters['search'])) {
-            $sql .= " AND (Paket LIKE :search OR Lokasi LIKE :search)";
+            $sql .= " AND (Paket LIKE :search OR Lokasi LIKE :search OR Satuan_Kerja LIKE :search)";
             $params[':search'] = "%" . $filters['search'] . "%";
         }
 
@@ -225,7 +228,7 @@ class PengadaanModel {
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    // BARU: Breakdown berdasarkan jenis pengadaan
+    // Breakdown berdasarkan jenis pengadaan
     public function getBreakdownByJenis($filters = []) {
         $sql = "SELECT 
                 Jenis_Pengadaan,
@@ -259,12 +262,13 @@ class PengadaanModel {
             $params[':tanggal_akhir'] = $filters['tanggal_akhir'];
         }
 
-        if (!empty($filters['klpd'])) {
-            $sql .= " AND KLPD = :klpd";
-            $params[':klpd'] = $filters['klpd'];
+        // PERUBAHAN: Filter Satuan_Kerja menggantikan KLPD
+        if (!empty($filters['satuan_kerja'])) {
+            $sql .= " AND Satuan_Kerja = :satuan_kerja";
+            $params[':satuan_kerja'] = $filters['satuan_kerja'];
         }
 
-        // TAMBAHAN: Filter Perubahan
+        // Filter Perubahan
         if (!empty($filters['perubahan'])) {
             $sql .= " AND perubahan = :perubahan";
             $params[':perubahan'] = $filters['perubahan'];
@@ -289,10 +293,10 @@ class PengadaanModel {
         return $result;
     }
 
-    // BARU: Breakdown berdasarkan KLPD
-    public function getBreakdownByKLPD($filters = []) {
+    // PERUBAHAN: Breakdown berdasarkan Satuan Kerja (menggantikan getBreakdownByKLPD)
+    public function getBreakdownBySatuanKerja($filters = []) {
         $sql = "SELECT 
-                KLPD,
+                Satuan_Kerja,
                 COUNT(*) as count,
                 SUM(Pagu_Rp) as total_pagu
                 FROM " . $this->table_name . " WHERE 1=1";
@@ -328,13 +332,13 @@ class PengadaanModel {
             $params[':jenis_pengadaan'] = $filters['jenis_pengadaan'];
         }
 
-        // TAMBAHAN: Filter Perubahan
+        // Filter Perubahan
         if (!empty($filters['perubahan'])) {
             $sql .= " AND perubahan = :perubahan";
             $params[':perubahan'] = $filters['perubahan'];
         }
 
-        $sql .= " GROUP BY KLPD ORDER BY total_pagu DESC";
+        $sql .= " GROUP BY Satuan_Kerja ORDER BY total_pagu DESC";
 
         $stmt = $this->conn->prepare($sql);
         foreach ($params as $key => $value) {
@@ -344,7 +348,7 @@ class PengadaanModel {
 
         $result = [];
         while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $result[$row['KLPD']] = [
+            $result[$row['Satuan_Kerja']] = [
                 'count' => (int)$row['count'],
                 'total_pagu' => (float)$row['total_pagu']
             ];
@@ -353,7 +357,7 @@ class PengadaanModel {
         return $result;
     }
 
-    // BARU: Breakdown berdasarkan Metode
+    // Breakdown berdasarkan Metode
     public function getBreakdownByMetode($filters = []) {
         $sql = "SELECT 
                 Metode,
@@ -392,12 +396,13 @@ class PengadaanModel {
             $params[':jenis_pengadaan'] = $filters['jenis_pengadaan'];
         }
 
-        if (!empty($filters['klpd'])) {
-            $sql .= " AND KLPD = :klpd";
-            $params[':klpd'] = $filters['klpd'];
+        // PERUBAHAN: Filter Satuan_Kerja menggantikan KLPD
+        if (!empty($filters['satuan_kerja'])) {
+            $sql .= " AND Satuan_Kerja = :satuan_kerja";
+            $params[':satuan_kerja'] = $filters['satuan_kerja'];
         }
 
-        // TAMBAHAN: Filter Perubahan
+        // Filter Perubahan
         if (!empty($filters['perubahan'])) {
             $sql .= " AND perubahan = :perubahan";
             $params[':perubahan'] = $filters['perubahan'];
@@ -422,7 +427,7 @@ class PengadaanModel {
         return $result;
     }
 
-    // BARU: Breakdown berdasarkan Status Perubahan
+    // Breakdown berdasarkan Status Perubahan
     public function getBreakdownByPerubahan($filters = []) {
         $sql = "SELECT 
                 perubahan,
@@ -461,9 +466,10 @@ class PengadaanModel {
             $params[':jenis_pengadaan'] = $filters['jenis_pengadaan'];
         }
 
-        if (!empty($filters['klpd'])) {
-            $sql .= " AND KLPD = :klpd";
-            $params[':klpd'] = $filters['klpd'];
+        // PERUBAHAN: Filter Satuan_Kerja menggantikan KLPD
+        if (!empty($filters['satuan_kerja'])) {
+            $sql .= " AND Satuan_Kerja = :satuan_kerja";
+            $params[':satuan_kerja'] = $filters['satuan_kerja'];
         }
 
         $sql .= " GROUP BY perubahan ORDER BY total_pagu DESC";
@@ -493,6 +499,14 @@ class PengadaanModel {
         return $stmt->fetchAll(PDO::FETCH_COLUMN);
     }
 
+    // BARU: Ambil daftar Satuan Kerja yang unik
+    public function getAvailableSatuanKerja() {
+        $sql = "SELECT DISTINCT Satuan_Kerja FROM " . $this->table_name . " WHERE Satuan_Kerja IS NOT NULL AND Satuan_Kerja != '' ORDER BY Satuan_Kerja ASC";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_COLUMN);
+    }
+
     // Ambil tahun yang tersedia
     public function getAvailableYears() {
         $sql = "SELECT DISTINCT tahun FROM " . $this->table_name . " WHERE tahun IS NOT NULL ORDER BY tahun DESC";
@@ -501,7 +515,7 @@ class PengadaanModel {
         return $stmt->fetchAll(PDO::FETCH_COLUMN);
     }
 
-    // BARU: Ambil bulan yang tersedia (dalam format nama Indonesia)
+    // Ambil bulan yang tersedia (dalam format nama Indonesia)
     public function getAvailableMonths($tahun = null) {
         $sql = "SELECT DISTINCT bulan FROM " . $this->table_name . " WHERE bulan IS NOT NULL";
         
@@ -558,7 +572,7 @@ class PengadaanModel {
             $params[':tanggal_akhir'] = $filters['tanggal_akhir'];
         }
 
-        // TAMBAHAN: Filter Perubahan
+        // Filter Perubahan
         if (!empty($filters['perubahan'])) {
             $sql .= " AND perubahan = :perubahan";
             $params[':perubahan'] = $filters['perubahan'];
@@ -574,4 +588,4 @@ class PengadaanModel {
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
-}
+};

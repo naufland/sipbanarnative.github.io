@@ -1213,7 +1213,7 @@ include '../navbar/header.php';
     </div>
 
     <!-- GRAFIK SECTION - PERENCANAAN -->
-    <div style="margin-bottom: 20px; padding: 15px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border-radius: 12px; text-align: center; font-weight: bold; font-size: 16px;">
+    <div style="margin-bottom: 20px; padding: 15px; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border-radius: 12px; text-align: center; font-weight: bold; font-size: 16px;">
         <i class="fas fa-tasks"></i> GRAFIK PERENCANAAN PENGADAAN
     </div>
     <div class="charts-section">
@@ -1255,7 +1255,7 @@ include '../navbar/header.php';
     </div>
 
     <!-- GRAFIK SECTION - REALISASI -->
-    <div style="margin: 30px 0 20px 0; padding: 15px; background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); color: white; border-radius: 12px; text-align: center; font-weight: bold; font-size: 16px;">
+    <div style="margin: 30px 0 20px 0; padding: 15px; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border-radius: 12px; text-align: center; font-weight: bold; font-size: 16px;">
         <i class="fas fa-check-circle"></i> GRAFIK REALISASI PENGADAAN
     </div>
     <div class="charts-section">
@@ -1284,7 +1284,7 @@ include '../navbar/header.php';
         </div>
 
         <div class="chart-card">
-            <div class="chart-card-header" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">
+            <div class="chart-card-header" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
                 PERBANDINGAN PERENCANAAN DAN REALISASI SWAKELOLA
                 <button class="chart-fullscreen-btn" onclick="openFullscreen('chartSwakelola', 'PERBANDINGAN PERENCANAAN DAN REALISASI SWAKELOLA')">
                     <i class="fas fa-expand"></i>
@@ -1499,7 +1499,7 @@ include '../navbar/header.php';
 
     <?php if (!empty($data_efisiensi_realisasi)): ?>
         <div class="card" style="margin-top: 30px;">
-            <div class="card-header" style="background: linear-gradient(135deg, #059669 0%, #047857 100%);">
+            <div class="card-header" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
                 <i class="fas fa-chart-line"></i> ANALISIS EFISIENSI ANGGARAN BERDASARKAN DATA REALISASI
             </div>
             <div class="table-container">

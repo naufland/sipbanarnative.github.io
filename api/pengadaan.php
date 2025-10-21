@@ -34,10 +34,10 @@ try {
                         'tanggal_awal' => $_GET['tanggal_awal'] ?? '',
                         'tanggal_akhir' => $_GET['tanggal_akhir'] ?? '',
                         'jenis_pengadaan' => $_GET['jenis_pengadaan'] ?? '',
-                        'klpd' => $_GET['klpd'] ?? '',
+                        'satuan_kerja' => $_GET['satuan_kerja'] ?? '',  // PERUBAHAN: klpd → satuan_kerja
                         'usaha_kecil' => $_GET['usaha_kecil'] ?? '',
                         'metode' => $_GET['metode'] ?? '',
-                        'perubahan' => $_GET['perubahan'] ?? '',  // TAMBAHAN: Filter Perubahan
+                        'perubahan' => $_GET['perubahan'] ?? '',
                         'search' => $_GET['search'] ?? ''
                     ];
 
@@ -84,10 +84,10 @@ try {
                         'tanggal_awal' => $_GET['tanggal_awal'] ?? '',
                         'tanggal_akhir' => $_GET['tanggal_akhir'] ?? '',
                         'jenis_pengadaan' => $_GET['jenis_pengadaan'] ?? '',
-                        'klpd' => $_GET['klpd'] ?? '',
+                        'satuan_kerja' => $_GET['satuan_kerja'] ?? '',  // PERUBAHAN: klpd → satuan_kerja
                         'usaha_kecil' => $_GET['usaha_kecil'] ?? '',
                         'metode' => $_GET['metode'] ?? '',
-                        'perubahan' => $_GET['perubahan'] ?? '',  // TAMBAHAN: Filter Perubahan
+                        'perubahan' => $_GET['perubahan'] ?? '',
                         'search' => $_GET['search'] ?? ''
                     ];
 
@@ -103,10 +103,10 @@ try {
                     // Calculate summary statistics
                     $totalPagu = 0;
                     $jenisPengadaanStats = [];
-                    $klpdStats = [];
+                    $satuanKerjaStats = [];  // PERUBAHAN: klpdStats → satuanKerjaStats
                     $metodeStats = [];
                     $usahaKecilStats = [];
-                    $perubahanStats = [];  // TAMBAHAN: Stats perubahan
+                    $perubahanStats = [];
                     
                     foreach ($allData as $row) {
                         // Calculate total pagu - remove non-numeric characters
@@ -122,13 +122,13 @@ try {
                         $jenisPengadaanStats[$jenis]['count']++;
                         $jenisPengadaanStats[$jenis]['total_pagu'] += $paguValue;
                         
-                        // Count by KLPD
-                        $klpd = $row['KLPD'];
-                        if (!isset($klpdStats[$klpd])) {
-                            $klpdStats[$klpd] = ['count' => 0, 'total_pagu' => 0];
+                        // PERUBAHAN: Count by Satuan Kerja (bukan KLPD)
+                        $satuanKerja = $row['Satuan_Kerja'];
+                        if (!isset($satuanKerjaStats[$satuanKerja])) {
+                            $satuanKerjaStats[$satuanKerja] = ['count' => 0, 'total_pagu' => 0];
                         }
-                        $klpdStats[$klpd]['count']++;
-                        $klpdStats[$klpd]['total_pagu'] += $paguValue;
+                        $satuanKerjaStats[$satuanKerja]['count']++;
+                        $satuanKerjaStats[$satuanKerja]['total_pagu'] += $paguValue;
                         
                         // Count by Metode
                         $metode = $row['Metode'];
@@ -146,7 +146,7 @@ try {
                         $usahaKecilStats[$usahaKecil]['count']++;
                         $usahaKecilStats[$usahaKecil]['total_pagu'] += $paguValue;
                         
-                        // TAMBAHAN: Count by Perubahan
+                        // Count by Perubahan
                         $perubahan = $row['perubahan'] ?? 'Tidak';
                         if (!isset($perubahanStats[$perubahan])) {
                             $perubahanStats[$perubahan] = ['count' => 0, 'total_pagu' => 0];
@@ -159,7 +159,7 @@ try {
                     uasort($jenisPengadaanStats, function($a, $b) {
                         return $b['total_pagu'] - $a['total_pagu'];
                     });
-                    uasort($klpdStats, function($a, $b) {
+                    uasort($satuanKerjaStats, function($a, $b) {
                         return $b['total_pagu'] - $a['total_pagu'];
                     });
                     uasort($metodeStats, function($a, $b) {
@@ -182,20 +182,20 @@ try {
                             'total_paket' => $totalRecords,
                             'total_pagu' => $totalPagu,
                             'avg_pagu' => $avgPagu,
-                            'total_klpd' => count($klpdStats)
+                            'total_satker' => count($satuanKerjaStats)  // PERUBAHAN: total_klpd → total_satker
                         ],
                         'breakdown' => [
                             'jenis_pengadaan' => $jenisPengadaanStats,
-                            'klpd' => $klpdStats,
+                            'satuan_kerja' => $satuanKerjaStats,  // PERUBAHAN: klpd → satuan_kerja
                             'metode' => $metodeStats,
                             'usaha_kecil' => $usahaKecilStats,
-                            'perubahan' => $perubahanStats  // TAMBAHAN: Breakdown perubahan
+                            'perubahan' => $perubahanStats
                         ],
                         'filters_applied' => $filters,
                         'period_info' => [
                             'bulan' => $filters['bulan'] ?? null,
                             'tahun' => $filters['tahun'] ?? null,
-                            'perubahan' => $filters['perubahan'] ?? null,  // TAMBAHAN
+                            'perubahan' => $filters['perubahan'] ?? null,
                             'bulan_nama' => isset($filters['bulan']) ? [
                                 '01' => 'Januari', '02' => 'Februari', '03' => 'Maret',
                                 '04' => 'April', '05' => 'Mei', '06' => 'Juni',
@@ -209,10 +209,10 @@ try {
                 case 'options':
                     // Get dropdown options
                     $jenisPengadaan = $pengadaan->getDistinctValues('Jenis_Pengadaan');
-                    $klpd = $pengadaan->getDistinctValues('KLPD');
+                    $satuanKerja = $pengadaan->getAvailableSatuanKerja();  // PERUBAHAN: Gunakan method baru
                     $usahaKecil = $pengadaan->getDistinctValues('Usaha_Kecil');
                     $metode = $pengadaan->getDistinctValues('Metode');
-                    $perubahan = $pengadaan->getDistinctValues('perubahan');  // TAMBAHAN
+                    $perubahan = $pengadaan->getDistinctValues('perubahan');
                     $years = $pengadaan->getAvailableYears();
                     
                     $tahunFilter = $_GET['tahun'] ?? null;
@@ -222,10 +222,10 @@ try {
                         'success' => true,
                         'options' => [
                             'jenis_pengadaan' => $jenisPengadaan,
-                            'klpd' => $klpd,
+                            'satuan_kerja' => $satuanKerja,  // PERUBAHAN: klpd → satuan_kerja
                             'usaha_kecil' => $usahaKecil,
                             'metode' => $metode,
-                            'perubahan' => $perubahan,  // TAMBAHAN
+                            'perubahan' => $perubahan,
                             'years' => $years,
                             'months' => $months
                         ]
@@ -236,7 +236,7 @@ try {
                     $filters = [
                         'bulan' => $_GET['bulan'] ?? '',
                         'tahun' => $_GET['tahun'] ?? '',
-                        'perubahan' => $_GET['perubahan'] ?? ''  // TAMBAHAN
+                        'perubahan' => $_GET['perubahan'] ?? ''
                     ];
                     $filters = array_filter($filters);
 
@@ -283,9 +283,9 @@ try {
                         'tanggal_awal' => $_GET['tanggal_awal'] ?? '',
                         'tanggal_akhir' => $_GET['tanggal_akhir'] ?? '',
                         'jenis_pengadaan' => $_GET['jenis_pengadaan'] ?? '',
-                        'klpd' => $_GET['klpd'] ?? '',
+                        'satuan_kerja' => $_GET['satuan_kerja'] ?? '',  // PERUBAHAN: klpd → satuan_kerja
                         'metode' => $_GET['metode'] ?? '',
-                        'perubahan' => $_GET['perubahan'] ?? '',  // TAMBAHAN
+                        'perubahan' => $_GET['perubahan'] ?? '',
                         'search' => $_GET['search'] ?? ''
                     ];
                     $filters = array_filter($filters);
@@ -304,7 +304,7 @@ try {
                             ];
                             $fileName .= '_' . $namaBulan[$filters['bulan']] . '_' . $filters['tahun'];
                         }
-                        // TAMBAHAN: Tambahkan status perubahan di nama file
+                        // Tambahkan status perubahan di nama file
                         if (!empty($filters['perubahan'])) {
                             $fileName .= '_' . strtolower($filters['perubahan']);
                         }
@@ -315,19 +315,18 @@ try {
                         $output = fopen('php://output', 'w');
                         fprintf($output, chr(0xEF) . chr(0xBB) . chr(0xBF));
 
-                        // Headers - TAMBAHAN: Kolom Perubahan
+                        // Headers
                         fputcsv($output, [
                             'No',
                             'Paket',
                             'Pagu (Rp)',
                             'Jenis Pengadaan',
-                            'Perubahan',  // TAMBAHAN
+                            'Perubahan',
                             'Produk Dalam Negeri',
                             'Usaha Kecil',
                             'Metode',
                             'Pemilihan',
-                            'KLPD',
-                            'Satuan Kerja',
+                            'Satuan Kerja',  // PERUBAHAN: Hanya Satuan Kerja (KLPD dihapus)
                             'Lokasi',
                             'ID'
                         ]);
@@ -339,13 +338,12 @@ try {
                                 $row['Paket'],
                                 $row['Pagu_Rp'],
                                 $row['Jenis_Pengadaan'],
-                                $row['perubahan'] ?? 'Tidak',  // TAMBAHAN
+                                $row['perubahan'] ?? 'Tidak',
                                 $row['Produk_Dalam_Negeri'],
                                 $row['Usaha_Kecil'],
                                 $row['Metode'],
                                 $row['Pemilihan'],
-                                $row['KLPD'],
-                                $row['Satuan_Kerja'],
+                                $row['Satuan_Kerja'],  // PERUBAHAN: KLPD dihapus
                                 $row['Lokasi'],
                                 $row['ID']
                             ]);
