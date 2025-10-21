@@ -1,308 +1,468 @@
 <?php
-/**
- * Pengadaan Model
- * models/PengadaanModel.php
- */
+// =================================================================
+// == EpurchasingModel.php (MODEL) - FIXED FILTER BULAN & TAHUN ===
+// =================================================================
 
+class EpurchasingModel
+{
+    private $conn;
+    private $table = 'realisasi_epurchasing';
 
-
-class RealisasiEpurchasingModel {
-    private $pdo;
-    
-    public function __construct(PDO $pdo) {
-        $this->pdo = $pdo;
+    public function __construct($db)
+    {
+        $this->conn = $db;
     }
-    
-    /**
-     * Get paginated data with filters
-     * @param array $filters
-     * @param int $page
-     * @param int $limit
-     * @return array
-     */
-    public function getPaginatedData($filters = [], $page = 1, $limit = 20) {
-        try {
-            $offset = ($page - 1) * $limit;
-            
-            // Build WHERE clause
-            $whereClause = $this->buildWhereClause($filters);
-            $params = $this->buildParams($filters);
-            
-            // Count total records
-            $countSql = "SELECT COUNT(*) as total FROM realisasi_epurchasing" . $whereClause;
-            $countStmt = $this->pdo->prepare($countSql);
-            $countStmt->execute($params);
-            $totalRecords = $countStmt->fetch()['total'];
-            
-            // Get data
-            $dataSql = "SELECT * FROM realisasi_epurchasing" . $whereClause . " ORDER BY id DESC LIMIT :limit OFFSET :offset";
-            $dataStmt = $this->pdo->prepare($dataSql);
-            
-            // Bind filter params
-            foreach ($params as $key => $value) {
-                $dataStmt->bindValue($key, $value);
+
+    // Helper: Convert kode bulan ke nama
+    private function getBulanNama($bulanAngka) {
+        $mapping = [
+            '01' => 'Januari', '02' => 'Februari', '03' => 'Maret', 
+            '04' => 'April', '05' => 'Mei', '06' => 'Juni',
+            '07' => 'Juli', '08' => 'Agustus', '09' => 'September', 
+            '10' => 'Oktober', '11' => 'November', '12' => 'Desember'
+        ];
+        return $mapping[$bulanAngka] ?? null;
+    }
+
+    // Build WHERE clause dengan filter bulan & tahun
+    private function buildWhereClause($filters)
+    {
+        $whereClause = " WHERE 1=1";
+        $params = [];
+
+        // Filter bulan dan tahun - AMBIL DARI KOLOM bulan dan tahun DI TABEL
+        if (!empty($filters['bulan']) && !empty($filters['tahun'])) {
+            $bulanNama = $this->getBulanNama($filters['bulan']);
+            if ($bulanNama) {
+                $whereClause .= " AND bulan = :bulan AND tahun = :tahun";
+                $params[':bulan'] = $bulanNama;
+                $params[':tahun'] = (int)$filters['tahun'];
             }
-            // Bind pagination params
-            $dataStmt->bindValue(':limit', $limit, PDO::PARAM_INT);
-            $dataStmt->bindValue(':offset', $offset, PDO::PARAM_INT);
-            
-            $dataStmt->execute();
-            $data = $dataStmt->fetchAll();
-            
-            $totalPages = ceil($totalRecords / $limit);
-            
+        } elseif (!empty($filters['tahun'])) {
+            // Jika hanya tahun yang diisi
+            $whereClause .= " AND tahun = :tahun";
+            $params[':tahun'] = (int)$filters['tahun'];
+        } elseif (!empty($filters['bulan'])) {
+            // Jika hanya bulan yang diisi
+            $bulanNama = $this->getBulanNama($filters['bulan']);
+            if ($bulanNama) {
+                $whereClause .= " AND bulan = :bulan";
+                $params[':bulan'] = $bulanNama;
+            }
+        }
+
+        // Filter Tahun Anggaran (kolom terpisah)
+        if (!empty($filters['tahun_anggaran'])) {
+            $whereClause .= " AND tahun_anggaran = :tahun_anggaran";
+            $params[':tahun_anggaran'] = $filters['tahun_anggaran'];
+        }
+
+        // Filter Kode Anggaran
+        if (!empty($filters['kode_anggaran'])) {
+            $whereClause .= " AND kode_anggaran = :kode_anggaran";
+            $params[':kode_anggaran'] = $filters['kode_anggaran'];
+        }
+
+        // Filter Kode Produk
+        if (!empty($filters['kd_produk'])) {
+            $whereClause .= " AND kd_produk LIKE :kd_produk";
+            $params[':kd_produk'] = "%" . $filters['kd_produk'] . "%";
+        }
+
+        // Filter Kode Penyedia
+        if (!empty($filters['kd_penyedia'])) {
+            $whereClause .= " AND kd_penyedia LIKE :kd_penyedia";
+            $params[':kd_penyedia'] = "%" . $filters['kd_penyedia'] . "%";
+        }
+
+        // Filter Status Paket
+        if (!empty($filters['status_paket'])) {
+            $whereClause .= " AND status_paket = :status_paket";
+            $params[':status_paket'] = $filters['status_paket'];
+        }
+
+        // Search: No Paket, Nama Paket, Kode Produk, Penyedia
+        if (!empty($filters['search'])) {
+            $whereClause .= " AND (no_paket LIKE :search OR nama_paket LIKE :search OR kd_produk LIKE :search OR kd_penyedia LIKE :search)";
+            $params[':search'] = "%" . $filters['search'] . "%";
+        }
+        
+        return [$whereClause, $params];
+    }
+
+    // Get data paket dengan pagination dan filter
+    public function getPaketData($filters = [], $limit = 50, $offset = 0)
+    {
+        list($whereClause, $params) = $this->buildWhereClause($filters);
+        
+        $sql = "SELECT 
+                    no,
+                    kd_paket,
+                    no_paket,
+                    nama_paket,
+                    tahun_anggaran,
+                    kode_anggaran,
+                    kd_produk,
+                    kd_penyedia,
+                    kuantitas,
+                    harga_satuan,
+                    ongkos_kirim,
+                    total_harga,
+                    tanggal_buat_paket,
+                    tanggal_edit_paket,
+                    status_paket,
+                    tahun,
+                    bulan
+                FROM " . $this->table . $whereClause . " ORDER BY no ASC LIMIT :limit OFFSET :offset";
+
+        $stmt = $this->conn->prepare($sql);
+        
+        foreach ($params as $key => $value) { 
+            $stmt->bindValue($key, $value); 
+        }
+        
+        $stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', (int)$offset, PDO::PARAM_INT);
+        $stmt->execute();
+        
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    // Get total count
+    public function getTotalCount($filters = [])
+    {
+        list($whereClause, $params) = $this->buildWhereClause($filters);
+        
+        $sql = "SELECT COUNT(no) as total FROM " . $this->table . $whereClause;
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute($params);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row['total'] ?? 0;
+    }
+
+    // Get summary data
+    public function getSummaryData($filters = [])
+    {
+        list($whereClause, $params) = $this->buildWhereClause($filters);
+        
+        $sql = "SELECT 
+                    COUNT(*) as total_paket,
+                    SUM((kuantitas * harga_satuan) + COALESCE(ongkos_kirim, 0)) as total_nilai,
+                    SUM(kuantitas) as total_kuantitas
+                FROM " . $this->table . $whereClause;
+
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute($params);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        return [
+            'total_paket' => (int)($result['total_paket'] ?? 0),
+            'total_nilai' => (float)($result['total_nilai'] ?? 0),
+            'total_kuantitas' => (float)($result['total_kuantitas'] ?? 0)
+        ];
+    }
+
+    // Get all data for summary breakdown
+    public function getAllDataForSummary($filters = [])
+    {
+        list($whereClause, $params) = $this->buildWhereClause($filters);
+        
+        $sql = "SELECT 
+                    tahun_anggaran,
+                    kode_anggaran,
+                    kd_produk,
+                    kd_penyedia,
+                    status_paket,
+                    kuantitas,
+                    harga_satuan,
+                    ongkos_kirim
+                FROM " . $this->table . $whereClause;
+        
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    // Get paket detail
+    public function getPaketDetail($kd_paket)
+    {
+        $sql = "SELECT * FROM {$this->table} WHERE kd_paket = :kd_paket";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindParam(':kd_paket', $kd_paket);
+        $stmt->execute();
+
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    // Create paket
+    public function createPaket($data)
+    {
+        // Hitung total
+        $kuantitas = floatval($data['kuantitas']);
+        $harga_satuan = floatval($data['harga_satuan']);
+        $ongkos_kirim = isset($data['ongkos_kirim']) ? floatval($data['ongkos_kirim']) : 0;
+        $total_harga = ($kuantitas * $harga_satuan) + $ongkos_kirim;
+
+        $sql = "INSERT INTO {$this->table} (
+                    no_paket, nama_paket, tahun_anggaran, kode_anggaran,
+                    kd_produk, kd_penyedia, kuantitas, harga_satuan,
+                    ongkos_kirim, total_harga, tanggal_buat_paket, status_paket
+                ) VALUES (
+                    :no_paket, :nama_paket, :tahun_anggaran, :kode_anggaran,
+                    :kd_produk, :kd_penyedia, :kuantitas, :harga_satuan,
+                    :ongkos_kirim, :total_harga, NOW(), :status_paket
+                )";
+
+        $stmt = $this->conn->prepare($sql);
+
+        try {
+            $stmt->execute([
+                ':no_paket' => $data['no_paket'],
+                ':nama_paket' => $data['nama_paket'],
+                ':tahun_anggaran' => $data['tahun_anggaran'],
+                ':kode_anggaran' => $data['kode_anggaran'] ?? null,
+                ':kd_produk' => $data['kd_produk'],
+                ':kd_penyedia' => $data['kd_penyedia'] ?? null,
+                ':kuantitas' => $kuantitas,
+                ':harga_satuan' => $harga_satuan,
+                ':ongkos_kirim' => $ongkos_kirim,
+                ':total_harga' => $total_harga,
+                ':status_paket' => $data['status_paket'] ?? 'pending'
+            ]);
+
             return [
-                'data' => $data,
-                'pagination' => [
-                    'current_page' => $page,
-                    'total_pages' => $totalPages,
-                    'total_records' => $totalRecords,
-                    'limit' => $limit,
-                    'has_next' => $page < $totalPages,
-                    'has_prev' => $page > 1
-                ]
+                'success' => true,
+                'message' => 'Paket berhasil ditambahkan',
+                'kd_paket' => $this->conn->lastInsertId(),
+                'total_keseluruhan' => $total_harga
             ];
-            
-        } catch (Exception $e) {
-            error_log("Error in getPaginatedData: " . $e->getMessage());
-            throw $e;
+        } catch (PDOException $e) {
+            return [
+                'success' => false,
+                'message' => 'Gagal menambahkan paket: ' . $e->getMessage()
+            ];
         }
     }
-    
-    /**
-     * Get summary statistics
-     * @param array $filters
-     * @return array
-     */
-    public function getSummary($filters = []) {
+
+    // Update paket
+    public function updatePaket($kd_paket, $data)
+    {
+        // Hitung ulang total
+        $kuantitas = floatval($data['kuantitas']);
+        $harga_satuan = floatval($data['harga_satuan']);
+        $ongkos_kirim = isset($data['ongkos_kirim']) ? floatval($data['ongkos_kirim']) : 0;
+        $total_harga = ($kuantitas * $harga_satuan) + $ongkos_kirim;
+
+        $sql = "UPDATE {$this->table} SET
+                    no_paket = :no_paket,
+                    nama_paket = :nama_paket,
+                    tahun_anggaran = :tahun_anggaran,
+                    kode_anggaran = :kode_anggaran,
+                    kd_produk = :kd_produk,
+                    kd_penyedia = :kd_penyedia,
+                    kuantitas = :kuantitas,
+                    harga_satuan = :harga_satuan,
+                    ongkos_kirim = :ongkos_kirim,
+                    total_harga = :total_harga,
+                    tanggal_edit_paket = NOW(),
+                    status_paket = :status_paket
+                WHERE kd_paket = :kd_paket";
+
+        $stmt = $this->conn->prepare($sql);
+
         try {
-            $whereClause = $this->buildWhereClause($filters);
-            $params = $this->buildParams($filters);
-            
-            $sql = "SELECT 
-                        COUNT(*) as total_pengadaan,
-                        SUM(nilai_pengadaan) as total_nilai,
-                        AVG(nilai_pengadaan) as rata_rata_nilai
-                    FROM realisasi_epurchasing" . $whereClause;
-            
-            $stmt = $this->pdo->prepare($sql);
-            $stmt->execute($params);
-            
-            return $stmt->fetch();
-            
-        } catch (Exception $e) {
-            error_log("Error in getSummary: " . $e->getMessage());
-            throw $e;
+            $stmt->execute([
+                ':no_paket' => $data['no_paket'],
+                ':nama_paket' => $data['nama_paket'],
+                ':tahun_anggaran' => $data['tahun_anggaran'],
+                ':kode_anggaran' => $data['kode_anggaran'] ?? null,
+                ':kd_produk' => $data['kd_produk'],
+                ':kd_penyedia' => $data['kd_penyedia'] ?? null,
+                ':kuantitas' => $kuantitas,
+                ':harga_satuan' => $harga_satuan,
+                ':ongkos_kirim' => $ongkos_kirim,
+                ':total_harga' => $total_harga,
+                ':status_paket' => $data['status_paket'] ?? 'pending',
+                ':kd_paket' => $kd_paket
+            ]);
+
+            return [
+                'success' => true,
+                'message' => 'Paket berhasil diupdate',
+                'total_keseluruhan' => $total_harga
+            ];
+        } catch (PDOException $e) {
+            return [
+                'success' => false,
+                'message' => 'Gagal mengupdate paket: ' . $e->getMessage()
+            ];
         }
     }
-    
-    /**
-     * Get filter options
-     * @return array
-     */
-    public function getFilterOptions() {
+
+    // Delete paket
+    public function deletePaket($kd_paket)
+    {
+        $sql = "DELETE FROM {$this->table} WHERE kd_paket = :kd_paket";
+        $stmt = $this->conn->prepare($sql);
+
         try {
-            $options = [];
-            
-            // Get unique years
-            $yearStmt = $this->pdo->query("SELECT DISTINCT YEAR(tanggal_pengadaan) as tahun FROM realisasi_epurchasing ORDER BY tahun DESC");
-            $options['tahun'] = $yearStmt->fetchAll(PDO::FETCH_COLUMN);
-            
-            // Get unique instansi
-            $instansiStmt = $this->pdo->query("SELECT DISTINCT instansi FROM realisasi_epurchasing WHERE instansi IS NOT NULL ORDER BY instansi");
-            $options['instansi'] = $instansiStmt->fetchAll(PDO::FETCH_COLUMN);
-            
-            // Get unique status
-            $statusStmt = $this->pdo->query("SELECT DISTINCT status FROM realisasi_epurchasing WHERE status IS NOT NULL ORDER BY status");
-            $options['status'] = $statusStmt->fetchAll(PDO::FETCH_COLUMN);
-            
-            return $options;
-            
-        } catch (Exception $e) {
-            error_log("Error in getFilterOptions: " . $e->getMessage());
-            throw $e;
+            $stmt->execute([':kd_paket' => $kd_paket]);
+
+            return [
+                'success' => true,
+                'message' => 'Paket berhasil dihapus'
+            ];
+        } catch (PDOException $e) {
+            return [
+                'success' => false,
+                'message' => 'Gagal menghapus paket: ' . $e->getMessage()
+            ];
         }
     }
-    
-    /**
-     * Search data
-     * @param string $keyword
-     * @param int $limit
-     * @return array
-     */
-    public function search($keyword, $limit = 20) {
-        try {
-            $sql = "SELECT * FROM realisasi_epurchasing 
-                    WHERE nama_pengadaan LIKE :keyword 
-                    OR instansi LIKE :keyword 
-                    OR deskripsi LIKE :keyword
-                    ORDER BY id DESC 
-                    LIMIT :limit";
-            
-            $stmt = $this->pdo->prepare($sql);
-            $stmt->bindValue(':keyword', '%' . $keyword . '%');
-            $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
-            $stmt->execute();
-            
-            return $stmt->fetchAll();
-            
-        } catch (Exception $e) {
-            error_log("Error in search: " . $e->getMessage());
-            throw $e;
-        }
-    }
-    
-    /**
-     * Get data by ID
-     * @param int $id
-     * @return array|false
-     */
-    public function getById($id) {
-        try {
-            $stmt = $this->pdo->prepare("SELECT * FROM realisasi_epurchasing WHERE id = :id");
-            $stmt->bindValue(':id', $id, PDO::PARAM_INT);
-            $stmt->execute();
-            
-            return $stmt->fetch();
-            
-        } catch (Exception $e) {
-            error_log("Error in getById: " . $e->getMessage());
-            throw $e;
-        }
-    }
-    
-    /**
-     * Get export data
-     * @param array $filters
-     * @return array
-     */
-    public function getExportData($filters = []) {
-        try {
-            $whereClause = $this->buildWhereClause($filters);
-            $params = $this->buildParams($filters);
-            
-            $sql = "SELECT * FROM realisasi_epurchasing" . $whereClause . " ORDER BY id DESC";
-            $stmt = $this->pdo->prepare($sql);
-            $stmt->execute($params);
-            
-            return $stmt->fetchAll();
-            
-        } catch (Exception $e) {
-            error_log("Error in getExportData: " . $e->getMessage());
-            throw $e;
-        }
-    }
-    
-    /**
-     * Get time statistics
-     * @param string $period
-     * @param array $filters
-     * @return array
-     */
-    public function getTimeStatistics($period, $filters = []) {
-        try {
-            $whereClause = $this->buildWhereClause($filters);
-            $params = $this->buildParams($filters);
-            
-            $dateFormat = $period === 'month' ? '%Y-%m' : '%Y';
-            
-            $sql = "SELECT 
-                        DATE_FORMAT(tanggal_pengadaan, '$dateFormat') as periode,
-                        COUNT(*) as jumlah,
-                        SUM(nilai_pengadaan) as total_nilai
-                    FROM realisasi_epurchasing" . $whereClause . "
-                    GROUP BY periode
-                    ORDER BY periode DESC";
-            
-            $stmt = $this->pdo->prepare($sql);
-            $stmt->execute($params);
-            
-            return $stmt->fetchAll();
-            
-        } catch (Exception $e) {
-            error_log("Error in getTimeStatistics: " . $e->getMessage());
-            throw $e;
-        }
-    }
-    
-    /**
-     * Get top packages
-     * @param int $limit
-     * @param array $filters
-     * @return array
-     */
-    public function getTopPackages($limit, $filters = []) {
-        try {
-            $whereClause = $this->buildWhereClause($filters);
-            $params = $this->buildParams($filters);
-            
-            $sql = "SELECT nama_pengadaan, nilai_pengadaan, instansi
-                    FROM realisasi_epurchasing" . $whereClause . "
-                    ORDER BY nilai_pengadaan DESC
-                    LIMIT :limit";
-            
-            $stmt = $this->pdo->prepare($sql);
-            
-            // Bind filter params
-            foreach ($params as $key => $value) {
-                $stmt->bindValue($key, $value);
-            }
-            $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
-            
-            $stmt->execute();
-            
-            return $stmt->fetchAll();
-            
-        } catch (Exception $e) {
-            error_log("Error in getTopPackages: " . $e->getMessage());
-            throw $e;
-        }
-    }
-    
-    /**
-     * Build WHERE clause from filters
-     * @param array $filters
-     * @return string
-     */
-    private function buildWhereClause($filters) {
-        $conditions = [];
+
+    // Get distinct values untuk dropdown
+    public function getDistinctValues($column)
+    {
+        $allowedColumns = ['kode_anggaran', 'kd_produk', 'kd_penyedia', 'status_paket', 'tahun_anggaran'];
+        if (!in_array($column, $allowedColumns)) return [];
         
-        if (!empty($filters['tahun'])) {
-            $conditions[] = "YEAR(tanggal_pengadaan) = :tahun";
-        }
-        
-        if (!empty($filters['instansi'])) {
-            $conditions[] = "instansi = :instansi";
-        }
-        
-        if (!empty($filters['status'])) {
-            $conditions[] = "status = :status";
-        }
-        
-        return empty($conditions) ? '' : ' WHERE ' . implode(' AND ', $conditions);
+        $sql = "SELECT DISTINCT $column FROM " . $this->table . " WHERE $column IS NOT NULL AND $column != '' ORDER BY $column ASC";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_COLUMN);
     }
-    
-    /**
-     * Build parameters from filters
-     * @param array $filters
-     * @return array
-     */
-    private function buildParams($filters) {
+
+    // Get available years - AMBIL DARI KOLOM tahun
+    public function getAvailableYears()
+    {
+        $sql = "SELECT DISTINCT tahun FROM " . $this->table . " WHERE tahun IS NOT NULL ORDER BY tahun DESC";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_COLUMN);
+    }
+
+    // Get available months - AMBIL DARI KOLOM bulan (dengan filter tahun opsional)
+    public function getAvailableMonths($tahun = null)
+    {
+        $sql = "SELECT DISTINCT bulan FROM " . $this->table . " WHERE bulan IS NOT NULL";
         $params = [];
         
-        if (!empty($filters['tahun'])) {
-            $params[':tahun'] = $filters['tahun'];
+        if (!empty($tahun)) {
+            $sql .= " AND tahun = :tahun";
+            $params[':tahun'] = (int)$tahun;
         }
         
-        if (!empty($filters['instansi'])) {
-            $params[':instansi'] = $filters['instansi'];
-        }
+        $sql .= " ORDER BY FIELD(bulan, 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember')";
         
-        if (!empty($filters['status'])) {
-            $params[':status'] = $filters['status'];
-        }
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll(PDO::FETCH_COLUMN);
+    }
+
+    // Get monthly summary untuk chart - DARI KOLOM bulan dan tahun
+    public function getMonthlySummary($tahun)
+    {
+        $sql = "SELECT 
+                    bulan, 
+                    COUNT(no) as total_paket, 
+                    SUM((kuantitas * harga_satuan) + COALESCE(ongkos_kirim, 0)) as total_nilai,
+                    SUM(kuantitas) as total_kuantitas
+                FROM " . $this->table . " 
+                WHERE tahun = :tahun 
+                GROUP BY bulan 
+                ORDER BY FIELD(bulan, 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember')";
         
-        return $params;
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindValue(':tahun', (int)$tahun, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    // Get summary by kategori (untuk breakdown di view)
+    public function getSummaryByKodeAnggaran($filters = [])
+    {
+        list($whereClause, $params) = $this->buildWhereClause($filters);
+        
+        $sql = "SELECT 
+                    kode_anggaran, 
+                    COUNT(no) as total_paket, 
+                    SUM((kuantitas * harga_satuan) + COALESCE(ongkos_kirim, 0)) as total_nilai,
+                    SUM(kuantitas) as total_kuantitas
+                FROM " . $this->table . $whereClause . " 
+                GROUP BY kode_anggaran 
+                ORDER BY total_nilai DESC";
+        
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function getSummaryByProduk($filters = [])
+    {
+        list($whereClause, $params) = $this->buildWhereClause($filters);
+        
+        $sql = "SELECT 
+                    kd_produk, 
+                    COUNT(no) as total_paket, 
+                    SUM((kuantitas * harga_satuan) + COALESCE(ongkos_kirim, 0)) as total_nilai,
+                    SUM(kuantitas) as total_kuantitas
+                FROM " . $this->table . $whereClause . " 
+                GROUP BY kd_produk 
+                ORDER BY total_nilai DESC";
+        
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function getSummaryByPenyedia($filters = [])
+    {
+        list($whereClause, $params) = $this->buildWhereClause($filters);
+        
+        $sql = "SELECT 
+                    kd_penyedia, 
+                    COUNT(no) as total_paket, 
+                    SUM((kuantitas * harga_satuan) + COALESCE(ongkos_kirim, 0)) as total_nilai,
+                    SUM(kuantitas) as total_kuantitas
+                FROM " . $this->table . $whereClause . " 
+                GROUP BY kd_penyedia 
+                ORDER BY total_nilai DESC";
+        
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function getSummaryByStatus($filters = [])
+    {
+        list($whereClause, $params) = $this->buildWhereClause($filters);
+        
+        $sql = "SELECT 
+                    status_paket, 
+                    COUNT(no) as total_paket, 
+                    SUM((kuantitas * harga_satuan) + COALESCE(ongkos_kirim, 0)) as total_nilai,
+                    SUM(kuantitas) as total_kuantitas
+                FROM " . $this->table . $whereClause . " 
+                GROUP BY status_paket 
+                ORDER BY total_nilai DESC";
+        
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    // Get data by month - DARI KOLOM bulan dan tahun
+    public function readByMonth($month, $year)
+    {
+        $bulanNama = $this->getBulanNama($month);
+        if (!$bulanNama) return false;
+        
+        $query = "SELECT * FROM " . $this->table . " WHERE bulan = :bulan AND tahun = :tahun";
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':bulan', $bulanNama);
+        $stmt->bindParam(':tahun', $year);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 }
 ?>
