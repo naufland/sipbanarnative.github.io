@@ -1212,119 +1212,6 @@ include '../navbar/header.php';
         </form>
     </div>
 
-    <!-- GRAFIK SECTION - PERENCANAAN -->
-    <div style="margin-bottom: 20px; padding: 15px; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border-radius: 12px; text-align: center; font-weight: bold; font-size: 16px;">
-        <i class="fas fa-tasks"></i> GRAFIK PERENCANAAN PENGADAAN
-    </div>
-    <div class="charts-section">
-        <div class="chart-card">
-            <div class="chart-card-header">
-                REKAP BERDASARKAN CARA PENGADAAN
-                <button class="chart-fullscreen-btn" onclick="openFullscreen('chartCara', 'REKAP BERDASARKAN CARA PENGADAAN')">
-                    <i class="fas fa-expand"></i>
-                </button>
-            </div>
-            <div class="chart-container">
-                <canvas id="chartCara" class="chart-canvas"></canvas>
-            </div>
-        </div>
-
-        <div class="chart-card">
-            <div class="chart-card-header">
-                REKAP BERDASARKAN JENIS PENGADAAN
-                <button class="chart-fullscreen-btn" onclick="openFullscreen('chartJenis', 'REKAP BERDASARKAN JENIS PENGADAAN')">
-                    <i class="fas fa-expand"></i>
-                </button>
-            </div>
-            <div class="chart-container">
-                <canvas id="chartJenis" class="chart-canvas"></canvas>
-            </div>
-        </div>
-
-        <div class="chart-card">
-            <div class="chart-card-header">
-                REKAP BERDASARKAN METODE PENGADAAN
-                <button class="chart-fullscreen-btn" onclick="openFullscreen('chartMetode', 'REKAP BERDASARKAN METODE PENGADAAN')">
-                    <i class="fas fa-expand"></i>
-                </button>
-            </div>
-            <div class="chart-container">
-                <canvas id="chartMetode" class="chart-canvas"></canvas>
-            </div>
-        </div>
-    </div>
-
-    <!-- GRAFIK SECTION - REALISASI -->
-    <div style="margin: 30px 0 20px 0; padding: 15px; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border-radius: 12px; text-align: center; font-weight: bold; font-size: 16px;">
-        <i class="fas fa-check-circle"></i> GRAFIK REALISASI PENGADAAN
-    </div>
-    <div class="charts-section">
-        <div class="chart-card">
-            <div class="chart-card-header" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
-                REALISASI BERDASARKAN CARA PENGADAAN
-                <button class="chart-fullscreen-btn" onclick="openFullscreen('chartRealisasiCara', 'REALISASI BERDASARKAN CARA PENGADAAN')">
-                    <i class="fas fa-expand"></i>
-                </button>
-            </div>
-            <div class="chart-container">
-                <canvas id="chartRealisasiCara" class="chart-canvas"></canvas>
-            </div>
-        </div>
-
-        <div class="chart-card">
-            <div class="chart-card-header" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
-                REALISASI BERDASARKAN METODE PENGADAAN
-                <button class="chart-fullscreen-btn" onclick="openFullscreen('chartRealisasiMetode', 'REALISASI BERDASARKAN METODE PENGADAAN')">
-                    <i class="fas fa-expand"></i>
-                </button>
-            </div>
-            <div class="chart-container">
-                <canvas id="chartRealisasiMetode" class="chart-canvas"></canvas>
-            </div>
-        </div>
-
-        <div class="chart-card">
-            <div class="chart-card-header" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
-                PERBANDINGAN PERENCANAAN DAN REALISASI SWAKELOLA
-                <button class="chart-fullscreen-btn" onclick="openFullscreen('chartSwakelola', 'PERBANDINGAN PERENCANAAN DAN REALISASI SWAKELOLA')">
-                    <i class="fas fa-expand"></i>
-                </button>
-            </div>
-            <div class="chart-container">
-                <canvas id="chartSwakelola" class="chart-canvas"></canvas>
-            </div>
-        </div>
-    </div>
-
-    <!-- GRAFIK PERBANDINGAN PERENCANAAN VS REALISASI -->
-    <div class="chart-card" style="margin-bottom: 30px;">
-        <div class="chart-card-header">
-            <i class="fas fa-chart-bar"></i> REKAP PERENCANAAN DAN REALISASI PBJ BERDASARKAN METODE PENGADAAN
-            <button class="chart-fullscreen-btn" onclick="openFullscreen('chartPerbandingan', 'REKAP PERENCANAAN DAN REALISASI PBJ BERDASARKAN METODE PENGADAAN')">
-                <i class="fas fa-expand"></i>
-            </button>
-        </div>
-        <div class="chart-container" style="padding: 30px;">
-            <canvas id="chartPerbandingan" style="height: 400px; max-height: 400px;"></canvas>
-        </div>
-    </div>
-
-    <!-- Fullscreen Modal -->
-    <div id="chartFullscreenModal" class="chart-fullscreen-modal">
-        <div class="chart-fullscreen-content">
-            <div class="chart-fullscreen-header">
-                <div class="chart-fullscreen-title" id="fullscreenChartTitle"></div>
-                <button class="chart-fullscreen-close" onclick="closeFullscreen()">
-                    <i class="fas fa-times"></i> Tutup
-                </button>
-            </div>
-            <div class="chart-fullscreen-body">
-                <canvas id="fullscreenCanvas"></canvas>
-            </div>
-        </div>
-    </div>
-
-    <!-- PERBANDINGAN PERENCANAAN vs REALISASI -->
     <div class="comparison-section">
         <div class="card">
             <div class="card-header"><i class="fas fa-tasks"></i> PERENCANAAN PENGADAAN</div>
@@ -1444,6 +1331,113 @@ include '../navbar/header.php';
                         Tidak ada data realisasi ditemukan
                     </div>
                 <?php endif; ?>
+            </div>
+        </div>
+    </div>
+    <div style="margin-bottom: 20px; padding: 15px; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border-radius: 12px; text-align: center; font-weight: bold; font-size: 16px;">
+        <i class="fas fa-tasks"></i> GRAFIK PERENCANAAN PENGADAAN
+    </div>
+    <div class="charts-section">
+        <div class="chart-card">
+            <div class="chart-card-header">
+                REKAP BERDASARKAN CARA PENGADAAN
+                <button class="chart-fullscreen-btn" onclick="openFullscreen('chartCara', 'REKAP BERDASARKAN CARA PENGADAAN')">
+                    <i class="fas fa-expand"></i>
+                </button>
+            </div>
+            <div class="chart-container">
+                <canvas id="chartCara" class="chart-canvas"></canvas>
+            </div>
+        </div>
+
+        <div class="chart-card">
+            <div class="chart-card-header">
+                REKAP BERDASARKAN JENIS PENGADAAN
+                <button class="chart-fullscreen-btn" onclick="openFullscreen('chartJenis', 'REKAP BERDASARKAN JENIS PENGADAAN')">
+                    <i class="fas fa-expand"></i>
+                </button>
+            </div>
+            <div class="chart-container">
+                <canvas id="chartJenis" class="chart-canvas"></canvas>
+            </div>
+        </div>
+
+        <div class="chart-card">
+            <div class="chart-card-header">
+                REKAP BERDASARKAN METODE PENGADAAN
+                <button class="chart-fullscreen-btn" onclick="openFullscreen('chartMetode', 'REKAP BERDASARKAN METODE PENGADAAN')">
+                    <i class="fas fa-expand"></i>
+                </button>
+            </div>
+            <div class="chart-container">
+                <canvas id="chartMetode" class="chart-canvas"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div style="margin: 30px 0 20px 0; padding: 15px; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border-radius: 12px; text-align: center; font-weight: bold; font-size: 16px;">
+        <i class="fas fa-check-circle"></i> GRAFIK REALISASI PENGADAAN
+    </div>
+    <div class="charts-section">
+        <div class="chart-card">
+            <div class="chart-card-header" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
+                REALISASI BERDASARKAN CARA PENGADAAN
+                <button class="chart-fullscreen-btn" onclick="openFullscreen('chartRealisasiCara', 'REALISASI BERDASARKAN CARA PENGADAAN')">
+                    <i class="fas fa-expand"></i>
+                </button>
+            </div>
+            <div class="chart-container">
+                <canvas id="chartRealisasiCara" class="chart-canvas"></canvas>
+            </div>
+        </div>
+
+        <div class="chart-card">
+            <div class="chart-card-header" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
+                REALISASI BERDASARKAN METODE PENGADAAN
+                <button class="chart-fullscreen-btn" onclick="openFullscreen('chartRealisasiMetode', 'REALISASI BERDASARKAN METODE PENGADAAN')">
+                    <i class="fas fa-expand"></i>
+                </button>
+            </div>
+            <div class="chart-container">
+                <canvas id="chartRealisasiMetode" class="chart-canvas"></canvas>
+            </div>
+        </div>
+
+        </div>
+
+    <div class="chart-card" style="margin-bottom: 30px;">
+        <div class="chart-card-header">
+            <i class="fas fa-chart-bar"></i> REKAP PERENCANAAN DAN REALISASI PBJ BERDASARKAN METODE PENGADAAN
+            <button class="chart-fullscreen-btn" onclick="openFullscreen('chartPerbandingan', 'REKAP PERENCANAAN DAN REALISASI PBJ BERDASARKAN METODE PENGADAAN')">
+                <i class="fas fa-expand"></i>
+            </button>
+        </div>
+        <div class="chart-container" style="padding: 30px;">
+            <canvas id="chartPerbandingan" style="height: 400px; max-height: 400px;"></canvas>
+        </div>
+    </div>
+
+    <div class="chart-card" style="margin-bottom: 30px;">
+        <div class="chart-card-header" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
+            PERBANDINGAN PERENCANAAN DAN REALISASI SWAKELOLA
+            <button class="chart-fullscreen-btn" onclick="openFullscreen('chartSwakelola', 'PERBANDINGAN PERENCANAAN DAN REALISASI SWAKELOLA')">
+                <i class="fas fa-expand"></i>
+            </button>
+        </div>
+        <div class="chart-container">
+            <canvas id="chartSwakelola" class="chart-canvas"></canvas>
+        </div>
+    </div>
+    <div id="chartFullscreenModal" class="chart-fullscreen-modal">
+        <div class="chart-fullscreen-content">
+            <div class="chart-fullscreen-header">
+                <div class="chart-fullscreen-title" id="fullscreenChartTitle"></div>
+                <button class="chart-fullscreen-close" onclick="closeFullscreen()">
+                    <i class="fas fa-times"></i> Tutup
+                </button>
+            </div>
+            <div class="chart-fullscreen-body">
+                <canvas id="fullscreenCanvas"></canvas>
             </div>
         </div>
     </div>
@@ -2173,7 +2167,7 @@ const chartInstances = {
     'chartMetode': chartMetode,
     'chartRealisasiCara': chartRealisasiCara,
     'chartRealisasiMetode': chartRealisasiMetode,
-    'chartEfisiensi': chartEfisiensi,
+    'chartSwakelola': chartSwakelola, // Pastikan chartSwakelola ditambahkan di sini
     'chartPerbandingan': chartPerbandingan
 };
 
@@ -2186,7 +2180,15 @@ function openFullscreen(chartId, title) {
     modal.classList.add('active');
     document.body.style.overflow = 'hidden';
     
-    const originalChart = chartInstances[chartId];
+    // Perbaikan: Ganti 'chartEfisiensi' dengan 'chartSwakelola' di list chartInstances
+    // Cek chartInstances di atas, 'chartEfisiensi' tidak ada, tapi 'chartSwakelola' ada
+    const originalChart = chartInstances[chartId]; 
+    
+    if (!originalChart) {
+        console.error("Chart instance not found: ", chartId);
+        closeFullscreen();
+        return;
+    }
     
     if (fullscreenChart) {
         fullscreenChart.destroy();
@@ -2209,7 +2211,9 @@ function openFullscreen(chartId, title) {
                             size: 16,
                             weight: 'bold'
                         },
-                        padding: 20
+                        padding: 20,
+                        // Tambahkan generateLabels jika ada (untuk pie/doughnut)
+                        generateLabels: originalChart.config.options.plugins?.legend?.labels?.generateLabels
                     }
                 },
                 tooltip: {
