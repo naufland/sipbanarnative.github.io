@@ -4,10 +4,10 @@
 // =================================================================
 
 // 1. URL API untuk Non-Tender
-$apiBaseUrl = "http://sipbanar-phpnative.id/api/realisasi_nontender.php";
+$apiBaseUrl = "http://sipbanarnative.id/api/realisasi_nontender.php";
 
 // 2. Dapatkan parameter dari URL, termasuk halaman saat ini
-$currentPage = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$currentPage = isset($_GET['page']) ? (int) $_GET['page'] : 1;
 $limit = $_GET['limit'] ?? 50;
 
 // BARU: Dapatkan filter bulan dan tahun
@@ -95,10 +95,18 @@ $page_title = "Data Realisasi Non-Tender - SIP BANAR";
 
 // Array nama bulan untuk tampilan
 $namaBulan = [
-    '01' => 'Januari', '02' => 'Februari', '03' => 'Maret',
-    '04' => 'April', '05' => 'Mei', '06' => 'Juni',
-    '07' => 'Juli', '08' => 'Agustus', '09' => 'September',
-    '10' => 'Oktober', '11' => 'November', '12' => 'Desember'
+    '01' => 'Januari',
+    '02' => 'Februari',
+    '03' => 'Maret',
+    '04' => 'April',
+    '05' => 'Mei',
+    '06' => 'Juni',
+    '07' => 'Juli',
+    '08' => 'Agustus',
+    '09' => 'September',
+    '10' => 'Oktober',
+    '11' => 'November',
+    '12' => 'Desember'
 ];
 
 // Include header
@@ -140,6 +148,14 @@ include '../../navbar/header.php';
         align-items: center;
         gap: 12px;
         position: relative;
+        border-top-left-radius: 15px;
+        /* ← Sudut kiri atas melengkung */
+        border-top-right-radius: 15px;
+        /* ← Sudut kanan atas melengkung */
+        clip-path: none !important;
+        /* ← Hilangkan potongan lancip */
+        overflow: hidden;
+        /* ← Pastikan warna tidak keluar radius */
     }
 
     .filter-header::after,
@@ -634,12 +650,14 @@ include '../../navbar/header.php';
         .filter-row:nth-child(1) {
             grid-template-columns: 1fr 1fr;
         }
+
         .filter-row:nth-child(2) {
             grid-template-columns: 1fr 1fr;
         }
     }
 
     @media (max-width: 992px) {
+
         .filter-row:nth-child(1),
         .filter-row:nth-child(2) {
             grid-template-columns: 1fr;
@@ -695,6 +713,7 @@ include '../../navbar/header.php';
             opacity: 0;
             transform: translateY(30px);
         }
+
         to {
             opacity: 1;
             transform: translateY(0);
@@ -788,7 +807,8 @@ include '../../navbar/header.php';
                                     </option>
                                 <?php endforeach; ?>
                             <?php else: ?>
-                                <option value="Barang" <?= ($_GET['jenis_pengadaan'] ?? '') == 'Barang' ? 'selected' : '' ?>>Barang</option>
+                                <option value="Barang" <?= ($_GET['jenis_pengadaan'] ?? '') == 'Barang' ? 'selected' : '' ?>>
+                                    Barang</option>
                                 <option value="Pekerjaan Konstruksi" <?= ($_GET['jenis_pengadaan'] ?? '') == 'Pekerjaan Konstruksi' ? 'selected' : '' ?>>Pekerjaan Konstruksi</option>
                                 <option value="Jasa Konsultansi" <?= ($_GET['jenis_pengadaan'] ?? '') == 'Jasa Konsultansi' ? 'selected' : '' ?>>Jasa Konsultansi</option>
                                 <option value="Jasa Lainnya" <?= ($_GET['jenis_pengadaan'] ?? '') == 'Jasa Lainnya' ? 'selected' : '' ?>>Jasa Lainnya</option>
@@ -800,7 +820,8 @@ include '../../navbar/header.php';
                         <label><i class="fas fa-search"></i> Pencarian Paket</label>
                         <div class="search-input-wrapper">
                             <i class="fas fa-search"></i>
-                            <input type="text" name="search" placeholder="Cari Nama Paket, Satker, atau Pemenang..." value="<?= htmlspecialchars($_GET['search'] ?? '') ?>">
+                            <input type="text" name="search" placeholder="Cari Nama Paket, Satker, atau Pemenang..."
+                                value="<?= htmlspecialchars($_GET['search'] ?? '') ?>">
                         </div>
                     </div>
                 </div>
@@ -826,7 +847,7 @@ include '../../navbar/header.php';
                 <h3>Ringkasan Data Realisasi Non-Tender</h3>
             </div>
             <div class="period-badge">
-                <i class="fas fa-calendar-check"></i> 
+                <i class="fas fa-calendar-check"></i>
                 <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?>
             </div>
         </div>
@@ -837,7 +858,8 @@ include '../../navbar/header.php';
                     <div class="card-content">
                         <div class="card-value"><?= number_format($totalPaket, 0, ',', '.') ?></div>
                         <div class="card-label">Total Paket</div>
-                        <div class="card-subtitle">Realisasi - <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?></div>
+                        <div class="card-subtitle">Realisasi - <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?>
+                        </div>
                     </div>
                 </div>
                 <div class="summary-card warning">
@@ -845,7 +867,8 @@ include '../../navbar/header.php';
                     <div class="card-content">
                         <div class="card-value"><?= $formattedTotalPagu ?></div>
                         <div class="card-label">Total Pagu</div>
-                        <div class="card-subtitle">Keseluruhan - <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?></div>
+                        <div class="card-subtitle">Keseluruhan - <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?>
+                        </div>
                     </div>
                 </div>
                 <div class="summary-card success">
@@ -853,7 +876,8 @@ include '../../navbar/header.php';
                     <div class="card-content">
                         <div class="card-value"><?= $formattedTotalKontrak ?></div>
                         <div class="card-label">Total Kontrak</div>
-                        <div class="card-subtitle">Terealisasi - <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?></div>
+                        <div class="card-subtitle">Terealisasi - <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?>
+                        </div>
                     </div>
                 </div>
                 <div class="summary-card info">
@@ -874,14 +898,15 @@ include '../../navbar/header.php';
                 <div class="results-title">
                     <i class="fas fa-table"></i> Hasil Data Realisasi Non-Tender
                 </div>
-                <?php if ($data && isset($data['success']) && $data['success']) : ?>
+                <?php if ($data && isset($data['success']) && $data['success']): ?>
                     <div class="results-subtitle">
-                        <strong>Menampilkan <?= count($tableData) ?> dari <?= number_format($totalRecords, 0, ',', '.') ?> total data</strong>
-                        | Periode: <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?>
+                        <strong>Menampilkan <?= count($tableData) ?> dari <?= number_format($totalRecords, 0, ',', '.') ?>
+                            total data</strong>
+                        | Periode: <?= $namaBulan[$selectedBulan] ?>     <?= $selectedTahun ?>
                     </div>
                 <?php endif; ?>
             </div>
-            
+
             <div class="pagination">
                 <?php
                 $paginationParams = $_GET;
@@ -889,29 +914,32 @@ include '../../navbar/header.php';
                 $paginationQuery = http_build_query($paginationParams);
                 ?>
 
-                <a href="?<?= $paginationQuery ?>&page=<?= max(1, $currentPage - 1) ?>" class="btn-pagination <?= $currentPage <= 1 ? 'disabled' : '' ?>" title="Halaman Sebelumnya">
+                <a href="?<?= $paginationQuery ?>&page=<?= max(1, $currentPage - 1) ?>"
+                    class="btn-pagination <?= $currentPage <= 1 ? 'disabled' : '' ?>" title="Halaman Sebelumnya">
                     <i class="fas fa-chevron-left"></i>
                 </a>
 
                 <?php
                 for ($i = 1; $i <= $totalPages; $i++) {
                     if ($i == $currentPage) {
-                        echo '<a href="?'. $paginationQuery .'&page='. $i .'" class="btn-pagination active">'. $i .'</a>';
+                        echo '<a href="?' . $paginationQuery . '&page=' . $i . '" class="btn-pagination active">' . $i . '</a>';
                     } elseif (abs($i - $currentPage) < 3 || $i <= 2 || $i > $totalPages - 2) {
-                        echo '<a href="?'. $paginationQuery .'&page='. $i .'" class="btn-pagination">'. $i .'</a>';
+                        echo '<a href="?' . $paginationQuery . '&page=' . $i . '" class="btn-pagination">' . $i . '</a>';
                     } elseif ($i == $currentPage - 3 || $i == $currentPage + 3) {
                         echo '<span class="btn-pagination-dots">...</span>';
                     }
                 }
                 ?>
 
-                <a href="?<?= $paginationQuery ?>&page=<?= min($totalPages, $currentPage + 1) ?>" class="btn-pagination <?= $currentPage >= $totalPages ? 'disabled' : '' ?>" title="Halaman Selanjutnya">
+                <a href="?<?= $paginationQuery ?>&page=<?= min($totalPages, $currentPage + 1) ?>"
+                    class="btn-pagination <?= $currentPage >= $totalPages ? 'disabled' : '' ?>"
+                    title="Halaman Selanjutnya">
                     <i class="fas fa-chevron-right"></i>
                 </a>
             </div>
         </div>
 
-        <?php if (!empty($tableData)) : ?>
+        <?php if (!empty($tableData)): ?>
             <div class="table-container">
                 <table>
                     <thead>
@@ -929,7 +957,7 @@ include '../../navbar/header.php';
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach ($tableData as $row) : ?>
+                        <?php foreach ($tableData as $row): ?>
                             <tr>
                                 <td style="text-align: center; font-weight: 700; color: #2c3e50;">
                                     <?= htmlspecialchars($row['No_Urut'] ?? '-') ?>
@@ -951,7 +979,8 @@ include '../../navbar/header.php';
                                 </td>
                                 <td>
                                     <div class="small-text">
-                                        <i class="fas fa-trophy" style="color: #f39c12;"></i> <?= htmlspecialchars($row['Kode_RUP'] ?? '-') ?>
+                                        <i class="fas fa-trophy" style="color: #f39c12;"></i>
+                                        <?= htmlspecialchars($row['Kode_RUP'] ?? '-') ?>
                                     </div>
                                 </td>
                                 <td style="text-align: center;">
@@ -995,12 +1024,12 @@ include '../../navbar/header.php';
                 </div>
             </div>
 
-        <?php else : ?>
+        <?php else: ?>
             <div class="empty-state">
                 <i class="fas fa-search-minus"></i>
                 <p><strong>Tidak ada data realisasi non-tender yang ditemukan</strong></p>
                 <small class="text-muted">
-                    Untuk periode <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?>. 
+                    Untuk periode <?= $namaBulan[$selectedBulan] ?>     <?= $selectedTahun ?>.
                     Coba ubah kriteria pencarian atau pilih bulan lain.
                 </small>
             </div>
@@ -1009,136 +1038,136 @@ include '../../navbar/header.php';
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const filterForm = document.querySelector('form');
+    document.addEventListener('DOMContentLoaded', function () {
+        const filterForm = document.querySelector('form');
 
-    if (filterForm) {
-        filterForm.addEventListener('submit', function(e) {
-            const inputs = this.querySelectorAll('input, select');
-            
-            inputs.forEach(input => {
-                // Jangan disable bulan dan tahun karena ini filter wajib
-                if (input.name !== 'bulan' && input.name !== 'tahun' && !input.value) {
-                    input.disabled = true;
+        if (filterForm) {
+            filterForm.addEventListener('submit', function (e) {
+                const inputs = this.querySelectorAll('input, select');
+
+                inputs.forEach(input => {
+                    // Jangan disable bulan dan tahun karena ini filter wajib
+                    if (input.name !== 'bulan' && input.name !== 'tahun' && !input.value) {
+                        input.disabled = true;
+                    }
+                });
+
+                return true;
+            });
+        }
+
+        // Search input enter key
+        const searchInput = document.querySelector('input[name="search"]');
+        if (searchInput) {
+            searchInput.addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') {
+                    this.form.submit();
                 }
             });
 
-            return true;
-        });
-    }
-
-    // Search input enter key
-    const searchInput = document.querySelector('input[name="search"]');
-    if (searchInput) {
-        searchInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                this.form.submit();
-            }
-        });
-
-        // Clear search icon functionality
-        searchInput.addEventListener('input', function() {
-            const wrapper = this.closest('.search-input-wrapper');
-            const icon = wrapper.querySelector('i');
-            if (this.value) {
-                icon.className = 'fas fa-times';
-                icon.style.cursor = 'pointer';
-                icon.onclick = () => {
-                    this.value = '';
+            // Clear search icon functionality
+            searchInput.addEventListener('input', function () {
+                const wrapper = this.closest('.search-input-wrapper');
+                const icon = wrapper.querySelector('i');
+                if (this.value) {
+                    icon.className = 'fas fa-times';
+                    icon.style.cursor = 'pointer';
+                    icon.onclick = () => {
+                        this.value = '';
+                        icon.className = 'fas fa-search';
+                        icon.style.cursor = 'default';
+                        icon.onclick = null;
+                    };
+                } else {
                     icon.className = 'fas fa-search';
                     icon.style.cursor = 'default';
                     icon.onclick = null;
-                };
-            } else {
-                icon.className = 'fas fa-search';
-                icon.style.cursor = 'default';
-                icon.onclick = null;
-            }
-        });
-    }
+                }
+            });
+        }
 
-    // Table row hover effects
-    const tableRows = document.querySelectorAll('tbody tr');
-    tableRows.forEach(row => {
-        row.addEventListener('mouseenter', function() {
-            this.style.transform = 'translateY(-2px)';
-        });
+        // Table row hover effects
+        const tableRows = document.querySelectorAll('tbody tr');
+        tableRows.forEach(row => {
+            row.addEventListener('mouseenter', function () {
+                this.style.transform = 'translateY(-2px)';
+            });
 
-        row.addEventListener('mouseleave', function() {
-            this.style.transform = 'translateY(0)';
-        });
-    });
-
-    // Auto submit on month/year change (optional)
-    const bulanSelect = document.querySelector('select[name="bulan"]');
-    const tahunSelect = document.querySelector('select[name="tahun"]');
-    
-    if (bulanSelect) {
-        bulanSelect.addEventListener('change', function() {
-            // Optional: auto-submit when month changes
-            // this.form.submit();
-        });
-    }
-    
-    if (tahunSelect) {
-        tahunSelect.addEventListener('change', function() {
-            // Optional: auto-submit when year changes
-            // this.form.submit();
-        });
-    }
-});
-
-// Reset form function - kembali ke default Juli tahun ini
-function resetForm() {
-    window.location.href = window.location.pathname + '?bulan=07&tahun=<?= $currentYear ?>';
-}
-
-// Form validation before submit
-document.querySelector('form').addEventListener('submit', function(e) {
-    // Show loading state
-    const submitBtn = this.querySelector('.search-btn');
-    const originalText = submitBtn.innerHTML;
-    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mencari...';
-    submitBtn.disabled = true;
-
-    // Reset button state after a delay
-    setTimeout(() => {
-        submitBtn.innerHTML = originalText;
-        submitBtn.disabled = false;
-    }, 5000);
-});
-
-// Add smooth scrolling to results when form is submitted
-window.addEventListener('load', function() {
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.toString()) {
-        document.querySelector('.results-section').scrollIntoView({
-            behavior: 'smooth',
-            block: 'start'
-        });
-    }
-});
-
-// Add copy functionality to kode paket
-document.querySelectorAll('.small-text').forEach(smallText => {
-    if (smallText.textContent.includes('Kode') || smallText.textContent.includes('RUP')) {
-        smallText.style.cursor = 'pointer';
-        smallText.title = 'Klik untuk copy kode';
-        smallText.addEventListener('click', function(e) {
-            e.stopPropagation();
-            const code = this.textContent.replace(/.*:\s*/, '').trim();
-            navigator.clipboard.writeText(code).then(() => {
-                const originalText = this.textContent;
-                this.textContent = '✓ Kode Copied!';
-                this.style.color = '#27ae60';
-                setTimeout(() => {
-                    this.textContent = originalText;
-                    this.style.color = '';
-                }, 1500);
+            row.addEventListener('mouseleave', function () {
+                this.style.transform = 'translateY(0)';
             });
         });
+
+        // Auto submit on month/year change (optional)
+        const bulanSelect = document.querySelector('select[name="bulan"]');
+        const tahunSelect = document.querySelector('select[name="tahun"]');
+
+        if (bulanSelect) {
+            bulanSelect.addEventListener('change', function () {
+                // Optional: auto-submit when month changes
+                // this.form.submit();
+            });
+        }
+
+        if (tahunSelect) {
+            tahunSelect.addEventListener('change', function () {
+                // Optional: auto-submit when year changes
+                // this.form.submit();
+            });
+        }
+    });
+
+    // Reset form function - kembali ke default Juli tahun ini
+    function resetForm() {
+        window.location.href = window.location.pathname + '?bulan=07&tahun=<?= $currentYear ?>';
     }
-});
+
+    // Form validation before submit
+    document.querySelector('form').addEventListener('submit', function (e) {
+        // Show loading state
+        const submitBtn = this.querySelector('.search-btn');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mencari...';
+        submitBtn.disabled = true;
+
+        // Reset button state after a delay
+        setTimeout(() => {
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        }, 5000);
+    });
+
+    // Add smooth scrolling to results when form is submitted
+    window.addEventListener('load', function () {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.toString()) {
+            document.querySelector('.results-section').scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
+            });
+        }
+    });
+
+    // Add copy functionality to kode paket
+    document.querySelectorAll('.small-text').forEach(smallText => {
+        if (smallText.textContent.includes('Kode') || smallText.textContent.includes('RUP')) {
+            smallText.style.cursor = 'pointer';
+            smallText.title = 'Klik untuk copy kode';
+            smallText.addEventListener('click', function (e) {
+                e.stopPropagation();
+                const code = this.textContent.replace(/.*:\s*/, '').trim();
+                navigator.clipboard.writeText(code).then(() => {
+                    const originalText = this.textContent;
+                    this.textContent = '✓ Kode Copied!';
+                    this.style.color = '#27ae60';
+                    setTimeout(() => {
+                        this.textContent = originalText;
+                        this.style.color = '';
+                    }, 1500);
+                });
+            });
+        }
+    });
 </script>
 
 <?php

@@ -1,6 +1,6 @@
 <?php
 // URL API dasar
-$apiBaseUrl = "http://sipbanar-phpnative.id/api/realisasi_tender.php";
+$apiBaseUrl = "http://sipbanarnative.id/api/realisasi_tender.php";
 
 // Ambil data options untuk dropdown
 $optionsApiUrl = $apiBaseUrl . '?action=options';

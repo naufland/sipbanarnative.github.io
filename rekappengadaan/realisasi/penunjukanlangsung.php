@@ -4,7 +4,7 @@
 // =================================================================
 
 // 1. URL API untuk Penunjukan Langsung
-$apiBaseUrl = "http://sipbanar-phpnative.id/api/realisasi_penunjukanlangsung.php";
+$apiBaseUrl = "http://sipbanarnative.id/api/realisasi_penunjukanlangsung.php";
 
 // 2. Dapatkan parameter dari URL, termasuk halaman saat ini
 $currentPage = isset($_GET['page']) ? (int)$_GET['page'] : 1;

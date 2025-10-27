@@ -4,10 +4,10 @@
 // =================================================================
 
 // 1. URL API untuk Non-Tender
-$apiBaseUrl = "http://sipbanar-phpnative.id/api/pencatatan_nontender.php";
+$apiBaseUrl = "http://sipbanarnative.id/api/pencatatan_nontender.php";
 
 // 2. Dapatkan parameter dari URL, termasuk halaman saat ini
-$currentPage = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$currentPage = isset($_GET['page']) ? (int) $_GET['page'] : 1;
 $limit = $_GET['limit'] ?? 50;
 
 // BARU: Dapatkan filter bulan dan tahun
@@ -148,6 +148,14 @@ include '../../navbar/header.php';
         align-items: center;
         gap: 12px;
         position: relative;
+        border-top-left-radius: 15px;
+        /* ← Sudut kiri atas melengkung */
+        border-top-right-radius: 15px;
+        /* ← Sudut kanan atas melengkung */
+        clip-path: none !important;
+        /* ← Hilangkan potongan lancip */
+        overflow: hidden;
+        /* ← Pastikan warna tidak keluar radius */
     }
 
     .filter-header::after,
@@ -809,7 +817,8 @@ include '../../navbar/header.php';
                         <label><i class="fas fa-search"></i> Pencarian Paket</label>
                         <div class="search-input-wrapper">
                             <i class="fas fa-search"></i>
-                            <input type="text" name="search" placeholder="Cari Nama Paket, Satker, atau Pemenang..." value="<?= htmlspecialchars($_GET['search'] ?? '') ?>">
+                            <input type="text" name="search" placeholder="Cari Nama Paket, Satker, atau Pemenang..."
+                                value="<?= htmlspecialchars($_GET['search'] ?? '') ?>">
                         </div>
                     </div>
                 </div>
@@ -846,7 +855,8 @@ include '../../navbar/header.php';
                     <div class="card-content">
                         <div class="card-value"><?= number_format($totalPaket, 0, ',', '.') ?></div>
                         <div class="card-label">Total Paket</div>
-                        <div class="card-subtitle">Realisasi - <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?></div>
+                        <div class="card-subtitle">Realisasi - <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?>
+                        </div>
                     </div>
                 </div>
                 <div class="summary-card warning">
@@ -854,7 +864,8 @@ include '../../navbar/header.php';
                     <div class="card-content">
                         <div class="card-value"><?= $formattedTotalPagu ?></div>
                         <div class="card-label">Total Pagu</div>
-                        <div class="card-subtitle">Keseluruhan - <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?></div>
+                        <div class="card-subtitle">Keseluruhan - <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?>
+                        </div>
                     </div>
                 </div>
 
@@ -863,7 +874,8 @@ include '../../navbar/header.php';
                     <div class="card-content">
                         <div class="card-value"><?= $formattedTotalRealisasi ?></div>
                         <div class="card-label">Total Realisasi</div>
-                        <div class="card-subtitle">Nilai Terealisasi - <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?></div>
+                        <div class="card-subtitle">Nilai Terealisasi - <?= $namaBulan[$selectedBulan] ?>
+                            <?= $selectedTahun ?></div>
                     </div>
                 </div>
 
@@ -885,10 +897,11 @@ include '../../navbar/header.php';
                 <div class="results-title">
                     <i class="fas fa-table"></i> Hasil Data Realisasi Non-Tender
                 </div>
-                <?php if ($data && isset($data['success']) && $data['success']) : ?>
+                <?php if ($data && isset($data['success']) && $data['success']): ?>
                     <div class="results-subtitle">
-                        <strong>Menampilkan <?= count($tableData) ?> dari <?= number_format($totalRecords, 0, ',', '.') ?> total data</strong>
-                        | Periode: <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?>
+                        <strong>Menampilkan <?= count($tableData) ?> dari <?= number_format($totalRecords, 0, ',', '.') ?>
+                            total data</strong>
+                        | Periode: <?= $namaBulan[$selectedBulan] ?>     <?= $selectedTahun ?>
                     </div>
                 <?php endif; ?>
             </div>
@@ -900,7 +913,8 @@ include '../../navbar/header.php';
                 $paginationQuery = http_build_query($paginationParams);
                 ?>
 
-                <a href="?<?= $paginationQuery ?>&page=<?= max(1, $currentPage - 1) ?>" class="btn-pagination <?= $currentPage <= 1 ? 'disabled' : '' ?>" title="Halaman Sebelumnya">
+                <a href="?<?= $paginationQuery ?>&page=<?= max(1, $currentPage - 1) ?>"
+                    class="btn-pagination <?= $currentPage <= 1 ? 'disabled' : '' ?>" title="Halaman Sebelumnya">
                     <i class="fas fa-chevron-left"></i>
                 </a>
 
@@ -916,14 +930,16 @@ include '../../navbar/header.php';
                 }
                 ?>
 
-                <a href="?<?= $paginationQuery ?>&page=<?= min($totalPages, $currentPage + 1) ?>" class="btn-pagination <?= $currentPage >= $totalPages ? 'disabled' : '' ?>" title="Halaman Selanjutnya">
+                <a href="?<?= $paginationQuery ?>&page=<?= min($totalPages, $currentPage + 1) ?>"
+                    class="btn-pagination <?= $currentPage >= $totalPages ? 'disabled' : '' ?>"
+                    title="Halaman Selanjutnya">
                     <i class="fas fa-chevron-right"></i>
                 </a>
             </div>
         </div>
     </div>
 
-    <?php if (!empty($tableData)) : ?>
+    <?php if (!empty($tableData)): ?>
         <div class="table-container">
             <table>
                 <thead>
@@ -941,7 +957,7 @@ include '../../navbar/header.php';
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($tableData as $row) : ?>
+                    <?php foreach ($tableData as $row): ?>
                         <tr>
                             <td style="text-align: center; font-weight: 700; color: #2c3e50;">
                                 <?= htmlspecialchars($row['No_Urut'] ?? '-') ?>
@@ -963,7 +979,8 @@ include '../../navbar/header.php';
                             </td>
                             <td>
                                 <div class="small-text">
-                                    <i class="fas fa-trophy" style="color: #f39c12;"></i> <?= htmlspecialchars($row['Kode_RUP'] ?? '-') ?>
+                                    <i class="fas fa-trophy" style="color: #f39c12;"></i>
+                                    <?= htmlspecialchars($row['Kode_RUP'] ?? '-') ?>
                                 </div>
                             </td>
                             <td style="text-align: center;">
@@ -1007,12 +1024,12 @@ include '../../navbar/header.php';
             </div>
         </div>
 
-    <?php else : ?>
+    <?php else: ?>
         <div class="empty-state">
             <i class="fas fa-search-minus"></i>
             <p><strong>Tidak ada data realisasi non-tender yang ditemukan</strong></p>
             <small class="text-muted">
-                Untuk periode <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?>.
+                Untuk periode <?= $namaBulan[$selectedBulan] ?>     <?= $selectedTahun ?>.
                 Coba ubah kriteria pencarian atau pilih bulan lain.
             </small>
         </div>
@@ -1020,11 +1037,11 @@ include '../../navbar/header.php';
 </div>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         const filterForm = document.querySelector('form');
 
         if (filterForm) {
-            filterForm.addEventListener('submit', function(e) {
+            filterForm.addEventListener('submit', function (e) {
                 const inputs = this.querySelectorAll('input, select');
 
                 inputs.forEach(input => {
@@ -1039,13 +1056,13 @@ include '../../navbar/header.php';
 
         const searchInput = document.querySelector('input[name="search"]');
         if (searchInput) {
-            searchInput.addEventListener('keypress', function(e) {
+            searchInput.addEventListener('keypress', function (e) {
                 if (e.key === 'Enter') {
                     this.form.submit();
                 }
             });
 
-            searchInput.addEventListener('input', function() {
+            searchInput.addEventListener('input', function () {
                 const wrapper = this.closest('.search-input-wrapper');
                 const icon = wrapper.querySelector('i');
                 if (this.value) {
@@ -1067,11 +1084,11 @@ include '../../navbar/header.php';
 
         const tableRows = document.querySelectorAll('tbody tr');
         tableRows.forEach(row => {
-            row.addEventListener('mouseenter', function() {
+            row.addEventListener('mouseenter', function () {
                 this.style.transform = 'translateY(-2px)';
             });
 
-            row.addEventListener('mouseleave', function() {
+            row.addEventListener('mouseleave', function () {
                 this.style.transform = 'translateY(0)';
             });
         });
@@ -1080,14 +1097,14 @@ include '../../navbar/header.php';
         const tahunSelect = document.querySelector('select[name="tahun"]');
 
         if (bulanSelect) {
-            bulanSelect.addEventListener('change', function() {
+            bulanSelect.addEventListener('change', function () {
                 // Optional: auto-submit ketika bulan berubah
                 // this.form.submit();
             });
         }
 
         if (tahunSelect) {
-            tahunSelect.addEventListener('change', function() {
+            tahunSelect.addEventListener('change', function () {
                 // Optional: auto-submit ketika tahun berubah
                 // this.form.submit();
             });
@@ -1098,7 +1115,7 @@ include '../../navbar/header.php';
         window.location.href = window.location.pathname + '?bulan=07&tahun=<?= $currentYear ?>';
     }
 
-    document.querySelector('form').addEventListener('submit', function(e) {
+    document.querySelector('form').addEventListener('submit', function (e) {
         const submitBtn = this.querySelector('.search-btn');
         const originalText = submitBtn.innerHTML;
         submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mencari...';
@@ -1110,7 +1127,7 @@ include '../../navbar/header.php';
         }, 5000);
     });
 
-    window.addEventListener('load', function() {
+    window.addEventListener('load', function () {
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.toString()) {
             document.querySelector('.results-section').scrollIntoView({
@@ -1124,7 +1141,7 @@ include '../../navbar/header.php';
         if (smallText.textContent.includes('Kode') || smallText.textContent.includes('RUP')) {
             smallText.style.cursor = 'pointer';
             smallText.title = 'Klik untuk copy kode';
-            smallText.addEventListener('click', function(e) {
+            smallText.addEventListener('click', function (e) {
                 e.stopPropagation();
                 const code = this.textContent.replace(/.*:\s*/, '').trim();
                 navigator.clipboard.writeText(code).then(() => {

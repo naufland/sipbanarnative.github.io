@@ -4,7 +4,7 @@
 // =================================================================
 
 // 1. URL API
-$apiBaseUrl = "http://sipbanar-phpnative.id/api/realisasi_seleksi.php";
+$apiBaseUrl = "http://sipbanarnative.id/api/realisasi_seleksi.php";
 
 // 2. Dapatkan parameter dari URL, termasuk halaman saat ini
 $currentPage = isset($_GET['page']) ? (int)$_GET['page'] : 1;
@@ -155,7 +155,7 @@ include '../../navbar/header.php';
         margin: 0;
         font-size: 18px;
         font-weight: 600;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.5 px;
     }
 
     .filter-content {
@@ -176,7 +176,7 @@ include '../../navbar/header.php';
     /* Baris kedua: Satker + Metode + Sumber Dana */
     .filter-row:nth-child(2) {
         grid-template-columns: 1fr 1fr 1fr;
-    }
+    } 
 
     /* Baris ketiga: Pencarian */
     .filter-row:nth-child(3) {
@@ -184,7 +184,7 @@ include '../../navbar/header.php';
     }
 
     .filter-group {
-        position: relative;
+        position: relative; 
     }
 
     .filter-group label {

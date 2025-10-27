@@ -126,7 +126,7 @@ include '../../navbar/header.php';
     }
 
     .filter-header {
-        background: linear-gradient(135deg, #28a745 0%, #218838 100%);
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
         color: white;
         padding: 20px 25px;
         display: flex;
@@ -142,7 +142,7 @@ include '../../navbar/header.php';
         left: 0;
         right: 0;
         height: 3px;
-        background: linear-gradient(90deg, #28a745, #20c997, #28a745);
+          background: linear-gradient(135deg, #ac0a1bff 0%, #f4374aff 100%);
     }
 
     .filter-header i {
@@ -216,14 +216,14 @@ include '../../navbar/header.php';
     .filter-group select:focus,
     .filter-group input[type="text"]:focus {
         outline: none;
-        border-color: #28a745;
-        box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.15);
+        border-color: #ca3a3aff;
+        box-shadow: 0 0 0 3px rgba(167, 40, 40, 0.15);
         transform: translateY(-1px);
     }
 
     .filter-group select:hover,
     .filter-group input[type="text"]:hover {
-        border-color: #28a745;
+        border-color: #a72e28ff;
     }
 
     .search-input-wrapper {
@@ -254,7 +254,7 @@ include '../../navbar/header.php';
     }
 
     .search-btn {
-        background: linear-gradient(135deg, #28a745 0%, #218838 100%);
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
         color: white;
         border: none;
         padding: 14px 30px;
@@ -272,7 +272,7 @@ include '../../navbar/header.php';
 
     .search-btn:hover {
         transform: translateY(-2px);
-        box-shadow: 0 8px 25px rgba(40, 167, 69, 0.3);
+        box-shadow: 0 8px 25px rgba(167, 40, 40, 0.3);
     }
 
     .reset-btn {
@@ -293,9 +293,9 @@ include '../../navbar/header.php';
     }
 
     .reset-btn:hover {
-        border-color: #28a745;
-        color: #28a745;
-        background: #f0fff4;
+        border-color: #c0c0c0ff;
+        color: #323232ff;
+        background: #f6f6f6ff;
     }
 
     .summary-section {
@@ -410,7 +410,7 @@ include '../../navbar/header.php';
     }
 
     .summary-card-horizontal.success .card-icon-horizontal {
-        background: linear-gradient(135deg, #27ae60, #58d68d);
+        background: linear-gradient(135deg, #23b660ff, #58d68d);
     }
 
     .summary-card-horizontal.info .card-icon-horizontal {
@@ -491,16 +491,16 @@ include '../../navbar/header.php';
     }
 
     .pagination a.btn-pagination:hover {
-        border-color: #28a745;
-        color: #28a745;
+        border-color: #ff8686ff;
+        color: #ff8686ff;
         transform: translateY(-1px);
     }
 
     .pagination a.btn-pagination.active {
-        background: #28a745;
-        border-color: #28a745;
+        background: #e04949ff;
+        border-color: #c14040ff;
         color: white;
-        box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+        box-shadow: 0 4px 12px rgba(167, 40, 40, 0.3);
     }
 
     .pagination a.btn-pagination.disabled {

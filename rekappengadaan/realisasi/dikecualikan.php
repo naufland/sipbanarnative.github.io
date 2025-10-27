@@ -5,10 +5,10 @@
 // =================================================================
 
 // 1. URL API untuk Realisasi Dikecualikan
-$apiBaseUrl = "http://sipbanar-phpnative.id/api/realisasi_dikecualikan.php";
+$apiBaseUrl = "http://sipbanarnative.id/api/realisasi_dikecualikan.php";
 
 // 2. Dapatkan parameter dari URL
-$currentPage = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$currentPage = isset($_GET['page']) ? (int) $_GET['page'] : 1;
 $limit = $_GET['limit'] ?? 50;
 
 // TAMBAHAN: Dapatkan filter bulan dan tahun
@@ -130,12 +130,21 @@ include '../../navbar/header.php';
 
     .filter-header,
     .summary-header {
-        background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
         color: white;
         padding: 20px 25px;
         display: flex;
         align-items: center;
         gap: 12px;
+        position: relative;
+        border-top-left-radius: 15px;
+        /* ← Sudut kiri atas melengkung */
+        border-top-right-radius: 15px;
+        /* ← Sudut kanan atas melengkung */
+        clip-path: none !important;
+        /* ← Hilangkan potongan lancip */
+        overflow: hidden;
+        /* ← Pastikan warna tidak keluar radius */
     }
 
     .filter-header::after,
@@ -273,9 +282,9 @@ include '../../navbar/header.php';
     }
 
     .reset-btn:hover {
-        border-color: #e74c3c;
-        color: #e74c3c;
-        background: #fff5f5;
+        border-color: #e9ecef;
+        color: #6c757d;
+        background: #f8f9fa;
     }
 
     .summary-header {
@@ -620,8 +629,10 @@ include '../../navbar/header.php';
                         <label><i class="fas fa-sitemap"></i> Satker</label>
                         <select name="satker">
                             <option value="">Semua Satker</option>
-                            <option value="Satker A" <?= ($_GET['satker'] ?? '') == 'Satker A' ? 'selected' : '' ?>>Satker A</option>
-                            <option value="Satker B" <?= ($_GET['satker'] ?? '') == 'Satker B' ? 'selected' : '' ?>>Satker B</option>
+                            <option value="Satker A" <?= ($_GET['satker'] ?? '') == 'Satker A' ? 'selected' : '' ?>>Satker
+                                A</option>
+                            <option value="Satker B" <?= ($_GET['satker'] ?? '') == 'Satker B' ? 'selected' : '' ?>>Satker
+                                B</option>
                         </select>
                     </div>
 
@@ -640,7 +651,8 @@ include '../../navbar/header.php';
                         <label><i class="fas fa-box"></i> Jenis Pengadaan</label>
                         <select name="jenis_pengadaan">
                             <option value="">Semua Jenis</option>
-                            <option value="Barang" <?= ($_GET['jenis_pengadaan'] ?? '') == 'Barang' ? 'selected' : '' ?>>Barang</option>
+                            <option value="Barang" <?= ($_GET['jenis_pengadaan'] ?? '') == 'Barang' ? 'selected' : '' ?>>
+                                Barang</option>
                             <option value="Pekerjaan Konstruksi" <?= ($_GET['jenis_pengadaan'] ?? '') == 'Pekerjaan Konstruksi' ? 'selected' : '' ?>>Pekerjaan Konstruksi</option>
                             <option value="Jasa Konsultansi" <?= ($_GET['jenis_pengadaan'] ?? '') == 'Jasa Konsultansi' ? 'selected' : '' ?>>Jasa Konsultansi</option>
                             <option value="Jasa Lainnya" <?= ($_GET['jenis_pengadaan'] ?? '') == 'Jasa Lainnya' ? 'selected' : '' ?>>Jasa Lainnya</option>
@@ -651,9 +663,12 @@ include '../../navbar/header.php';
                         <label><i class="fas fa-info-circle"></i> Status Paket</label>
                         <select name="status_paket">
                             <option value="">Semua Status</option>
-                            <option value="Aktif" <?= ($_GET['status_paket'] ?? '') == 'Aktif' ? 'selected' : '' ?>>Aktif</option>
-                            <option value="Selesai" <?= ($_GET['status_paket'] ?? '') == 'Selesai' ? 'selected' : '' ?>>Selesai</option>
-                            <option value="Batal" <?= ($_GET['status_paket'] ?? '') == 'Batal' ? 'selected' : '' ?>>Batal</option>
+                            <option value="Aktif" <?= ($_GET['status_paket'] ?? '') == 'Aktif' ? 'selected' : '' ?>>Aktif
+                            </option>
+                            <option value="Selesai" <?= ($_GET['status_paket'] ?? '') == 'Selesai' ? 'selected' : '' ?>>
+                                Selesai</option>
+                            <option value="Batal" <?= ($_GET['status_paket'] ?? '') == 'Batal' ? 'selected' : '' ?>>Batal
+                            </option>
                         </select>
                     </div>
 
@@ -661,7 +676,8 @@ include '../../navbar/header.php';
                         <label><i class="fas fa-search"></i> Pencarian</label>
                         <div class="search-input-wrapper">
                             <i class="fas fa-search"></i>
-                            <input type="text" name="search" placeholder="Cari Nama Paket..." value="<?= htmlspecialchars($_GET['search'] ?? '') ?>">
+                            <input type="text" name="search" placeholder="Cari Nama Paket..."
+                                value="<?= htmlspecialchars($_GET['search'] ?? '') ?>">
                         </div>
                     </div>
                 </div>
@@ -727,10 +743,11 @@ include '../../navbar/header.php';
         <div class="results-header">
             <div>
                 <div class="results-title"><i class="fas fa-table"></i> Hasil Data Realisasi Dikecualikan</div>
-                <?php if ($data && isset($data['success']) && $data['success']) : ?>
+                <?php if ($data && isset($data['success']) && $data['success']): ?>
                     <div class="results-subtitle">
-                        <strong>Menampilkan <?= count($tableData) ?> dari <?= number_format($totalRecords, 0, ',', '.') ?> total data</strong>
-                        | Periode: <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?>
+                        <strong>Menampilkan <?= count($tableData) ?> dari <?= number_format($totalRecords, 0, ',', '.') ?>
+                            total data</strong>
+                        | Periode: <?= $namaBulan[$selectedBulan] ?>     <?= $selectedTahun ?>
                     </div>
                 <?php endif; ?>
             </div>
@@ -740,19 +757,24 @@ include '../../navbar/header.php';
                 unset($paginationParams['page']);
                 $paginationQuery = http_build_query($paginationParams);
                 ?>
-                <a href="?<?= $paginationQuery ?>&page=<?= max(1, $currentPage - 1) ?>" class="btn-pagination <?= $currentPage <= 1 ? 'disabled' : '' ?>"><i class="fas fa-chevron-left"></i></a>
+                <a href="?<?= $paginationQuery ?>&page=<?= max(1, $currentPage - 1) ?>"
+                    class="btn-pagination <?= $currentPage <= 1 ? 'disabled' : '' ?>"><i
+                        class="fas fa-chevron-left"></i></a>
                 <?php for ($i = 1; $i <= $totalPages; $i++):
                     if ($i == $currentPage || abs($i - $currentPage) < 2 || $i <= 2 || $i > $totalPages - 2): ?>
-                        <a href="?<?= $paginationQuery ?>&page=<?= $i ?>" class="btn-pagination <?= $i == $currentPage ? 'active' : '' ?>"><?= $i ?></a>
+                        <a href="?<?= $paginationQuery ?>&page=<?= $i ?>"
+                            class="btn-pagination <?= $i == $currentPage ? 'active' : '' ?>"><?= $i ?></a>
                     <?php elseif ($i == $currentPage - 2 || $i == $currentPage + 2): ?>
                         <span class="btn-pagination-dots">...</span>
-                <?php endif;
+                    <?php endif;
                 endfor; ?>
-                <a href="?<?= $paginationQuery ?>&page=<?= min($totalPages, $currentPage + 1) ?>" class="btn-pagination <?= $currentPage >= $totalPages ? 'disabled' : '' ?>"><i class="fas fa-chevron-right"></i></a>
+                <a href="?<?= $paginationQuery ?>&page=<?= min($totalPages, $currentPage + 1) ?>"
+                    class="btn-pagination <?= $currentPage >= $totalPages ? 'disabled' : '' ?>"><i
+                        class="fas fa-chevron-right"></i></a>
             </div>
         </div>
 
-        <?php if (!empty($tableData)) : ?>
+        <?php if (!empty($tableData)): ?>
             <div class="table-container">
                 <table>
                     <thead>
@@ -773,7 +795,7 @@ include '../../navbar/header.php';
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach ($tableData as $row) : ?>
+                        <?php foreach ($tableData as $row): ?>
                             <tr>
                                 <td style="text-align: center; font-weight: bold;">
                                     <?= htmlspecialchars($row['No_Urut'] ?? '-') ?>
@@ -847,11 +869,12 @@ include '../../navbar/header.php';
                 <div><strong>Halaman:</strong> <?= $currentPage ?> dari <?= $totalPages ?></div>
                 <div><strong>Total Data:</strong> <?= number_format($totalRecords, 0, ',', '.') ?> paket</div>
             </div>
-        <?php else : ?>
+        <?php else: ?>
             <div class="empty-state">
                 <i class="fas fa-search-minus"></i>
                 <p><strong>Tidak ada data realisasi dikecualikan yang ditemukan</strong></p>
-                <small class="text-muted">Untuk periode <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?>. Coba ubah kriteria pencarian.</small>
+                <small class="text-muted">Untuk periode <?= $namaBulan[$selectedBulan] ?>     <?= $selectedTahun ?>. Coba ubah
+                    kriteria pencarian.</small>
             </div>
         <?php endif; ?>
     </div>
@@ -862,11 +885,11 @@ include '../../navbar/header.php';
         window.location.href = window.location.pathname + '?bulan=01&tahun=<?= $currentYear ?>';
     }
 
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         const filterForm = document.querySelector('form');
 
         if (filterForm) {
-            filterForm.addEventListener('submit', function(e) {
+            filterForm.addEventListener('submit', function (e) {
                 const inputs = this.querySelectorAll('input, select');
 
                 inputs.forEach(input => {
@@ -882,7 +905,7 @@ include '../../navbar/header.php';
         // Search input enter key
         const searchInput = document.querySelector('input[name="search"]');
         if (searchInput) {
-            searchInput.addEventListener('keypress', function(e) {
+            searchInput.addEventListener('keypress', function (e) {
                 if (e.key === 'Enter') {
                     this.form.submit();
                 }
@@ -892,17 +915,17 @@ include '../../navbar/header.php';
         // Table row hover effects
         const tableRows = document.querySelectorAll('tbody tr');
         tableRows.forEach(row => {
-            row.addEventListener('mouseenter', function() {
+            row.addEventListener('mouseenter', function () {
                 this.style.transform = 'translateY(-1px)';
             });
-            row.addEventListener('mouseleave', function() {
+            row.addEventListener('mouseleave', function () {
                 this.style.transform = 'translateY(0)';
             });
         });
     });
 
     // Auto scroll to results
-    window.addEventListener('load', function() {
+    window.addEventListener('load', function () {
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.toString()) {
             document.querySelector('.results-section').scrollIntoView({
