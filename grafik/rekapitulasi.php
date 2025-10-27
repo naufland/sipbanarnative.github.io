@@ -851,6 +851,13 @@ include '../navbar/header.php';
         align-items: center;
     }
 
+
+
+
+
+
+    
+
     .chart-fullscreen-content {
         background: white;
         border-radius: 20px;
