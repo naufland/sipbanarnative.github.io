@@ -331,7 +331,138 @@ try {
             error_log("Error querying $tabel: " . $e->getMessage());
         }
     }
+    // Data untuk Grafik Realisasi Jenis Pengadaan
+    $realisasi_jenis = [];
 
+    foreach ($config_tabel_realisasi as $tabel => $config) {
+        try {
+            $check_table = "SHOW TABLES LIKE '$tabel'";
+            $check_stmt = $conn->prepare($check_table);
+            $check_stmt->execute();
+
+            if ($check_stmt->rowCount() === 0) {
+                continue;
+            }
+
+            $check_cols = "SHOW COLUMNS FROM $tabel";
+            $check_cols_stmt = $conn->prepare($check_cols);
+            $check_cols_stmt->execute();
+            $cols = [];
+            foreach ($check_cols_stmt->fetchAll() as $col_row) {
+                $cols[] = $col_row['Field'];
+            }
+
+            // Cek kolom jenis pengadaan
+            $jenis_col = null;
+            foreach (['Jenis_Pengadaan', 'jenis_pengadaan', 'Jenis', 'jenis'] as $j) {
+                if (in_array($j, $cols)) {
+                    $jenis_col = $j;
+                    break;
+                }
+            }
+
+            if (!$jenis_col) {
+                continue;
+            }
+
+            $bulan_col = null;
+            foreach (['bulan', 'Bulan', 'BULAN'] as $b) {
+                if (in_array($b, $cols)) {
+                    $bulan_col = $b;
+                    break;
+                }
+            }
+
+            if (!$bulan_col) {
+                continue;
+            }
+
+            $tahun_col = null;
+            $possible_tahun = [$config['tahun_col'], 'tahun', 'Tahun', 'TAHUN', 'Tahun_Anggaran', 'tahun_anggaran'];
+            foreach ($possible_tahun as $t) {
+                if (in_array($t, $cols)) {
+                    $tahun_col = $t;
+                    break;
+                }
+            }
+
+            $nilai_col = null;
+            $possible_nilai = [
+                $config['nilai_col'],
+                'Nilai_Kontrak',
+                'nilai_kontrak',
+                'Nilai_Total_Realisasi',
+                'nilai_total_realisasi',
+                'total_harga',
+                'Total_Harga'
+            ];
+            foreach ($possible_nilai as $n) {
+                if (in_array($n, $cols)) {
+                    $nilai_col = $n;
+                    break;
+                }
+            }
+
+            if (!$tahun_col || !$nilai_col) {
+                continue;
+            }
+
+            if (isset($config['force_cast']) && $config['force_cast']) {
+                $nilai_expression = "CAST(CAST($nilai_col as CHAR) as DECIMAL(20,2))";
+            } else {
+                $nilai_expression = "CAST($nilai_col as DECIMAL(20,2))";
+            }
+
+            $sql_jenis_real = "SELECT 
+            CASE 
+                WHEN LOWER($jenis_col) LIKE '%barang%' THEN 'Barang'
+                WHEN LOWER($jenis_col) LIKE '%jasa konsultansi%' THEN 'Jasa Konsultansi'
+                WHEN LOWER($jenis_col) LIKE '%jasa lainnya%' THEN 'Jasa Lainnya'
+                WHEN LOWER($jenis_col) LIKE '%pekerjaan konstruksi%' THEN 'Pekerjaan Konstruksi'
+                ELSE TRIM($jenis_col)
+            END as jenis,
+            COALESCE(SUM($nilai_expression), 0) as total_pagu
+            FROM $tabel 
+            WHERE $nilai_col IS NOT NULL 
+            AND $nilai_col != '' 
+            AND $nilai_col != '0'
+            AND $jenis_col IS NOT NULL
+            AND TRIM($jenis_col) != ''
+            AND (LOWER($bulan_col) = LOWER(:bulan_indo) OR LOWER($bulan_col) = LOWER(:bulan_eng))
+            AND $tahun_col = :tahun
+            GROUP BY jenis";
+
+            $stmt_jenis_real = $conn->prepare($sql_jenis_real);
+            $stmt_jenis_real->bindParam(':bulan_indo', $bulan_indo);
+            $stmt_jenis_real->bindParam(':bulan_eng', $bulan_eng);
+            $stmt_jenis_real->bindParam(':tahun', $tahun_dipilih);
+            $stmt_jenis_real->execute();
+
+            foreach ($stmt_jenis_real->fetchAll() as $row) {
+                $jenis = trim($row['jenis']);
+                $pagu = (float) $row['total_pagu'];
+
+                if (isset($realisasi_jenis[$jenis])) {
+                    $realisasi_jenis[$jenis] += $pagu;
+                } else {
+                    $realisasi_jenis[$jenis] = $pagu;
+                }
+            }
+        } catch (Exception $e) {
+            error_log("Error querying $tabel for jenis realisasi: " . $e->getMessage());
+        }
+    }
+
+    // Sinkronkan jenis standar
+    $jenis_standar = ['Barang', 'Jasa Konsultansi', 'Jasa Lainnya', 'Pekerjaan Konstruksi'];
+    foreach ($jenis_standar as $jenis) {
+        if (!isset($grafik_jenis[$jenis])) {
+            $grafik_jenis[$jenis] = 0;
+        }
+        if (!isset($realisasi_jenis[$jenis])) {
+            $realisasi_jenis[$jenis] = 0;
+        }
+    }
     // PROSES PENCATATAN NONTENDER
     foreach ($config_pencatatan as $tabel => $config) {
         try {
@@ -1398,36 +1529,36 @@ include '../navbar/header.php';
         style="margin: 30px 0 20px 0; padding: 15px; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border-radius: 12px; text-align: center; font-weight: bold; font-size: 16px;">
         <i class="fas fa-check-circle"></i> GRAFIK REALISASI PENGADAAN
     </div>
-    <div class="charts-section" style="grid-template-columns: 1fr 1fr 1fr;">
-        <div class="chart-card">
-            <div class="chart-card-header" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
-                PERBANDINGAN PERENCANAAN DAN REALISASI BERDASARKAN CARA PENGADAAN
-                <button class="chart-fullscreen-btn"
-                    onclick="openFullscreen('chartRealisasiCara', 'PERBANDINGAN PERENCANAAN DAN REALISASI BERDASARKAN CARA PENGADAAN')">
-                    <i class="fas fa-expand"></i>
-                </button>
-            </div>
-            <div class="chart-container">
-                <canvas id="chartRealisasiCara" class="chart-canvas"></canvas>
-            </div>
-        </div>
-        <!-- Kolom Kosong di Tengah -->
-        <div></div>
 
-        <div class="chart-card">
-            <div class="chart-card-header" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
-                REALISASI BERDASARKAN METODE PENGADAAN
-                <button class="chart-fullscreen-btn"
-                    onclick="openFullscreen('chartRealisasiMetode', 'REALISASI BERDASARKAN METODE PENGADAAN')">
-                    <i class="fas fa-expand"></i>
-                </button>
-            </div>
-            <div class="chart-container">
-                <canvas id="chartRealisasiMetode" class="chart-canvas"></canvas>
-            </div>
+    <!-- GRAFIK 1: PERBANDINGAN CARA PENGADAAN -->
+    <div class="chart-card" style="margin-bottom: 30px;">
+        <div class="chart-card-header" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
+            PERBANDINGAN PERENCANAAN DAN REALISASI BERDASARKAN CARA PENGADAAN
+            <button class="chart-fullscreen-btn"
+                onclick="openFullscreen('chartRealisasiCara', 'PERBANDINGAN PERENCANAAN DAN REALISASI BERDASARKAN CARA PENGADAAN')">
+                <i class="fas fa-expand"></i>
+            </button>
+        </div>
+        <div class="chart-container" style="padding: 30px;">
+            <canvas id="chartRealisasiCara" style="height: 400px; max-height: 400px;"></canvas>
         </div>
     </div>
 
+    <!-- GRAFIK 2: REKAP JENIS PENGADAAN -->
+    <div class="chart-card" style="margin-bottom: 30px;">
+        <div class="chart-card-header" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
+            REKAP PERENCANAAN DAN REALISASI PBJ BERDASARKAN JENIS PENGADAAN
+            <button class="chart-fullscreen-btn"
+                onclick="openFullscreen('chartRealisasiMetode', 'REKAP PERENCANAAN DAN REALISASI PBJ BERDASARKAN JENIS PENGADAAN')">
+                <i class="fas fa-expand"></i>
+            </button>
+        </div>
+        <div class="chart-container" style="padding: 30px;">
+            <canvas id="chartRealisasiMetode" style="height: 400px; max-height: 400px;"></canvas>
+        </div>
+    </div>
+
+    <!-- GRAFIK 3: REKAP METODE PENGADAAN -->
     <div class="chart-card" style="margin-bottom: 30px;">
         <div class="chart-card-header">
             <i class="fas fa-chart-bar"></i> REKAP PERENCANAAN DAN REALISASI PBJ BERDASARKAN METODE PENGADAAN
@@ -1687,7 +1818,7 @@ include '../navbar/header.php';
     };
 
     const configCara = {
-        type: 'doughnut',
+        type: 'pie',
         data: dataCara,
         options: {
             responsive: true,
@@ -1792,62 +1923,55 @@ include '../navbar/header.php';
         datasets: [{
             label: 'Pagu (Rp)',
             data: <?php echo json_encode(array_values($grafik_metode)); ?>,
-            backgroundColor: 'rgba(220, 53, 69, 0.8)',
-            borderColor: 'rgb(220, 53, 69)',
+            backgroundColor: [
+                'rgba(220, 53, 69, 0.8)',
+                'rgba(255, 193, 7, 0.8)',
+                'rgba(13, 110, 253, 0.8)',
+                'rgba(25, 135, 84, 0.8)',
+                'rgba(108, 117, 125, 0.8)',
+                'rgba(111, 66, 193, 0.8)',
+                'rgba(214, 51, 132, 0.8)'
+            ],
+            borderColor: [
+                'rgb(220, 53, 69)',
+                'rgb(255, 193, 7)',
+                'rgb(13, 110, 253)',
+                'rgb(25, 135, 84)',
+                'rgb(108, 117, 125)',
+                'rgb(111, 66, 193)',
+                'rgb(214, 51, 132)'
+            ],
             borderWidth: 2
         }]
     };
 
     const configMetode = {
-        type: 'bar',
+        type: 'pie',
         data: dataMetode,
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            indexAxis: 'y',
             plugins: {
                 legend: {
-                    display: false
+                    position: 'bottom',
+                    labels: {
+                        font: {
+                            size: 11,
+                            weight: 'bold'
+                        },
+                        padding: 12
+                    }
                 },
                 tooltip: {
                     callbacks: {
                         label: function (context) {
-                            let value = context.parsed.x || 0;
-                            return 'Pagu: Rp ' + value.toLocaleString('id-ID');
+                            let label = context.label || '';
+                            let value = context.parsed || 0;
+                            let total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            let percentage = ((value / total) * 100).toFixed(2);
+
+                            return label + ': Rp ' + value.toLocaleString('id-ID') + ' (' + percentage + '%)';
                         }
-                    }
-                }
-            },
-            scales: {
-                x: {
-                    beginAtZero: true,
-                    ticks: {
-                        callback: function (value) {
-                            if (value >= 1000000000) {
-                                return 'Rp ' + (value / 1000000000).toFixed(1) + 'M';
-                            } else if (value >= 1000000) {
-                                return 'Rp ' + (value / 1000000).toFixed(1) + 'Jt';
-                            }
-                            return 'Rp ' + value.toLocaleString('id-ID');
-                        },
-                        font: {
-                            size: 10
-                        }
-                    },
-                    grid: {
-                        display: true,
-                        drawBorder: false
-                    }
-                },
-                y: {
-                    ticks: {
-                        font: {
-                            size: 11,
-                            weight: 'bold'
-                        }
-                    },
-                    grid: {
-                        display: false
                     }
                 }
             }
@@ -1975,24 +2099,35 @@ include '../navbar/header.php';
         configRealisasiCara
     );
 
-    // GRAFIK 5: REALISASI BERDASARKAN METODE PENGADAAN
+    // GRAFIK 5: REKAP PERENCANAAN DAN REALISASI BERDASARKAN JENIS PENGADAAN
     const dataRealisasiMetode = {
-        labels: <?php
-        $realisasi_metode_labels = array_keys($realisasi_metode);
-        echo json_encode($realisasi_metode_labels);
-        ?>,
-        datasets: [{
-            label: 'Nilai Realisasi (Rp)',
-            data: <?php
-            $realisasi_metode_values = array_map(function ($item) {
-                return $item['pagu'];
-            }, array_values($realisasi_metode));
-            echo json_encode($realisasi_metode_values);
-            ?>,
-            backgroundColor: 'rgba(239, 68, 68, 0.8)',
-            borderColor: 'rgb(239, 68, 68)',
-            borderWidth: 2
-        }]
+        labels: ['Barang', 'Jasa Konsultansi', 'Jasa Lainnya', 'Pekerjaan Konstruksi'],
+        datasets: [
+            {
+                label: 'Nilai Perencanaan',
+                data: [
+                    <?php echo isset($grafik_jenis['Barang']) ? $grafik_jenis['Barang'] : 0; ?>,
+                    <?php echo isset($grafik_jenis['Jasa Konsultansi']) ? $grafik_jenis['Jasa Konsultansi'] : 0; ?>,
+                    <?php echo isset($grafik_jenis['Jasa Lainnya']) ? $grafik_jenis['Jasa Lainnya'] : 0; ?>,
+                    <?php echo isset($grafik_jenis['Pekerjaan Konstruksi']) ? $grafik_jenis['Pekerjaan Konstruksi'] : 0; ?>
+                ],
+                backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                borderColor: 'rgb(59, 130, 246)',
+                borderWidth: 2
+            },
+            {
+                label: 'Nilai Realisasi',
+                data: [
+                    <?php echo isset($realisasi_jenis['Barang']) ? $realisasi_jenis['Barang'] : 0; ?>,
+                    <?php echo isset($realisasi_jenis['Jasa Konsultansi']) ? $realisasi_jenis['Jasa Konsultansi'] : 0; ?>,
+                    <?php echo isset($realisasi_jenis['Jasa Lainnya']) ? $realisasi_jenis['Jasa Lainnya'] : 0; ?>,
+                    <?php echo isset($realisasi_jenis['Pekerjaan Konstruksi']) ? $realisasi_jenis['Pekerjaan Konstruksi'] : 0; ?>
+                ],
+                backgroundColor: 'rgba(239, 68, 68, 0.8)',
+                borderColor: 'rgb(239, 68, 68)',
+                borderWidth: 2
+            }
+        ]
     };
 
     const configRealisasiMetode = {
@@ -2001,29 +2136,71 @@ include '../navbar/header.php';
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            indexAxis: 'y',
             plugins: {
                 legend: {
-                    display: false
+                    position: 'top',
+                    labels: {
+                        font: {
+                            size: 13,
+                            weight: 'bold'
+                        },
+                        padding: 20,
+                        usePointStyle: true,
+                        pointStyle: 'rectRounded'
+                    }
                 },
                 tooltip: {
                     callbacks: {
                         label: function (context) {
-                            let value = context.parsed.x || 0;
-                            return 'Realisasi: Rp ' + value.toLocaleString('id-ID');
+                            let label = context.dataset.label || '';
+                            let value = context.parsed.y || 0;
+                            return label + ': Rp ' + value.toLocaleString('id-ID');
+                        },
+                        afterLabel: function (context) {
+                            if (context.datasetIndex === 1) {
+                                let perencanaan = context.chart.data.datasets[0].data[context.dataIndex];
+                                let realisasi = context.parsed.y;
+                                if (perencanaan > 0) {
+                                    let percentage = ((realisasi / perencanaan) * 100).toFixed(2);
+                                    return 'Capaian: ' + percentage + '%';
+                                }
+                            }
+                            return '';
                         }
+                    },
+                    padding: 12,
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    titleFont: {
+                        size: 13,
+                        weight: 'bold'
+                    },
+                    bodyFont: {
+                        size: 12
                     }
                 }
             },
             scales: {
                 x: {
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        font: {
+                            size: 11,
+                            weight: 'bold'
+                        },
+                        maxRotation: 45,
+                        minRotation: 45
+                    }
+                },
+                y: {
                     beginAtZero: true,
                     ticks: {
                         callback: function (value) {
                             if (value >= 1000000000) {
                                 return 'Rp ' + (value / 1000000000).toFixed(1) + 'M';
                             } else if (value >= 1000000) {
-                                return 'Rp ' + (value / 1000000).toFixed(1) + 'Jt';
+                                return 'Rp ' + (value / 1000000).toFixed(0) + 'Jt';
                             }
                             return 'Rp ' + value.toLocaleString('id-ID');
                         },
@@ -2032,19 +2209,7 @@ include '../navbar/header.php';
                         }
                     },
                     grid: {
-                        display: true,
-                        drawBorder: false
-                    }
-                },
-                y: {
-                    ticks: {
-                        font: {
-                            size: 11,
-                            weight: 'bold'
-                        }
-                    },
-                    grid: {
-                        display: false
+                        color: 'rgba(0, 0, 0, 0.05)'
                     }
                 }
             }
@@ -2078,7 +2243,7 @@ include '../navbar/header.php';
     };
 
     const configSwakelola = {
-        type: 'pie',
+        type: 'bar',
         data: dataSwakelola,
         options: {
             responsive: true,
