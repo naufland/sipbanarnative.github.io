@@ -1401,9 +1401,9 @@ include '../navbar/header.php';
     <div class="charts-section" style="grid-template-columns: 1fr 1fr 1fr;">
         <div class="chart-card">
             <div class="chart-card-header" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
-                REALISASI BERDASARKAN CARA PENGADAAN
+                PERBANDINGAN PERENCANAAN DAN REALISASI BERDASARKAN CARA PENGADAAN
                 <button class="chart-fullscreen-btn"
-                    onclick="openFullscreen('chartRealisasiCara', 'REALISASI BERDASARKAN CARA PENGADAAN')">
+                    onclick="openFullscreen('chartRealisasiCara', 'PERBANDINGAN PERENCANAAN DAN REALISASI BERDASARKAN CARA PENGADAAN')">
                     <i class="fas fa-expand"></i>
                 </button>
             </div>
@@ -1411,7 +1411,6 @@ include '../navbar/header.php';
                 <canvas id="chartRealisasiCara" class="chart-canvas"></canvas>
             </div>
         </div>
-
         <!-- Kolom Kosong di Tengah -->
         <div></div>
 
@@ -1860,54 +1859,111 @@ include '../navbar/header.php';
         configMetode
     );
 
-    // GRAFIK 4: REALISASI BERDASARKAN CARA PENGADAAN
+    // GRAFIK 4: PERBANDINGAN PERENCANAAN DAN REALISASI BERDASARKAN CARA PENGADAAN
     const dataRealisasiCara = {
         labels: ['Penyedia', 'Swakelola'],
-        datasets: [{
-            label: 'Nilai Realisasi (Rp)',
-            data: [
-                <?php echo $realisasi_cara['Penyedia']['pagu']; ?>,
-                <?php echo $realisasi_cara['Swakelola']['pagu']; ?>
-            ],
-            backgroundColor: [
-                'rgba(239, 68, 68, 0.8)',
-                'rgba(59, 130, 246, 0.8)'
-            ],
-            borderColor: [
-                'rgb(239, 68, 68)',
-                'rgb(59, 130, 246)'
-            ],
-            borderWidth: 2
-        }]
+        datasets: [
+            {
+                label: 'Nilai Perencanaan',
+                data: [
+                    <?php echo $rekap_cara['Penyedia']['pagu']; ?>,
+                    <?php echo $rekap_cara['Swakelola']['pagu']; ?>
+                ],
+                backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                borderColor: 'rgb(59, 130, 246)',
+                borderWidth: 2
+            },
+            {
+                label: 'Nilai Realisasi',
+                data: [
+                    <?php echo $realisasi_cara['Penyedia']['pagu']; ?>,
+                    <?php echo $realisasi_cara['Swakelola']['pagu']; ?>
+                ],
+                backgroundColor: 'rgba(239, 68, 68, 0.8)',
+                borderColor: 'rgb(239, 68, 68)',
+                borderWidth: 2
+            }
+        ]
     };
 
     const configRealisasiCara = {
-        type: 'doughnut',
+        type: 'bar',
         data: dataRealisasiCara,
         options: {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
                 legend: {
-                    position: 'bottom',
+                    position: 'top',
                     labels: {
                         font: {
-                            size: 12,
+                            size: 13,
                             weight: 'bold'
                         },
-                        padding: 15
+                        padding: 20,
+                        usePointStyle: true,
+                        pointStyle: 'rectRounded'
                     }
                 },
                 tooltip: {
                     callbacks: {
                         label: function (context) {
-                            let label = context.label || '';
-                            let value = context.parsed || 0;
-                            let total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            let percentage = ((value / total) * 100).toFixed(2);
-
-                            return label + ': Rp ' + value.toLocaleString('id-ID') + ' (' + percentage + '%)';
+                            let label = context.dataset.label || '';
+                            let value = context.parsed.y || 0;
+                            return label + ': Rp ' + value.toLocaleString('id-ID');
+                        },
+                        afterLabel: function (context) {
+                            if (context.datasetIndex === 1) {
+                                let perencanaan = context.chart.data.datasets[0].data[context.dataIndex];
+                                let realisasi = context.parsed.y;
+                                if (perencanaan > 0) {
+                                    let percentage = ((realisasi / perencanaan) * 100).toFixed(2);
+                                    return 'Capaian: ' + percentage + '%';
+                                }
+                            }
+                            return '';
                         }
+                    },
+                    padding: 12,
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    titleFont: {
+                        size: 13,
+                        weight: 'bold'
+                    },
+                    bodyFont: {
+                        size: 12
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        font: {
+                            size: 12,
+                            weight: 'bold'
+                        }
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function (value) {
+                            if (value >= 1000000000) {
+                                return 'Rp ' + (value / 1000000000).toFixed(1) + 'M';
+                            } else if (value >= 1000000) {
+                                return 'Rp ' + (value / 1000000).toFixed(0) + 'Jt';
+                            }
+                            return 'Rp ' + value.toLocaleString('id-ID');
+                        },
+                        font: {
+                            size: 10
+                        }
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
                     }
                 }
             }
