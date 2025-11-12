@@ -475,8 +475,8 @@
                                     Rekap Pembukuan
                                 </a>
                                 <ul class="dropdown-menu" aria-labelledby="rekapPembukaanDropdown">
-                                    <li>
-                                        <a class="dropdown-item" href="<?= $_SERVER['REQUEST_SCHEME'] ?>://<?= $_SERVER['HTTP_HOST'] ?>/rekappengadaan/pembukaan/lppd.php">
+                                    <li
+                                        <a class="dropdown-item" href="<?= $_SERVER['REQUEST_SCHEME'] ?>://<?= $_SERVER['HTTP_HOST'] ?>../rekappembukuan/lppd.php">
                                             <i class="fas fa-file-contract"></i>
                                             LPPD
                                         </a>
