@@ -5,7 +5,7 @@
 // =================================================================
 
 // URL API dasar
-$apiBaseUrl = "http://sipbanar-phpnative.id/api/pengadaan.php";
+$apiBaseUrl = "http://sipbanarnative.id/api/pengadaan.php";
 
 // 1. Dapatkan parameter dari URL, termasuk halaman saat ini
 $currentPage = isset($_GET['page']) ? (int)$_GET['page'] : 1;
@@ -106,6 +106,9 @@ if ($optionsResponse) {
 // Include header
 include '../../navbar/header.php';
 ?>
+
+<!-- Select2 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 
 <script src="../../js/submenu.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
@@ -230,6 +233,64 @@ include '../../navbar/header.php';
     .filter-group select:hover,
     .filter-group input[type="text"]:hover {
         border-color: #dc3545;
+    }
+
+    /* Custom Select2 Styling */
+    .select2-container--default .select2-selection--single {
+        height: 50px;
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        padding: 6px 16px;
+        transition: all 0.3s ease;
+    }
+
+    .select2-container--default .select2-selection--single:hover {
+        border-color: #dc3545;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 36px;
+        padding-left: 0;
+        font-size: 14px;
+        color: #2c3e50;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 48px;
+        right: 10px;
+    }
+
+    .select2-container--default.select2-container--focus .select2-selection--single {
+        border-color: #dc3545;
+        box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.15);
+        transform: translateY(-1px);
+    }
+
+    .select2-dropdown {
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    .select2-search--dropdown .select2-search__field {
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        padding: 10px 14px;
+        font-size: 14px;
+    }
+
+    .select2-search--dropdown .select2-search__field:focus {
+        border-color: #dc3545;
+        outline: none;
+    }
+
+    .select2-results__option {
+        padding: 12px 16px;
+        font-size: 14px;
+    }
+
+    .select2-results__option--highlighted {
+        background-color: #dc3545 !important;
     }
 
     /* Date Range Styles */
@@ -766,7 +827,7 @@ include '../../navbar/header.php';
             <h3>Filter Data Pengadaan</h3>
         </div>
         <div class="filter-content">
-            <form method="GET" action="">
+            <form method="GET" action="" id="filterForm">
                 <div class="filter-row">
                     <div class="filter-group">
                         <label>
@@ -800,7 +861,7 @@ include '../../navbar/header.php';
                             <option value="Jasa Lainnya" <?= ($_GET['jenis_pengadaan'] ?? '') == 'Jasa Lainnya' ? 'selected' : '' ?>>Jasa Lainnya</option>
                             <option value="Jasa Konsultansi" <?= ($_GET['jenis_pengadaan'] ?? '') == 'Jasa Konsultansi' ? 'selected' : '' ?>>Jasa Konsultansi</option>
                             <option value="Barang" <?= ($_GET['jenis_pengadaan'] ?? '') == 'Barang' ? 'selected' : '' ?>>Barang</option>
-                            <option value="Konstruksi" <?= ($_GET['jenis_pengadaan'] ?? '') == 'Konstruksi' ? 'selected' : '' ?>>Konstruksi</option>
+                            <option value="Konstruksi" <?= ($_GET['konstruksi'] ?? '') == 'Konstruksi' ? 'selected' : '' ?>>Konstruksi</option>
                         </select>
                     </div>
 
@@ -820,7 +881,7 @@ include '../../navbar/header.php';
                 <div class="filter-row">
                     <div class="filter-group">
                         <label><i class="fas fa-sitemap"></i> Satuan Kerja</label>
-                        <select name="satuan_kerja" id="satuan_kerja">
+                        <select name="satuan_kerja" id="satuan_kerja" class="select2-searchable">
                             <option value="">Semua Satuan Kerja</option>
                             <?php
                             if (!empty($satuanKerjaList) && is_array($satuanKerjaList)) {
@@ -843,7 +904,7 @@ include '../../navbar/header.php';
 
                     <div class="filter-group">
                         <label><i class="fas fa-cogs"></i> Metode</label>
-                        <select name="metode">
+                        <select name="metode" id="metode" class="select2-searchable">
                             <option value="">Semua Metode</option>
                             <option value="E-Purchasing" <?= ($_GET['metode'] ?? '') == 'E-Purchasing' ? 'selected' : '' ?>>E-Purchasing</option>
                             <option value="Pengadaan Langsung" <?= ($_GET['metode'] ?? '') == 'Pengadaan Langsung' ? 'selected' : '' ?>>Pengadaan Langsung</option>
@@ -1039,9 +1100,38 @@ include '../../navbar/header.php';
     </div>
 </div>
 
+<!-- jQuery (required for Select2) -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<!-- Select2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const filterForm = document.querySelector('form');
+    // Initialize Select2 untuk Satuan Kerja dan Metode
+    $('.select2-searchable').select2({
+        placeholder: function() {
+            return $(this).data('placeholder') || 'Ketik untuk mencari...';
+        },
+        allowClear: true,
+        width: '100%',
+        language: {
+            noResults: function() {
+                return "Tidak ada hasil yang cocok";
+            },
+            searching: function() {
+                return "Mencari...";
+            },
+            inputTooShort: function() {
+                return "Ketik untuk mencari...";
+            }
+        }
+    });
+
+    // Set placeholder khusus untuk masing-masing dropdown
+    $('#satuan_kerja').data('placeholder', '-- Ketik atau pilih Satuan Kerja --');
+    $('#metode').data('placeholder', '-- Ketik atau pilih Metode --');
+
+    const filterForm = document.querySelector('#filterForm');
 
     // DEBUG: Check Satuan Kerja dropdown
     const satuanKerjaSelect = document.querySelector('#satuan_kerja');
@@ -1152,7 +1242,7 @@ function resetForm() {
 }
 
 // Form validation before submit
-document.querySelector('form').addEventListener('submit', function(e) {
+document.querySelector('#filterForm').addEventListener('submit', function(e) {
     // Show loading state
     const submitBtn = this.querySelector('.search-btn');
     const originalText = submitBtn.innerHTML;

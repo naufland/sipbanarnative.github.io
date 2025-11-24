@@ -15,7 +15,7 @@ $options = $optionsData['options'] ?? [
 ];
 
 // Dapatkan parameter dari URL
-$currentPage = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$currentPage = isset($_GET['page']) ? (int) $_GET['page'] : 1;
 $limit = $_GET['limit'] ?? 50;
 
 // FILTER BULAN DEFAULT JULI
@@ -86,10 +86,18 @@ if ($totalPaket > 0) {
 $page_title = "Realisasi Tender - SIP BANAR";
 
 $namaBulan = [
-    '01' => 'Januari', '02' => 'Februari', '03' => 'Maret',
-    '04' => 'April', '05' => 'Mei', '06' => 'Juni',
-    '07' => 'Juli', '08' => 'Agustus', '09' => 'September',
-    '10' => 'Oktober', '11' => 'November', '12' => 'Desember'
+    '01' => 'Januari',
+    '02' => 'Februari',
+    '03' => 'Maret',
+    '04' => 'April',
+    '05' => 'Mei',
+    '06' => 'Juni',
+    '07' => 'Juli',
+    '08' => 'Agustus',
+    '09' => 'September',
+    '10' => 'Oktober',
+    '11' => 'November',
+    '12' => 'Desember'
 ];
 
 include '../../navbar/header.php';
@@ -97,6 +105,12 @@ include '../../navbar/header.php';
 
 <script src="../../js/submenu.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+<!-- jQuery (required for Select2) -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<!-- Select2 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<!-- Select2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <style>
     body {
         background: #f5f7fa;
@@ -365,8 +379,8 @@ include '../../navbar/header.php';
     /* Top Border Colors for Cards */
     .summary-cards {
         border-top: 4px solid transparent;
-        background-image: linear-gradient(white, white), 
-                          linear-gradient(90deg, #4a90e2 0%, #4a90e2 25%, #f5a623 25%, #f5a623 50%, #27ae60 50%, #27ae60 75%, #17a2b8 75%, #17a2b8 100%);
+        background-image: linear-gradient(white, white),
+            linear-gradient(90deg, #4a90e2 0%, #4a90e2 25%, #f5a623 25%, #f5a623 50%, #27ae60 50%, #27ae60 75%, #17a2b8 75%, #17a2b8 100%);
         background-origin: border-box;
         background-clip: padding-box, border-box;
     }
@@ -436,10 +450,25 @@ include '../../navbar/header.php';
         letter-spacing: 0.3px;
     }
 
-    .badge-primary { background: #4a90e2; color: white; }
-    .badge-success { background: #27ae60; color: white; }
-    .badge-warning { background: #f5a623; color: white; }
-    .badge-info { background: #17a2b8; color: white; }
+    .badge-primary {
+        background: #4a90e2;
+        color: white;
+    }
+
+    .badge-success {
+        background: #27ae60;
+        color: white;
+    }
+
+    .badge-warning {
+        background: #f5a623;
+        color: white;
+    }
+
+    .badge-info {
+        background: #17a2b8;
+        color: white;
+    }
 
     .price {
         font-weight: 700;
@@ -478,6 +507,7 @@ include '../../navbar/header.php';
     }
 
     @media (max-width: 768px) {
+
         .filter-grid,
         .summary-cards {
             grid-template-columns: 1fr;
@@ -500,10 +530,69 @@ include '../../navbar/header.php';
             opacity: 0;
             transform: translateY(20px);
         }
+
         to {
             opacity: 1;
             transform: translateY(0);
         }
+    }
+
+    /* Custom Select2 Styling */
+    .select2-container--default .select2-selection--single {
+        height: 46px;
+        border: 2px solid #e1e8ed;
+        border-radius: 8px;
+        padding: 6px 16px;
+        transition: all 0.2s ease;
+    }
+
+    .select2-container--default .select2-selection--single:hover {
+        border-color: #dc3545;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 32px;
+        padding-left: 0;
+        font-size: 14px;
+        color: #495057;
+        font-weight: 500;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 44px;
+        right: 10px;
+    }
+
+    .select2-container--default.select2-container--focus .select2-selection--single {
+        border-color: #dc3545;
+        box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.1);
+    }
+
+    .select2-dropdown {
+        border: 2px solid #e1e8ed;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .select2-search--dropdown .select2-search__field {
+        border: 2px solid #e1e8ed;
+        border-radius: 6px;
+        padding: 8px 12px;
+        font-size: 14px;
+    }
+
+    .select2-search--dropdown .select2-search__field:focus {
+        border-color: #dc3545;
+        outline: none;
+    }
+
+    .select2-results__option {
+        padding: 10px 14px;
+        font-size: 14px;
+    }
+
+    .select2-results__option--highlighted {
+        background-color: #dc3545 !important;
     }
 </style>
 
@@ -518,10 +607,12 @@ include '../../navbar/header.php';
             <form method="GET">
                 <div class="filter-grid">
                     <div class="filter-group">
-                        <label><i class="fas fa-calendar"></i> Bulan <span class="badge-default">DEFAULT: JULI</span></label>
+                        <label><i class="fas fa-calendar"></i> Bulan <span class="badge-default">DEFAULT:
+                                JULI</span></label>
                         <select name="bulan">
                             <?php foreach ($namaBulan as $kode => $nama): ?>
-                                <option value="<?= $kode ?>" <?= $selectedBulan == $kode ? 'selected' : '' ?>><?= $nama ?></option>
+                                <option value="<?= $kode ?>" <?= $selectedBulan == $kode ? 'selected' : '' ?>><?= $nama ?>
+                                </option>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -551,7 +642,7 @@ include '../../navbar/header.php';
 
                     <div class="filter-group">
                         <label><i class="fas fa-building"></i> Satuan Kerja</label>
-                        <select name="nama_satker">
+                        <select name="nama_satker" id="nama_satker" class="select2-searchable">
                             <option value="">Semua Satuan Kerja</option>
                             <?php if (!empty($options['nama_satker'])): ?>
                                 <?php foreach ($options['nama_satker'] as $s): ?>
@@ -609,7 +700,9 @@ include '../../navbar/header.php';
                         <label><i class="fas fa-search"></i> Pencarian</label>
                         <div class="search-input-wrapper">
                             <i class="fas fa-search"></i>
-                            <input type="text" name="search" placeholder="Cari nama paket, pemenang, atau kode tender..." value="<?= htmlspecialchars($_GET['search'] ?? '') ?>">
+                            <input type="text" name="search"
+                                placeholder="Cari nama paket, pemenang, atau kode tender..."
+                                value="<?= htmlspecialchars($_GET['search'] ?? '') ?>">
                         </div>
                     </div>
                 </div>
@@ -686,7 +779,8 @@ include '../../navbar/header.php';
                 </div>
                 <?php if ($data && isset($data['success']) && $data['success']): ?>
                     <div class="results-subtitle">
-                        Menampilkan <?= count($data['data']) ?> dari <?= number_format($totalRecords, 0, ',', '.') ?> total data
+                        Menampilkan <?= count($data['data']) ?> dari <?= number_format($totalRecords, 0, ',', '.') ?> total
+                        data
                     </div>
                 <?php endif; ?>
             </div>
@@ -710,7 +804,7 @@ include '../../navbar/header.php';
                     <tbody>
                         <?php foreach ($data['data'] as $index => $row): ?>
                             <tr>
-                                
+
                                 <td>
                                     <div style="font-weight: 600; color: #4a90e2; font-size: 11px;">
                                         <?= htmlspecialchars($row['Kode_Tender'] ?? '-') ?>
@@ -722,13 +816,13 @@ include '../../navbar/header.php';
                                     </div>
                                 </td>
                                 <td class="price" style="color: #6c757d;">
-                                    Rp <?= number_format((float)($row['Nilai_Pagu'] ?? 0), 0, ',', '.') ?>
+                                    Rp <?= number_format((float) ($row['Nilai_Pagu'] ?? 0), 0, ',', '.') ?>
                                 </td>
                                 <td class="price" style="color: #f5a623;">
-                                    Rp <?= number_format((float)($row['Nilai_HPS'] ?? 0), 0, ',', '.') ?>
+                                    Rp <?= number_format((float) ($row['Nilai_HPS'] ?? 0), 0, ',', '.') ?>
                                 </td>
                                 <td class="price" style="color: #27ae60;">
-                                    Rp <?= number_format((float)($row['Nilai_Kontrak'] ?? 0), 0, ',', '.') ?>
+                                    Rp <?= number_format((float) ($row['Nilai_Kontrak'] ?? 0), 0, ',', '.') ?>
                                 </td>
                                 <td style="font-weight: 600; color: #495057;">
                                     <?= htmlspecialchars($row['Nama_Pemenang'] ?? '-') ?>
@@ -757,20 +851,63 @@ include '../../navbar/header.php';
 </div>
 
 <script>
-function resetForm() {
-    window.location.href = window.location.pathname + '?bulan=07&tahun=<?= $currentYear ?>';
-}
+    function resetForm() {
+        window.location.href = window.location.pathname + '?bulan=07&tahun=<?= $currentYear ?>';
+    }
 
-document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
     const searchInput = document.querySelector('input[name="search"]');
     if (searchInput) {
-        searchInput.addEventListener('keypress', function(e) {
+        searchInput.addEventListener('keypress', function (e) {
             if (e.key === 'Enter') {
                 this.form.submit();
             }
         });
     }
+
+    // Initialize Select2 KHUSUS untuk Satuan Kerja dengan fitur pencarian
+    $('#nama_satker').select2({
+        placeholder: 'Ketik untuk mencari Satuan Kerja...',
+        allowClear: true,
+        width: '100%',
+        minimumResultsForSearch: 0,
+        matcher: function(params, data) {
+            if ($.trim(params.term) === '') {
+                return data;
+            }
+            if (typeof data.text === 'undefined') {
+                return null;
+            }
+            if (data.text.toLowerCase().indexOf(params.term.toLowerCase()) > -1) {
+                return data;
+            }
+            return null;
+        },
+        language: {
+            noResults: function () {
+                return "Tidak ditemukan Satuan Kerja yang cocok";
+            },
+            searching: function () {
+                return "Mencari...";
+            }
+        },
+        templateResult: function(data) {
+            if (!data.id) {
+                return data.text;
+            }
+            var term = $('.select2-search__field').val();
+            if (term) {
+                var regex = new RegExp('(' + term + ')', 'gi');
+                var highlighted = data.text.replace(regex, '<strong>$1</strong>');
+                return $('<span>' + highlighted + '</span>');
+            }
+            return data.text;
+        }
+    });
+
+    console.log('✅ Select2 initialized for Satuan Kerja');
 });
+
 </script>
 
 <?php include '../../navbar/footer.php'; ?>

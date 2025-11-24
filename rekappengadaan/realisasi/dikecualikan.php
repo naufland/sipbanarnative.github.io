@@ -1,7 +1,7 @@
 <?php
 // =================================================================
 // == FILE DASHBOARD UNTUK REALISASI DIKECUALIKAN ==================
-// == DENGAN FILTER BULAN + SATKER (UPDATE) =======================
+// == DENGAN FILTER BULAN + SATKER DINAMIS (UPDATE) ================
 // =================================================================
 
 // 1. URL API untuk Realisasi Dikecualikan
@@ -12,12 +12,18 @@ $currentPage = isset($_GET['page']) ? (int) $_GET['page'] : 1;
 $limit = $_GET['limit'] ?? 50;
 
 // TAMBAHAN: Dapatkan filter bulan dan tahun
-// Default bulan Januari (01) dan tahun sekarang
 $currentYear = date('Y');
-$selectedBulan = $_GET['bulan'] ?? '01'; // Default Januari
+$selectedBulan = $_GET['bulan'] ?? '01';
 $selectedTahun = $_GET['tahun'] ?? $currentYear;
+$selectedSatker = $_GET['satker'] ?? '';
 
-// 3. Siapkan parameter query untuk API data tabel
+// 3. Ambil daftar Satker dari API
+$apiSatkerUrl = $apiBaseUrl . '?action=get_satker';
+$satkerResponse = @file_get_contents($apiSatkerUrl);
+$satkerData = json_decode($satkerResponse, true);
+$listSatker = $satkerData['data'] ?? [];
+
+// 4. Siapkan parameter query untuk API data tabel
 $queryParams = array_filter($_GET, function ($value) {
     return $value !== '' && $value !== null;
 });
@@ -25,23 +31,27 @@ $queryParams['page'] = $currentPage;
 $queryParams['limit'] = $limit;
 $queryParams['bulan'] = $selectedBulan;
 $queryParams['tahun'] = $selectedTahun;
+if ($selectedSatker !== '') {
+    $queryParams['nama_satker'] = $selectedSatker;  // Ganti dari 'satker' ke 'nama_satker'
+}
+$queryParams['action'] = 'list';  // Tambahkan action
 $queryString = http_build_query($queryParams);
 $apiUrl = $apiBaseUrl . '?' . $queryString;
 
-// 4. Siapkan parameter untuk mengambil data SUMMARY
+// 5. Siapkan parameter untuk mengambil data SUMMARY
 $summaryParams = $queryParams;
 unset($summaryParams['page'], $summaryParams['limit']);
 $summaryParams['action'] = 'summary';
 $summaryQueryString = http_build_query($summaryParams);
 $apiSummaryUrl = $apiBaseUrl . '?' . $summaryQueryString;
 
-// 5. Panggil API untuk data tabel dan data summary
+// 6. Panggil API untuk data tabel dan data summary
 $response = @file_get_contents($apiUrl);
 $data = json_decode($response, true);
 $summaryResponse = @file_get_contents($apiSummaryUrl);
 $summaryData = json_decode($summaryResponse, true);
 
-// 6. Inisialisasi dan proses variabel statistik
+// 7. Inisialisasi dan proses variabel statistik
 $totalPaket = 0;
 $totalPagu = 0;
 $totalRealisasi = 0;
@@ -73,7 +83,7 @@ if ($summaryData && ($summaryData['success'] ?? false) && isset($summaryData['su
     $formattedTotalUMK = 'Rp ' . number_format($totalUMK, 0, ',', '.');
 }
 
-// 7. Siapkan variabel untuk paginasi
+// 8. Siapkan variabel untuk paginasi
 $tableData = $data['data'] ?? [];
 $totalPages = $data['pagination']['total_pages'] ?? 1;
 $totalRecords = $data['pagination']['total_records'] ?? 0;
@@ -81,23 +91,15 @@ if ($totalPaket > 0) {
     $totalRecords = $totalPaket;
 }
 
-// 8. Set judul halaman
+// 9. Set judul halaman
 $page_title = "Data Realisasi Dikecualikan - SIP BANAR";
 
 // Array nama bulan untuk tampilan
 $namaBulan = [
-    '01' => 'Januari',
-    '02' => 'Februari',
-    '03' => 'Maret',
-    '04' => 'April',
-    '05' => 'Mei',
-    '06' => 'Juni',
-    '07' => 'Juli',
-    '08' => 'Agustus',
-    '09' => 'September',
-    '10' => 'Oktober',
-    '11' => 'November',
-    '12' => 'Desember'
+    '01' => 'Januari', '02' => 'Februari', '03' => 'Maret',
+    '04' => 'April', '05' => 'Mei', '06' => 'Juni',
+    '07' => 'Juli', '08' => 'Agustus', '09' => 'September',
+    '10' => 'Oktober', '11' => 'November', '12' => 'Desember'
 ];
 
 // --- Mulai Output HTML ---
@@ -105,6 +107,11 @@ include '../../navbar/header.php';
 ?>
 <script src="../../js/submenu.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+<!-- Tambahkan Select2 CSS dan JS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
 <style>
     body {
         font-family: 'Inter', sans-serif;
@@ -138,13 +145,8 @@ include '../../navbar/header.php';
         gap: 12px;
         position: relative;
         border-top-left-radius: 15px;
-        /* ← Sudut kiri atas melengkung */
         border-top-right-radius: 15px;
-        /* ← Sudut kanan atas melengkung */
-        clip-path: none !important;
-        /* ← Hilangkan potongan lancip */
         overflow: hidden;
-        /* ← Pastikan warna tidak keluar radius */
     }
 
     .filter-header::after,
@@ -156,11 +158,6 @@ include '../../navbar/header.php';
         right: 0;
         height: 3px;
         background: linear-gradient(90deg, #e74c3c, #f39c12, #e74c3c);
-    }
-
-    .filter-header,
-    .summary-header {
-        position: relative;
     }
 
     .filter-header h3,
@@ -223,6 +220,50 @@ include '../../navbar/header.php';
         outline: none;
         border-color: #e74c3c;
         box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.15);
+    }
+
+    /* Styling untuk Select2 */
+    .select2-container--default .select2-selection--single {
+        height: 50px;
+        padding: 12px 16px;
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        font-size: 14px;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 26px;
+        color: #2c3e50;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 48px;
+    }
+
+    .select2-container--default.select2-container--open .select2-selection--single,
+    .select2-container--default.select2-container--focus .select2-selection--single {
+        border-color: #e74c3c;
+        box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.15);
+    }
+
+    .select2-dropdown {
+        border: 2px solid #e74c3c;
+        border-radius: 10px;
+    }
+
+    .select2-search--dropdown .select2-search__field {
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        padding: 8px 12px;
+    }
+
+    .select2-search--dropdown .select2-search__field:focus {
+        border-color: #e74c3c;
+        outline: none;
+    }
+
+    .select2-results__option--highlighted[aria-selected] {
+        background-color: #e74c3c !important;
     }
 
     .search-input-wrapper {
@@ -331,19 +372,19 @@ include '../../navbar/header.php';
     }
 
     .summary-card.primary {
-        border-top-color: #e74c3c;
+        border-top-color: #4A90E2;
     }
 
     .summary-card.warning {
-        border-top-color: #d35400;
+        border-top-color: #F5A623;
     }
 
     .summary-card.success {
-        border-top-color: #c0392b;
+        border-top-color: #50C878;
     }
 
     .summary-card.info {
-        border-top-color: #a93226;
+        border-top-color: #5FC3E4;
     }
 
     .card-icon {
@@ -358,19 +399,19 @@ include '../../navbar/header.php';
     }
 
     .summary-card.primary .card-icon {
-        background: linear-gradient(135deg, #e74c3c, #ec7063);
+        background: linear-gradient(135deg, #4A90E2, #5BA3F5);
     }
 
     .summary-card.warning .card-icon {
-        background: linear-gradient(135deg, #d35400, #e67e22);
+        background: linear-gradient(135deg, #F5A623, #F7B84E);
     }
 
     .summary-card.success .card-icon {
-        background: linear-gradient(135deg, #c0392b, #e74c3c);
+        background: linear-gradient(135deg, #50C878, #6FD89A);
     }
 
     .summary-card.info .card-icon {
-        background: linear-gradient(135deg, #a93226, #cb4335);
+        background: linear-gradient(135deg, #5FC3E4, #7DD4F0);
     }
 
     .card-value {
@@ -626,13 +667,17 @@ include '../../navbar/header.php';
                     </div>
 
                     <div class="filter-group">
-                        <label><i class="fas fa-sitemap"></i> Satker</label>
-                        <select name="satker">
+                        <label>
+                            <i class="fas fa-sitemap"></i> Satker
+                            <span class="badge-default">CARI/PILIH</span>
+                        </label>
+                        <select name="satker" id="satkerSelect">
                             <option value="">Semua Satker</option>
-                            <option value="Satker A" <?= ($_GET['satker'] ?? '') == 'Satker A' ? 'selected' : '' ?>>Satker
-                                A</option>
-                            <option value="Satker B" <?= ($_GET['satker'] ?? '') == 'Satker B' ? 'selected' : '' ?>>Satker
-                                B</option>
+                            <?php foreach ($listSatker as $satker): ?>
+                                <option value="<?= htmlspecialchars($satker) ?>" <?= $selectedSatker == $satker ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($satker) ?>
+                                </option>
+                            <?php endforeach; ?>
                         </select>
                     </div>
 
@@ -642,6 +687,7 @@ include '../../navbar/header.php';
                             <option value="">Semua Metode</option>
                             <option value="Penunjukan Langsung" <?= ($_GET['metode_pengadaan'] ?? '') == 'Penunjukan Langsung' ? 'selected' : '' ?>>Penunjukan Langsung</option>
                             <option value="Pengadaan Langsung" <?= ($_GET['metode_pengadaan'] ?? '') == 'Pengadaan Langsung' ? 'selected' : '' ?>>Pengadaan Langsung</option>
+                            <option value="Pengecualian" <?= ($_GET['metode_pengadaan'] ?? '') == 'Pengecualian' ? 'selected' : '' ?>>Pengecualian</option>
                         </select>
                     </div>
                 </div>
@@ -653,6 +699,7 @@ include '../../navbar/header.php';
                             <option value="">Semua Jenis</option>
                             <option value="Barang" <?= ($_GET['jenis_pengadaan'] ?? '') == 'Barang' ? 'selected' : '' ?>>
                                 Barang</option>
+                            <option value="Pengadaan Barang" <?= ($_GET['jenis_pengadaan'] ?? '') == 'Pengadaan Barang' ? 'selected' : '' ?>>Pengadaan Barang</option>
                             <option value="Pekerjaan Konstruksi" <?= ($_GET['jenis_pengadaan'] ?? '') == 'Pekerjaan Konstruksi' ? 'selected' : '' ?>>Pekerjaan Konstruksi</option>
                             <option value="Jasa Konsultansi" <?= ($_GET['jenis_pengadaan'] ?? '') == 'Jasa Konsultansi' ? 'selected' : '' ?>>Jasa Konsultansi</option>
                             <option value="Jasa Lainnya" <?= ($_GET['jenis_pengadaan'] ?? '') == 'Jasa Lainnya' ? 'selected' : '' ?>>Jasa Lainnya</option>
@@ -747,7 +794,10 @@ include '../../navbar/header.php';
                     <div class="results-subtitle">
                         <strong>Menampilkan <?= count($tableData) ?> dari <?= number_format($totalRecords, 0, ',', '.') ?>
                             total data</strong>
-                        | Periode: <?= $namaBulan[$selectedBulan] ?>     <?= $selectedTahun ?>
+                        <?php if ($selectedSatker): ?>
+                            | Satker: <?= htmlspecialchars($selectedSatker) ?>
+                        <?php endif; ?>
+                        | Periode: <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?>
                     </div>
                 <?php endif; ?>
             </div>
@@ -873,14 +923,36 @@ include '../../navbar/header.php';
             <div class="empty-state">
                 <i class="fas fa-search-minus"></i>
                 <p><strong>Tidak ada data realisasi dikecualikan yang ditemukan</strong></p>
-                <small class="text-muted">Untuk periode <?= $namaBulan[$selectedBulan] ?>     <?= $selectedTahun ?>. Coba ubah
-                    kriteria pencarian.</small>
+                <small class="text-muted">
+                    Untuk periode <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?>
+                    <?php if ($selectedSatker): ?>
+                        pada Satker <?= htmlspecialchars($selectedSatker) ?>
+                    <?php endif; ?>. 
+                    Coba ubah kriteria pencarian.
+                </small>
             </div>
         <?php endif; ?>
     </div>
 </div>
 
 <script>
+    // Inisialisasi Select2 untuk dropdown Satker
+    $(document).ready(function() {
+        $('#satkerSelect').select2({
+            placeholder: 'Pilih atau cari Satker...',
+            allowClear: true,
+            width: '100%',
+            language: {
+                noResults: function() {
+                    return "Satker tidak ditemukan";
+                },
+                searching: function() {
+                    return "Mencari...";
+                }
+            }
+        });
+    });
+
     function resetForm() {
         window.location.href = window.location.pathname + '?bulan=01&tahun=<?= $currentYear ?>';
     }

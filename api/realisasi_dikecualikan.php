@@ -27,7 +27,7 @@ try {
         'metode_pengadaan' => $_GET['metode_pengadaan'] ?? '',
         'jenis_pengadaan' => $_GET['jenis_pengadaan'] ?? '',
         'search' => $_GET['search'] ?? ''
-    ], function($value) {
+    ], function ($value) {
         return $value !== null && $value !== '';
     });
 
@@ -40,12 +40,12 @@ try {
             $data = $realisasiDikecualikan->getRealisasiDikecualikanData($filters, $limit, $offset);
             $total = $realisasiDikecualikan->getTotalCount($filters);
             $totalPages = $total > 0 ? ceil($total / $limit) : 1;
-            
+
             // Pastikan $data adalah array
             if (!is_array($data)) {
                 $data = [];
             }
-            
+
             // Tambahkan nomor urut
             $startNumber = $offset + 1;
             $processedData = [];
@@ -53,45 +53,52 @@ try {
                 $row['No_Urut'] = $startNumber + $index;
                 $processedData[] = $row;
             }
-            
+
             echo json_encode([
                 'success' => true,
                 'data' => $processedData,
                 'pagination' => [
                     'current_page' => $page,
                     'total_pages' => $totalPages,
-                    'total_records' => (int)$total,
+                    'total_records' => (int) $total,
                     'per_page' => $limit
                 ],
                 'filters_applied' => $filters  // BARU: Tampilkan filter yang diterapkan
             ], JSON_PRETTY_PRINT);
             break;
-
+        case 'get_satker':
+            $satkerList = $realisasiDikecualikan->getDistinctValues('Nama_Satker');
+            echo json_encode([
+                'success' => true,
+                'data' => $satkerList,
+                'total' => count($satkerList)
+            ]);
+            break;
         case 'summary':
             // Gunakan fungsi getSummaryData() dengan support filter bulan
             $summary = $realisasiDikecualikan->getSummaryData($filters);
-            
+
             // Ambil data detail untuk breakdown
             $allData = $realisasiDikecualikan->getAllDataForSummary($filters);
-            
+
             // Pastikan $allData adalah array
             if (!is_array($allData)) {
                 $allData = [];
             }
-            
+
             // Breakdown berdasarkan berbagai kategori (HAPUS status_paket)
             $breakdown = [
                 'metode_pengadaan' => [],
                 'jenis_pengadaan' => [],
                 'nama_satker' => []  // Ganti dari klpd ke nama_satker
             ];
-            
+
             foreach ($allData as $row) {
-                $pagu = (float)($row['Nilai_Pagu'] ?? 0);
-                $totalRealisasi = (float)($row['Nilai_Total_Realisasi'] ?? 0);
-                $pdn = (float)($row['Nilai_PDN'] ?? 0);
-                $umk = (float)($row['Nilai_UMK'] ?? 0);
-                
+                $pagu = (float) ($row['Nilai_Pagu'] ?? 0);
+                $totalRealisasi = (float) ($row['Nilai_Total_Realisasi'] ?? 0);
+                $pdn = (float) ($row['Nilai_PDN'] ?? 0);
+                $umk = (float) ($row['Nilai_UMK'] ?? 0);
+
                 // Breakdown Metode Pengadaan
                 $metode = $row['Metode_pengadaan'] ?? 'Tidak Diketahui';
                 if (!isset($breakdown['metode_pengadaan'][$metode])) {
@@ -108,7 +115,7 @@ try {
                 $breakdown['metode_pengadaan'][$metode]['total_realisasi'] += $totalRealisasi;
                 $breakdown['metode_pengadaan'][$metode]['total_pdn'] += $pdn;
                 $breakdown['metode_pengadaan'][$metode]['total_umk'] += $umk;
-                
+
                 // Breakdown Jenis Pengadaan
                 $jenis = $row['Jenis_Pengadaan'] ?? 'Tidak Diketahui';
                 if (!isset($breakdown['jenis_pengadaan'][$jenis])) {
@@ -125,7 +132,7 @@ try {
                 $breakdown['jenis_pengadaan'][$jenis]['total_realisasi'] += $totalRealisasi;
                 $breakdown['jenis_pengadaan'][$jenis]['total_pdn'] += $pdn;
                 $breakdown['jenis_pengadaan'][$jenis]['total_umk'] += $umk;
-                
+
                 // Breakdown Satker (ganti dari KLPD)
                 $satker = $row['Nama_Satker'] ?? 'Tidak Diketahui';
                 if (!isset($breakdown['nama_satker'][$satker])) {
@@ -143,38 +150,38 @@ try {
                 $breakdown['nama_satker'][$satker]['total_pdn'] += $pdn;
                 $breakdown['nama_satker'][$satker]['total_umk'] += $umk;
             }
-            
+
             // Urutkan breakdown berdasarkan total_pagu
             foreach ($breakdown as $key => $group) {
-                uasort($breakdown[$key], function($a, $b) {
+                uasort($breakdown[$key], function ($a, $b) {
                     return $b['total_pagu'] <=> $a['total_pagu'];
                 });
             }
-            
+
             // Hitung persentase realisasi (untuk efisiensi)
             $persentase_realisasi = 0;
             if ($summary['total_pagu'] > 0) {
                 $persentase_realisasi = ($summary['total_realisasi'] / $summary['total_pagu']) * 100;
             }
-            
+
             // Hitung efisiensi anggaran
             $efisiensi = 0;
             if ($summary['total_pagu'] > 0) {
                 $efisiensi = (($summary['total_pagu'] - $summary['total_realisasi']) / $summary['total_pagu']) * 100;
             }
-            
+
             // Hitung persentase PDN
             $persentase_pdn = 0;
             if ($summary['total_realisasi'] > 0) {
                 $persentase_pdn = ($summary['total_pdn'] / $summary['total_realisasi']) * 100;
             }
-            
+
             // Hitung persentase UMK
             $persentase_umk = 0;
             if ($summary['total_realisasi'] > 0) {
                 $persentase_umk = ($summary['total_umk'] / $summary['total_realisasi']) * 100;
             }
-            
+
             echo json_encode([
                 'success' => true,
                 'summary' => [
@@ -194,20 +201,28 @@ try {
                     'bulan' => $filters['bulan'] ?? null,
                     'tahun' => $filters['tahun'] ?? null,
                     'bulan_nama' => isset($filters['bulan']) ? [
-                        '01' => 'Januari', '02' => 'Februari', '03' => 'Maret',
-                        '04' => 'April', '05' => 'Mei', '06' => 'Juni',
-                        '07' => 'Juli', '08' => 'Agustus', '09' => 'September',
-                        '10' => 'Oktober', '11' => 'November', '12' => 'Desember'
+                        '01' => 'Januari',
+                        '02' => 'Februari',
+                        '03' => 'Maret',
+                        '04' => 'April',
+                        '05' => 'Mei',
+                        '06' => 'Juni',
+                        '07' => 'Juli',
+                        '08' => 'Agustus',
+                        '09' => 'September',
+                        '10' => 'Oktober',
+                        '11' => 'November',
+                        '12' => 'Desember'
                     ][$filters['bulan']] ?? null : null
                 ]
             ], JSON_PRETTY_PRINT);
             break;
-        
+
         case 'options':
             // BARU: Get available months
             $tahunFilter = $_GET['tahun'] ?? null;
             $months = $realisasiDikecualikan->getAvailableMonths($tahunFilter);
-            
+
             echo json_encode([
                 'success' => true,
                 'options' => [
@@ -224,16 +239,24 @@ try {
             // BARU: Endpoint khusus untuk mendapatkan daftar bulan
             $tahun = $_GET['tahun'] ?? null;
             $months = $realisasiDikecualikan->getAvailableMonths($tahun);
-            
+
             // Format nama bulan
             $monthsWithNames = [];
             $namaBulan = [
-                1 => 'Januari', 2 => 'Februari', 3 => 'Maret',
-                4 => 'April', 5 => 'Mei', 6 => 'Juni',
-                7 => 'Juli', 8 => 'Agustus', 9 => 'September',
-                10 => 'Oktober', 11 => 'November', 12 => 'Desember'
+                1 => 'Januari',
+                2 => 'Februari',
+                3 => 'Maret',
+                4 => 'April',
+                5 => 'Mei',
+                6 => 'Juni',
+                7 => 'Juli',
+                8 => 'Agustus',
+                9 => 'September',
+                10 => 'Oktober',
+                11 => 'November',
+                12 => 'Desember'
             ];
-            
+
             foreach ($months as $month) {
                 $monthsWithNames[] = [
                     'value' => str_pad($month, 2, '0', STR_PAD_LEFT),
@@ -247,7 +270,7 @@ try {
                 'tahun' => $tahun
             ], JSON_PRETTY_PRINT);
             break;
-            
+
         default:
             echo json_encode([
                 'success' => false,

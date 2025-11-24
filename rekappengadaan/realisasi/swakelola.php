@@ -114,6 +114,12 @@ include '../../navbar/header.php';
 
 <script src="../../js/submenu.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+<!-- jQuery (required for Select2) -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<!-- Select2 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<!-- Select2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
 <style>
     body {
@@ -713,6 +719,64 @@ include '../../navbar/header.php';
             transform: translateY(0);
         }
     }
+
+    /* Custom Select2 Styling */
+    .select2-container--default .select2-selection--single {
+        height: 46px;
+        border: 2px solid #e1e8ed;
+        border-radius: 8px;
+        padding: 6px 16px;
+        transition: all 0.2s ease;
+    }
+
+    .select2-container--default .select2-selection--single:hover {
+        border-color: #dc3545;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 32px;
+        padding-left: 0;
+        font-size: 14px;
+        color: #495057;
+        font-weight: 500;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 44px;
+        right: 10px;
+    }
+
+    .select2-container--default.select2-container--focus .select2-selection--single {
+        border-color: #dc3545;
+        box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.1);
+    }
+
+    .select2-dropdown {
+        border: 2px solid #e1e8ed;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .select2-search--dropdown .select2-search__field {
+        border: 2px solid #e1e8ed;
+        border-radius: 6px;
+        padding: 8px 12px;
+        font-size: 14px;
+    }
+
+    .select2-search--dropdown .select2-search__field:focus {
+        border-color: #dc3545;
+        outline: none;
+    }
+
+    .select2-results__option {
+        padding: 10px 14px;
+        font-size: 14px;
+    }
+
+    .select2-results__option--highlighted {
+        background-color: #dc3545 !important;
+    }
 </style>
 
 <div class="container">
@@ -759,7 +823,7 @@ include '../../navbar/header.php';
 
                     <div class="filter-group">
                         <label><i class="fas fa-building"></i> Satuan Kerja</label>
-                        <select name="nama_satker">
+                        <select name="nama_satker" id="nama_satker" class="select2-searchable">
                             <option value="">Semua Satuan Kerja</option>
                             <?php if (!empty($satkerOptions)): ?>
                                 <?php foreach ($satkerOptions as $satker): ?>
@@ -1012,24 +1076,6 @@ include '../../navbar/header.php';
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        const filterForm = document.querySelector('form');
-
-        if (filterForm) {
-            filterForm.addEventListener('submit', function (e) {
-                const inputs = this.querySelectorAll('input, select');
-
-                inputs.forEach(input => {
-                    // Jangan disable bulan dan tahun karena ini filter wajib
-                    if (input.name !== 'bulan' && input.name !== 'tahun' && !input.value) {
-                        input.disabled = true;
-                    }
-                });
-
-                return true;
-            });
-        }
-
-        // Search input enter key
         const searchInput = document.querySelector('input[name="search"]');
         if (searchInput) {
             searchInput.addEventListener('keypress', function (e) {
@@ -1037,58 +1083,72 @@ include '../../navbar/header.php';
                     this.form.submit();
                 }
             });
+        }
 
-            // Clear search icon functionality
-            searchInput.addEventListener('input', function () {
-                const wrapper = this.closest('.search-input-wrapper');
-                const icon = wrapper.querySelector('i');
-                if (this.value) {
-                    icon.className = 'fas fa-times';
-                    icon.style.cursor = 'pointer';
-                    icon.onclick = () => {
-                        this.value = '';
-                        icon.className = 'fas fa-search';
-                        icon.style.cursor = 'default';
-                        icon.onclick = null;
-                    };
-                } else {
+        return true;
+    });
+
+
+    // Search input enter key
+    const searchInput = document.querySelector('input[name="search"]');
+    if (searchInput) {
+        searchInput.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                this.form.submit();
+            }
+        });
+
+        // Clear search icon functionality
+        searchInput.addEventListener('input', function () {
+            const wrapper = this.closest('.search-input-wrapper');
+            const icon = wrapper.querySelector('i');
+            if (this.value) {
+                icon.className = 'fas fa-times';
+                icon.style.cursor = 'pointer';
+                icon.onclick = () => {
+                    this.value = '';
                     icon.className = 'fas fa-search';
                     icon.style.cursor = 'default';
                     icon.onclick = null;
-                }
-            });
-        }
+                };
+            } else {
+                icon.className = 'fas fa-search';
+                icon.style.cursor = 'default';
+                icon.onclick = null;
+            }
+        });
+    }
 
-        // Table row hover effects
-        const tableRows = document.querySelectorAll('tbody tr');
-        tableRows.forEach(row => {
-            row.addEventListener('mouseenter', function () {
-                this.style.transform = 'translateY(-2px)';
-            });
-
-            row.addEventListener('mouseleave', function () {
-                this.style.transform = 'translateY(0)';
-            });
+    // Table row hover effects
+    const tableRows = document.querySelectorAll('tbody tr');
+    tableRows.forEach(row => {
+        row.addEventListener('mouseenter', function () {
+            this.style.transform = 'translateY(-2px)';
         });
 
-        // Auto submit on month/year change (optional)
-        const bulanSelect = document.querySelector('select[name="bulan"]');
-        const tahunSelect = document.querySelector('select[name="tahun"]');
-
-        if (bulanSelect) {
-            bulanSelect.addEventListener('change', function () {
-                // Optional: auto-submit when month changes
-                // this.form.submit();
-            });
-        }
-
-        if (tahunSelect) {
-            tahunSelect.addEventListener('change', function () {
-                // Optional: auto-submit when year changes
-                // this.form.submit();
-            });
-        }
+        row.addEventListener('mouseleave', function () {
+            this.style.transform = 'translateY(0)';
+        });
     });
+
+    // Auto submit on month/year change (optional)
+    const bulanSelect = document.querySelector('select[name="bulan"]');
+    const tahunSelect = document.querySelector('select[name="tahun"]');
+
+    if (bulanSelect) {
+        bulanSelect.addEventListener('change', function () {
+            // Optional: auto-submit when month changes
+            // this.form.submit();
+        });
+    }
+
+    if (tahunSelect) {
+        tahunSelect.addEventListener('change', function () {
+            // Optional: auto-submit when year changes
+            // this.form.submit();
+        });
+    }
+    
 
     // Reset form function - kembali ke default Juli tahun ini
     function resetForm() {
@@ -1140,7 +1200,49 @@ include '../../navbar/header.php';
                 });
             });
         }
+        // Initialize Select2 KHUSUS untuk Satuan Kerja dengan fitur pencarian
+        $('#nama_satker').select2({
+            placeholder: 'Ketik untuk mencari Satuan Kerja...',
+            allowClear: true,
+            width: '100%',
+            minimumResultsForSearch: 0,
+            matcher: function (params, data) {
+                if ($.trim(params.term) === '') {
+                    return data;
+                }
+                if (typeof data.text === 'undefined') {
+                    return null;
+                }
+                if (data.text.toLowerCase().indexOf(params.term.toLowerCase()) > -1) {
+                    return data;
+                }
+                return null;
+            },
+            language: {
+                noResults: function () {
+                    return "Tidak ditemukan Satuan Kerja yang cocok";
+                },
+                searching: function () {
+                    return "Mencari...";
+                }
+            },
+            templateResult: function (data) {
+                if (!data.id) {
+                    return data.text;
+                }
+                var term = $('.select2-search__field').val();
+                if (term) {
+                    var regex = new RegExp('(' + term + ')', 'gi');
+                    var highlighted = data.text.replace(regex, '<strong>$1</strong>');
+                    return $('<span>' + highlighted + '</span>');
+                }
+                return data.text;
+            }
+        });
+
+        console.log('✅ Select2 initialized for Satuan Kerja');
     });
+
 </script>
 
 <?php

@@ -116,6 +116,11 @@ include '../../navbar/header.php';
 <script src="../../js/submenu.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
 
+<!-- Select2 CSS & JS untuk searchable dropdown -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
 <style>
     body {
         font-family: 'Inter', sans-serif;
@@ -149,13 +154,9 @@ include '../../navbar/header.php';
         gap: 12px;
         position: relative;
         border-top-left-radius: 15px;
-        /* ← Sudut kiri atas melengkung */
         border-top-right-radius: 15px;
-        /* ← Sudut kanan atas melengkung */
         clip-path: none !important;
-        /* ← Hilangkan potongan lancip */
         overflow: hidden;
-        /* ← Pastikan warna tidak keluar radius */
     }
 
     .filter-header::after,
@@ -256,6 +257,58 @@ include '../../navbar/header.php';
         transition: all 0.3s ease;
         color: #2c3e50;
         box-sizing: border-box;
+    }
+
+    /* Style untuk Select2 agar sesuai dengan design */
+    .select2-container--default .select2-selection--single {
+        height: 50px;
+        padding: 14px 16px;
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        background: white;
+        transition: all 0.3s ease;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 22px;
+        color: #2c3e50;
+        padding-left: 0;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 48px;
+        right: 10px;
+    }
+
+    .select2-container--default.select2-container--open .select2-selection--single,
+    .select2-container--default.select2-container--focus .select2-selection--single {
+        border-color: #dc3545;
+        box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.15);
+    }
+
+    .select2-container--default .select2-selection--single:hover {
+        border-color: #dc3545;
+    }
+
+    .select2-dropdown {
+        border: 2px solid #dc3545;
+        border-radius: 10px;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    }
+
+    .select2-container--default .select2-results__option--highlighted[aria-selected] {
+        background-color: #dc3545;
+    }
+
+    .select2-search--dropdown .select2-search__field {
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        padding: 8px 12px;
+    }
+
+    .select2-search--dropdown .select2-search__field:focus {
+        border-color: #dc3545;
+        outline: none;
     }
 
     .filter-group select:focus,
@@ -763,7 +816,7 @@ include '../../navbar/header.php';
 
                     <div class="filter-group">
                         <label><i class="fas fa-building"></i> Satuan Kerja</label>
-                        <select name="nama_satker">
+                        <select name="nama_satker" id="select-satker" class="searchable-select">
                             <option value="">Semua Satuan Kerja</option>
                             <?php if (!empty($satkerOptions)): ?>
                                 <?php foreach ($satkerOptions as $satker): ?>
@@ -901,7 +954,7 @@ include '../../navbar/header.php';
                     <div class="results-subtitle">
                         <strong>Menampilkan <?= count($tableData) ?> dari <?= number_format($totalRecords, 0, ',', '.') ?>
                             total data</strong>
-                        | Periode: <?= $namaBulan[$selectedBulan] ?>     <?= $selectedTahun ?>
+                        | Periode: <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?>
                     </div>
                 <?php endif; ?>
             </div>
@@ -1029,7 +1082,7 @@ include '../../navbar/header.php';
             <i class="fas fa-search-minus"></i>
             <p><strong>Tidak ada data realisasi non-tender yang ditemukan</strong></p>
             <small class="text-muted">
-                Untuk periode <?= $namaBulan[$selectedBulan] ?>     <?= $selectedTahun ?>.
+                Untuk periode <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?>.
                 Coba ubah kriteria pencarian atau pilih bulan lain.
             </small>
         </div>
@@ -1038,6 +1091,21 @@ include '../../navbar/header.php';
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        // Inisialisasi Select2 untuk dropdown Satuan Kerja
+        $('#select-satker').select2({
+            placeholder: 'Ketik untuk mencari satuan kerja...',
+            allowClear: true,
+            width: '100%',
+            language: {
+                noResults: function () {
+                    return "Satuan kerja tidak ditemukan";
+                },
+                searching: function () {
+                    return "Mencari...";
+                }
+            }
+        });
+
         const filterForm = document.querySelector('form');
 
         if (filterForm) {

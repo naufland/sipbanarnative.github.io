@@ -1,7 +1,7 @@
 <?php
-$apiBaseUrl = "http://sipbanar-phpnative.id/api/swakelola.php";
+$apiBaseUrl = "http://sipbanarnative.id/api/swakelola.php";
 
-$currentPage = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$currentPage = isset($_GET['page']) ? (int) $_GET['page'] : 1;
 $limit = $_GET['limit'] ?? 25;
 
 $currentYear = date('Y');
@@ -59,10 +59,18 @@ if ($totalPaket > 0) {
 $page_title = "Data Swakelola - SIP BANAR";
 
 $namaBulan = [
-    '01' => 'Januari', '02' => 'Februari', '03' => 'Maret',
-    '04' => 'April', '05' => 'Mei', '06' => 'Juni',
-    '07' => 'Juli', '08' => 'Agustus', '09' => 'September',
-    '10' => 'Oktober', '11' => 'November', '12' => 'Desember'
+    '01' => 'Januari',
+    '02' => 'Februari',
+    '03' => 'Maret',
+    '04' => 'April',
+    '05' => 'Mei',
+    '06' => 'Juni',
+    '07' => 'Juli',
+    '08' => 'Agustus',
+    '09' => 'September',
+    '10' => 'Oktober',
+    '11' => 'November',
+    '12' => 'Desember'
 ];
 
 // TAMBAHAN: Ambil daftar Satuan Kerja untuk dropdown
@@ -87,7 +95,7 @@ if (empty($satuanKerjaList)) {
             $database = new Database();
             $db = $database->getConnection();
         }
-        
+
         // Query langsung untuk ambil distinct Satuan_Kerja dari tabel swakelola
         $sql = "SELECT DISTINCT Satuan_Kerja FROM rup_keseluruhan_swakelola 
                 WHERE Satuan_Kerja IS NOT NULL AND Satuan_Kerja != '' 
@@ -105,7 +113,8 @@ if (empty($satuanKerjaList)) {
 
 include '../../navbar/header.php';
 ?>
-
+<!-- Select2 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <script src="../../js/submenu.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
 <style>
@@ -219,6 +228,64 @@ include '../../navbar/header.php';
     .filter-group select:hover,
     .filter-group input[type="text"]:hover {
         border-color: #dc3545;
+    }
+
+    /* Custom Select2 Styling */
+    .select2-container--default .select2-selection--single {
+        height: 50px;
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        padding: 6px 16px;
+        transition: all 0.3s ease;
+    }
+
+    .select2-container--default .select2-selection--single:hover {
+        border-color: #dc3545;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 36px;
+        padding-left: 0;
+        font-size: 14px;
+        color: #2c3e50;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 48px;
+        right: 10px;
+    }
+
+    .select2-container--default.select2-container--focus .select2-selection--single {
+        border-color: #dc3545;
+        box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.15);
+        transform: translateY(-1px);
+    }
+
+    .select2-dropdown {
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    .select2-search--dropdown .select2-search__field {
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        padding: 10px 14px;
+        font-size: 14px;
+    }
+
+    .select2-search--dropdown .select2-search__field:focus {
+        border-color: #dc3545;
+        outline: none;
+    }
+
+    .select2-results__option {
+        padding: 12px 16px;
+        font-size: 14px;
+    }
+
+    .select2-results__option--highlighted {
+        background-color: #dc3545 !important;
     }
 
     .pagu-range-container {
@@ -681,6 +748,7 @@ include '../../navbar/header.php';
     }
 
     @media (max-width: 1200px) {
+
         .filter-row:nth-child(1),
         .filter-row:nth-child(2),
         .filter-row:nth-child(3) {
@@ -689,29 +757,41 @@ include '../../navbar/header.php';
     }
 
     @media (max-width: 992px) {
+
         .filter-row:nth-child(1),
         .filter-row:nth-child(2),
         .filter-row:nth-child(3) {
             grid-template-columns: 1fr;
         }
+
         .pagu-range-container {
             grid-template-columns: 1fr;
             gap: 15px;
             padding: 15px;
             text-align: center;
         }
+
         .pagu-separator {
             transform: rotate(90deg);
         }
     }
 
-    .filter-section, .results-section, .summary-section {
+    .filter-section,
+    .results-section,
+    .summary-section {
         animation: fadeInUp 0.6s ease-out;
     }
 
     @keyframes fadeInUp {
-        from { opacity: 0; transform: translateY(30px); }
-        to { opacity: 1; transform: translateY(0); }
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 </style>
 
@@ -751,7 +831,7 @@ include '../../navbar/header.php';
 
                     <div class="filter-group">
                         <label><i class="fas fa-tools"></i> Tipe Swakelola</label>
-                        <select name="tipe_swakelola">
+                        <select name="tipe_swakelola" id="tipe_swakelola" class="select2-basic">
                             <option value="">Semua Tipe</option>
                             <option value="Swakelola Penuh" <?= ($_GET['tipe_swakelola'] ?? '') == 'Swakelola Penuh' ? 'selected' : '' ?>>Swakelola Penuh</option>
                             <option value="Swakelola Sebagian" <?= ($_GET['tipe_swakelola'] ?? '') == 'Swakelola Sebagian' ? 'selected' : '' ?>>Swakelola Sebagian</option>
@@ -763,9 +843,10 @@ include '../../navbar/header.php';
                             <i class="fas fa-exchange-alt"></i> Perubahan
                             <span class="badge-default">DEFAULT: TIDAK</span>
                         </label>
-                        <select name="perubahan">
+                        <select name="perubahan" id="perubahan" class="select2-basic">
                             <option value="">Semua Status</option>
-                            <option value="Perubahan" <?= $selectedPerubahan == 'Perubahan' ? 'selected' : '' ?>>Perubahan</option>
+                            <option value="Perubahan" <?= $selectedPerubahan == 'Perubahan' ? 'selected' : '' ?>>Perubahan
+                            </option>
                             <option value="Tidak" <?= $selectedPerubahan == 'Tidak' ? 'selected' : '' ?>>Tidak</option>
                         </select>
                     </div>
@@ -774,7 +855,7 @@ include '../../navbar/header.php';
                 <div class="filter-row">
                     <div class="filter-group">
                         <label><i class="fas fa-building"></i> KLPD</label>
-                        <select name="klpd">
+                        <select name="klpd" id="klpd" class="select2-basic">
                             <option value="">Semua KLPD</option>
                             <option value="Kota Banjarmasin" <?= ($_GET['klpd'] ?? '') == 'Kota Banjarmasin' ? 'selected' : '' ?>>Kota Banjarmasin</option>
                             <option value="Kabupaten Banjar" <?= ($_GET['klpd'] ?? '') == 'Kabupaten Banjar' ? 'selected' : '' ?>>Kabupaten Banjar</option>
@@ -783,7 +864,7 @@ include '../../navbar/header.php';
 
                     <div class="filter-group">
                         <label><i class="fas fa-sitemap"></i> Satuan Kerja</label>
-                        <select name="satuan_kerja" id="satuan_kerja">
+                        <select name="satuan_kerja" id="satuan_kerja" class="select2-searchable">
                             <option value="">Semua Satuan Kerja</option>
                             <?php
                             if (!empty($satuanKerjaList) && is_array($satuanKerjaList)) {
@@ -807,9 +888,11 @@ include '../../navbar/header.php';
                     <div class="filter-group">
                         <label><i class="fas fa-money-bill-wave"></i> Range Pagu (Rp)</label>
                         <div class="pagu-range-container">
-                            <input type="text" name="pagu_min" placeholder="Min Pagu" value="<?= htmlspecialchars($_GET['pagu_min'] ?? '') ?>">
+                            <input type="text" name="pagu_min" placeholder="Min Pagu"
+                                value="<?= htmlspecialchars($_GET['pagu_min'] ?? '') ?>">
                             <span class="pagu-separator">S/D</span>
-                            <input type="text" name="pagu_max" placeholder="Max Pagu" value="<?= htmlspecialchars($_GET['pagu_max'] ?? '') ?>">
+                            <input type="text" name="pagu_max" placeholder="Max Pagu"
+                                value="<?= htmlspecialchars($_GET['pagu_max'] ?? '') ?>">
                         </div>
                     </div>
                 </div>
@@ -819,13 +902,14 @@ include '../../navbar/header.php';
                         <label><i class="fas fa-search"></i> Pencarian Paket</label>
                         <div class="search-input-wrapper">
                             <i class="fas fa-search"></i>
-                            <input type="text" name="search" placeholder="Cari nama paket..." value="<?= htmlspecialchars($_GET['search'] ?? '') ?>">
+                            <input type="text" name="search" placeholder="Cari nama paket..."
+                                value="<?= htmlspecialchars($_GET['search'] ?? '') ?>">
                         </div>
                     </div>
 
                     <div class="filter-group">
                         <label><i class="fas fa-list"></i> Limit Data</label>
-                        <select name="limit">
+                        <select name="limit" id="limit" class="select2-basic">
                             <option value="10" <?= ($limit == 10) ? 'selected' : '' ?>>10 Data</option>
                             <option value="25" <?= ($limit == 25) ? 'selected' : '' ?>>25 Data</option>
                             <option value="50" <?= ($limit == 50) ? 'selected' : '' ?>>50 Data</option>
@@ -855,7 +939,7 @@ include '../../navbar/header.php';
                 <h3>Ringkasan Data Swakelola</h3>
             </div>
             <div class="period-badge">
-                <i class="fas fa-calendar-check"></i> 
+                <i class="fas fa-calendar-check"></i>
                 <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?>
                 <?php if (!empty($selectedPerubahan)): ?>
                     | <?= $selectedPerubahan ?>
@@ -871,7 +955,8 @@ include '../../navbar/header.php';
                     <div class="card-content">
                         <div class="card-value"><?= number_format($totalPaket, 0, ',', '.') ?></div>
                         <div class="card-label">Total Paket</div>
-                        <div class="card-subtitle">Swakelola - <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?></div>
+                        <div class="card-subtitle">Swakelola - <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?>
+                        </div>
                     </div>
                 </div>
 
@@ -882,7 +967,8 @@ include '../../navbar/header.php';
                     <div class="card-content">
                         <div class="card-value"><?= $formattedTotalPagu ?></div>
                         <div class="card-label">Total Pagu</div>
-                        <div class="card-subtitle">Keseluruhan - <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?></div>
+                        <div class="card-subtitle">Keseluruhan - <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -895,17 +981,19 @@ include '../../navbar/header.php';
                 <div class="results-title">
                     <i class="fas fa-table"></i> Hasil Pencarian Data Swakelola
                 </div>
-                <?php if ($data && isset($data['success']) && $data['success']) : ?>
+                <?php if ($data && isset($data['success']) && $data['success']): ?>
                     <div class="results-subtitle">
-                        <strong>Menampilkan <?= count($data['data']) ?> dari <?= number_format($totalRecords, 0, ',', '.') ?> total data</strong>
-                        | Periode: <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?>
+                        <strong>Menampilkan <?= count($data['data']) ?> dari
+                            <?= number_format($totalRecords, 0, ',', '.') ?> total data</strong>
+                        | Periode: <?= $namaBulan[$selectedBulan] ?>     <?= $selectedTahun ?>
                         <?php if (!empty($selectedPerubahan)): ?>
-                            | Status: <span class="badge <?= $selectedPerubahan == 'Perubahan' ? 'badge-warning' : 'badge-info' ?>"><?= $selectedPerubahan ?></span>
+                            | Status: <span
+                                class="badge <?= $selectedPerubahan == 'Perubahan' ? 'badge-warning' : 'badge-info' ?>"><?= $selectedPerubahan ?></span>
                         <?php endif; ?>
                     </div>
                 <?php endif; ?>
             </div>
-            
+
             <div class="pagination">
                 <?php
                 $paginationParams = $_GET;
@@ -913,29 +1001,32 @@ include '../../navbar/header.php';
                 $paginationQuery = http_build_query($paginationParams);
                 ?>
 
-                <a href="?<?= $paginationQuery ?>&page=<?= max(1, $currentPage - 1) ?>" class="btn-pagination <?= $currentPage <= 1 ? 'disabled' : '' ?>" title="Halaman Sebelumnya">
+                <a href="?<?= $paginationQuery ?>&page=<?= max(1, $currentPage - 1) ?>"
+                    class="btn-pagination <?= $currentPage <= 1 ? 'disabled' : '' ?>" title="Halaman Sebelumnya">
                     <i class="fas fa-chevron-left"></i>
                 </a>
 
                 <?php
                 for ($i = 1; $i <= $totalPages; $i++) {
                     if ($i == $currentPage) {
-                        echo '<a href="?'. $paginationQuery .'&page='. $i .'" class="btn-pagination active">'. $i .'</a>';
+                        echo '<a href="?' . $paginationQuery . '&page=' . $i . '" class="btn-pagination active">' . $i . '</a>';
                     } elseif (abs($i - $currentPage) < 3 || $i <= 2 || $i > $totalPages - 2) {
-                        echo '<a href="?'. $paginationQuery .'&page='. $i .'" class="btn-pagination">'. $i .'</a>';
+                        echo '<a href="?' . $paginationQuery . '&page=' . $i . '" class="btn-pagination">' . $i . '</a>';
                     } elseif ($i == $currentPage - 3 || $i == $currentPage + 3) {
                         echo '<span class="btn-pagination-dots">...</span>';
                     }
                 }
                 ?>
 
-                <a href="?<?= $paginationQuery ?>&page=<?= min($totalPages, $currentPage + 1) ?>" class="btn-pagination <?= $currentPage >= $totalPages ? 'disabled' : '' ?>" title="Halaman Selanjutnya">
+                <a href="?<?= $paginationQuery ?>&page=<?= min($totalPages, $currentPage + 1) ?>"
+                    class="btn-pagination <?= $currentPage >= $totalPages ? 'disabled' : '' ?>"
+                    title="Halaman Selanjutnya">
                     <i class="fas fa-chevron-right"></i>
                 </a>
             </div>
         </div>
 
-        <?php if ($data && isset($data['success']) && $data['success'] && count($data['data']) > 0) : ?>
+        <?php if ($data && isset($data['success']) && $data['success'] && count($data['data']) > 0): ?>
             <div class="table-container">
                 <table>
                     <thead>
@@ -951,7 +1042,7 @@ include '../../navbar/header.php';
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach ($data['data'] as $row) : ?>
+                        <?php foreach ($data['data'] as $row): ?>
                             <tr>
                                 <td>
                                     <div style="font-weight: 700; color: #2c3e50; margin-bottom: 5px;">
@@ -963,13 +1054,15 @@ include '../../navbar/header.php';
                                 </td>
                                 <td class="price">
                                     <?php
-                                        $paguValue = (int) preg_replace('/[^\d]/', '', $row['Pagu_Rp']);
-                                        echo 'Rp ' . number_format($paguValue, 0, ',', '.');
+                                    $paguValue = (int) preg_replace('/[^\d]/', '', $row['Pagu_Rp']);
+                                    echo 'Rp ' . number_format($paguValue, 0, ',', '.');
                                     ?>
                                 </td>
-                                <td><span class="badge badge-primary"><?= htmlspecialchars($row['Tipe_Swakelola']) ?></span></td>
+                                <td><span class="badge badge-primary"><?= htmlspecialchars($row['Tipe_Swakelola']) ?></span>
+                                </td>
                                 <td>
-                                    <span class="badge <?= ($row['perubahan'] ?? 'Tidak') == 'Perubahan' ? 'badge-warning' : 'badge-info' ?>">
+                                    <span
+                                        class="badge <?= ($row['perubahan'] ?? 'Tidak') == 'Perubahan' ? 'badge-warning' : 'badge-info' ?>">
                                         <?= htmlspecialchars($row['perubahan'] ?? 'Tidak') ?>
                                     </span>
                                 </td>
@@ -993,15 +1086,15 @@ include '../../navbar/header.php';
                 </div>
             </div>
 
-        <?php else : ?>
+        <?php else: ?>
             <div class="empty-state">
                 <i class="fas fa-search-minus"></i>
                 <p><strong>Tidak ada data swakelola yang ditemukan</strong></p>
                 <small class="text-muted">
-                    Untuk periode <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?>
+                    Untuk periode <?= $namaBulan[$selectedBulan] ?>     <?= $selectedTahun ?>
                     <?php if (!empty($selectedPerubahan)): ?>
                         dengan status <strong><?= $selectedPerubahan ?></strong>
-                    <?php endif; ?>. 
+                    <?php endif; ?>.
                     Coba ubah kriteria pencarian atau pilih bulan lain.
                 </small>
             </div>
@@ -1009,211 +1102,271 @@ include '../../navbar/header.php';
     </div>
 </div>
 
+<!-- jQuery (required for Select2) -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<!-- Select2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const filterForm = document.querySelector('form');
-
-    // DEBUG: Check Satuan Kerja dropdown
-    const satuanKerjaSelect = document.querySelector('#satuan_kerja');
-    if (satuanKerjaSelect) {
-        console.log('✅ Satuan Kerja dropdown found (Swakelola)');
-        console.log('Total options:', satuanKerjaSelect.options.length);
-        
-        if (satuanKerjaSelect.options.length <= 1) {
-            console.warn('⚠️ Satuan Kerja dropdown kosong (Swakelola)! Cek API response.');
-        } else {
-            console.log('✅ Satuan Kerja loaded:', satuanKerjaSelect.options.length - 1, 'items');
+    // Initialize Select2 untuk dropdown dengan banyak opsi yang bisa dicari
+    // Initialize Select2 untuk dropdown basic (tanpa search)
+$('.select2-basic').select2({
+    placeholder: 'Pilih opsi...',
+    allowClear: true,
+    width: '100%',
+    minimumResultsForSearch: Infinity, // Disable search
+    language: {
+        noResults: function () {
+            return "Tidak ada hasil yang cocok";
         }
     }
+});
 
-    if (filterForm) {
-        filterForm.addEventListener('submit', function(e) {
-            const inputs = this.querySelectorAll('input, select');
-            
-            inputs.forEach(input => {
-                if (input.name !== 'bulan' && input.name !== 'tahun' && !input.value) {
-                    input.disabled = true;
+// Initialize Select2 KHUSUS untuk Satuan Kerja dengan fitur pencarian
+$('#satuan_kerja').select2({
+    placeholder: 'Ketik untuk mencari Satuan Kerja...',
+    allowClear: true,
+    width: '100%',
+    minimumResultsForSearch: 0, // Always show search box
+    matcher: function(params, data) {
+        if ($.trim(params.term) === '') {
+            return data;
+        }
+        if (typeof data.text === 'undefined') {
+            return null;
+        }
+        if (data.text.toLowerCase().indexOf(params.term.toLowerCase()) > -1) {
+            return data;
+        }
+        return null;
+    },
+    language: {
+        noResults: function () {
+            return "Tidak ditemukan Satuan Kerja yang cocok";
+        },
+        searching: function () {
+            return "Mencari...";
+        },
+        inputTooShort: function () {
+            return "Ketik untuk mencari Satuan Kerja";
+        }
+    },
+    templateResult: function(data) {
+        if (!data.id) {
+            return data.text;
+        }
+        var term = $('.select2-search__field').val();
+        if (term) {
+            var regex = new RegExp('(' + term + ')', 'gi');
+            var highlighted = data.text.replace(regex, '<strong>$1</strong>');
+            return $('<span>' + highlighted + '</span>');
+        }
+        return data.text;
+    }
+});
+    document.addEventListener('DOMContentLoaded', function () {
+        const filterForm = document.querySelector('form');
+
+        // DEBUG: Check Satuan Kerja dropdown
+        const satuanKerjaSelect = document.querySelector('#satuan_kerja');
+        if (satuanKerjaSelect) {
+            console.log('✅ Satuan Kerja dropdown found (Swakelola)');
+            console.log('Total options:', satuanKerjaSelect.options.length);
+
+            if (satuanKerjaSelect.options.length <= 1) {
+                console.warn('⚠️ Satuan Kerja dropdown kosong (Swakelola)! Cek API response.');
+            } else {
+                console.log('✅ Satuan Kerja loaded:', satuanKerjaSelect.options.length - 1, 'items');
+            }
+        }
+
+        if (filterForm) {
+            filterForm.addEventListener('submit', function (e) {
+                const inputs = this.querySelectorAll('input, select');
+
+                inputs.forEach(input => {
+                    if (input.name !== 'bulan' && input.name !== 'tahun' && !input.value) {
+                        input.disabled = true;
+                    }
+                });
+
+                return true;
+            });
+        }
+
+        const today = new Date().toISOString().split('T')[0];
+
+        const searchInput = document.querySelector('input[name="search"]');
+        if (searchInput) {
+            searchInput.addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') {
+                    this.form.submit();
                 }
             });
 
-            return true;
-        });
-    }
-
-    const today = new Date().toISOString().split('T')[0];
-
-    const searchInput = document.querySelector('input[name="search"]');
-    if (searchInput) {
-        searchInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                this.form.submit();
-            }
-        });
-
-        searchInput.addEventListener('input', function() {
-            const wrapper = this.closest('.search-input-wrapper');
-            const icon = wrapper.querySelector('i');
-            if (this.value) {
-                icon.className = 'fas fa-times';
-                icon.style.cursor = 'pointer';
-                icon.onclick = () => {
-                    this.value = '';
+            searchInput.addEventListener('input', function () {
+                const wrapper = this.closest('.search-input-wrapper');
+                const icon = wrapper.querySelector('i');
+                if (this.value) {
+                    icon.className = 'fas fa-times';
+                    icon.style.cursor = 'pointer';
+                    icon.onclick = () => {
+                        this.value = '';
+                        icon.className = 'fas fa-search';
+                        icon.style.cursor = 'default';
+                        icon.onclick = null;
+                    };
+                } else {
                     icon.className = 'fas fa-search';
                     icon.style.cursor = 'default';
                     icon.onclick = null;
-                };
-            } else {
-                icon.className = 'fas fa-search';
-                icon.style.cursor = 'default';
-                icon.onclick = null;
-            }
-        });
-    }
-
-    const tableRows = document.querySelectorAll('tbody tr');
-    tableRows.forEach(row => {
-        row.addEventListener('mouseenter', function() {
-            this.style.transform = 'translateY(-2px)';
-        });
-
-        row.addEventListener('mouseleave', function() {
-            this.style.transform = 'translateY(0)';
-        });
-    });
-
-    document.querySelectorAll('.price').forEach(priceCell => {
-        const text = priceCell.textContent.trim();
-        if (text && !isNaN(text.replace(/[^\d]/g, ''))) {
-            const number = parseInt(text.replace(/[^\d]/g, ''));
-            if (number > 0) {
-                priceCell.innerHTML = '<i class="fas fa-rupiah-sign" style="font-size: 12px; margin-right: 3px;"></i>Rp ' + number.toLocaleString('id-ID');
-            }
-        }
-    });
-
-    const bulanSelect = document.querySelector('select[name="bulan"]');
-    const tahunSelect = document.querySelector('select[name="tahun"]');
-    
-    if (bulanSelect) {
-        bulanSelect.addEventListener('change', function() {
-            // Optional: auto-submit when month changes
-        });
-    }
-    
-    if (tahunSelect) {
-        tahunSelect.addEventListener('change', function() {
-            // Optional: auto-submit when year changes
-        });
-    }
-
-    const paguMinInput = document.querySelector('input[name="pagu_min"]');
-    const paguMaxInput = document.querySelector('input[name="pagu_max"]');
-
-    if (paguMinInput && paguMaxInput) {
-        const validatePagu = () => {
-            const minVal = parseInt(paguMinInput.value.replace(/\./g, '')) || 0;
-            const maxVal = parseInt(paguMaxInput.value.replace(/\./g, '')) || 0;
-
-            if (minVal > 0 && maxVal > 0 && minVal > maxVal) {
-                paguMaxInput.style.borderColor = '#dc3545';
-                paguMaxInput.title = 'Pagu maks tidak boleh lebih kecil dari pagu min';
-            } else {
-                paguMaxInput.style.borderColor = '';
-                paguMaxInput.title = '';
-            }
-        };
-        paguMinInput.addEventListener('input', validatePagu);
-        paguMaxInput.addEventListener('input', validatePagu);
-    }
-
-    if (paguMinInput) {
-        paguMinInput.addEventListener('blur', function() {
-            if (this.value) {
-                const number = parseInt(this.value.replace(/\D/g, ''));
-                if (!isNaN(number)) {
-                    this.value = number.toLocaleString('id-ID');
                 }
-            }
-        });
-
-        paguMinInput.addEventListener('focus', function() {
-            this.value = this.value.replace(/\./g, '');
-        });
-    }
-
-    if (paguMaxInput) {
-        paguMaxInput.addEventListener('blur', function() {
-            if (this.value) {
-                const number = parseInt(this.value.replace(/\D/g, ''));
-                if (!isNaN(number)) {
-                    this.value = number.toLocaleString('id-ID');
-                }
-            }
-        });
-
-        paguMaxInput.addEventListener('focus', function() {
-            this.value = this.value.replace(/\./g, '');
-        });
-    }
-});
-
-function resetForm() {
-    window.location.href = window.location.pathname + '?bulan=07&tahun=<?= $currentYear ?>&perubahan=Tidak';
-}
-
-document.querySelector('form').addEventListener('submit', function(e) {
-    const submitBtn = this.querySelector('.search-btn');
-    const originalText = submitBtn.innerHTML;
-    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mencari...';
-    submitBtn.disabled = true;
-
-    setTimeout(() => {
-        submitBtn.innerHTML = originalText;
-        submitBtn.disabled = false;
-    }, 5000);
-});
-
-window.addEventListener('load', function() {
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.toString()) {
-        const resultsSection = document.querySelector('.results-section');
-        if (resultsSection) {
-            setTimeout(() => {
-                resultsSection.scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'start'
-                });
-            }, 300);
+            });
         }
-    }
-});
 
-document.querySelectorAll('.small-text').forEach(smallText => {
-    if (smallText.textContent.includes('ID:')) {
-        smallText.style.cursor = 'pointer';
-        smallText.title = 'Klik untuk copy ID';
-        smallText.addEventListener('click', function(e) {
-            e.stopPropagation();
-            const idText = this.textContent.replace('ID: ', '').trim();
-            navigator.clipboard.writeText(idText).then(() => {
-                const originalText = this.textContent;
-                this.textContent = '✓ ID Copied!';
-                this.style.color = '#27ae60';
-                setTimeout(() => {
-                    this.textContent = originalText;
-                    this.style.color = '';
-                }, 1500);
+        const tableRows = document.querySelectorAll('tbody tr');
+        tableRows.forEach(row => {
+            row.addEventListener('mouseenter', function () {
+                this.style.transform = 'translateY(-2px)';
+            });
+
+            row.addEventListener('mouseleave', function () {
+                this.style.transform = 'translateY(0)';
             });
         });
-    }
-});
 
-console.log('🎯 Swakelola Page Loaded');
-console.log('📅 Selected Period: <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?>');
-console.log('📦 Total Records: <?= $totalRecords ?>');
-console.log('📦 Total Paket: <?= $totalPaket ?>');
-console.log('💰 Total Pagu: <?= $totalPagu ?>');
-console.log('🔧 Satuan Kerja Options: <?= count($satuanKerjaList) ?>');
+        document.querySelectorAll('.price').forEach(priceCell => {
+            const text = priceCell.textContent.trim();
+            if (text && !isNaN(text.replace(/[^\d]/g, ''))) {
+                const number = parseInt(text.replace(/[^\d]/g, ''));
+                if (number > 0) {
+                    priceCell.innerHTML = '<i class="fas fa-rupiah-sign" style="font-size: 12px; margin-right: 3px;"></i>Rp ' + number.toLocaleString('id-ID');
+                }
+            }
+        });
+
+        const bulanSelect = document.querySelector('select[name="bulan"]');
+        const tahunSelect = document.querySelector('select[name="tahun"]');
+
+        if (bulanSelect) {
+            bulanSelect.addEventListener('change', function () {
+                // Optional: auto-submit when month changes
+            });
+        }
+
+        if (tahunSelect) {
+            tahunSelect.addEventListener('change', function () {
+                // Optional: auto-submit when year changes
+            });
+        }
+
+        const paguMinInput = document.querySelector('input[name="pagu_min"]');
+        const paguMaxInput = document.querySelector('input[name="pagu_max"]');
+
+        if (paguMinInput && paguMaxInput) {
+            const validatePagu = () => {
+                const minVal = parseInt(paguMinInput.value.replace(/\./g, '')) || 0;
+                const maxVal = parseInt(paguMaxInput.value.replace(/\./g, '')) || 0;
+
+                if (minVal > 0 && maxVal > 0 && minVal > maxVal) {
+                    paguMaxInput.style.borderColor = '#dc3545';
+                    paguMaxInput.title = 'Pagu maks tidak boleh lebih kecil dari pagu min';
+                } else {
+                    paguMaxInput.style.borderColor = '';
+                    paguMaxInput.title = '';
+                }
+            };
+            paguMinInput.addEventListener('input', validatePagu);
+            paguMaxInput.addEventListener('input', validatePagu);
+        }
+
+        if (paguMinInput) {
+            paguMinInput.addEventListener('blur', function () {
+                if (this.value) {
+                    const number = parseInt(this.value.replace(/\D/g, ''));
+                    if (!isNaN(number)) {
+                        this.value = number.toLocaleString('id-ID');
+                    }
+                }
+            });
+
+            paguMinInput.addEventListener('focus', function () {
+                this.value = this.value.replace(/\./g, '');
+            });
+        }
+
+        if (paguMaxInput) {
+            paguMaxInput.addEventListener('blur', function () {
+                if (this.value) {
+                    const number = parseInt(this.value.replace(/\D/g, ''));
+                    if (!isNaN(number)) {
+                        this.value = number.toLocaleString('id-ID');
+                    }
+                }
+            });
+
+            paguMaxInput.addEventListener('focus', function () {
+                this.value = this.value.replace(/\./g, '');
+            });
+        }
+    });
+
+    function resetForm() {
+        window.location.href = window.location.pathname + '?bulan=07&tahun=<?= $currentYear ?>&perubahan=Tidak';
+    }
+
+    document.querySelector('form').addEventListener('submit', function (e) {
+        const submitBtn = this.querySelector('.search-btn');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mencari...';
+        submitBtn.disabled = true;
+
+        setTimeout(() => {
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        }, 5000);
+    });
+
+    window.addEventListener('load', function () {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.toString()) {
+            const resultsSection = document.querySelector('.results-section');
+            if (resultsSection) {
+                setTimeout(() => {
+                    resultsSection.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }, 300);
+            }
+        }
+    });
+
+    document.querySelectorAll('.small-text').forEach(smallText => {
+        if (smallText.textContent.includes('ID:')) {
+            smallText.style.cursor = 'pointer';
+            smallText.title = 'Klik untuk copy ID';
+            smallText.addEventListener('click', function (e) {
+                e.stopPropagation();
+                const idText = this.textContent.replace('ID: ', '').trim();
+                navigator.clipboard.writeText(idText).then(() => {
+                    const originalText = this.textContent;
+                    this.textContent = '✓ ID Copied!';
+                    this.style.color = '#27ae60';
+                    setTimeout(() => {
+                        this.textContent = originalText;
+                        this.style.color = '';
+                    }, 1500);
+                });
+            });
+        }
+    });
+
+    console.log('🎯 Swakelola Page Loaded');
+    console.log('📅 Selected Period: <?= $namaBulan[$selectedBulan] ?> <?= $selectedTahun ?>');
+    console.log('📦 Total Records: <?= $totalRecords ?>');
+    console.log('📦 Total Paket: <?= $totalPaket ?>');
+    console.log('💰 Total Pagu: <?= $totalPagu ?>');
+    console.log('🔧 Satuan Kerja Options: <?= count($satuanKerjaList) ?>');
 </script>
 
 <?php

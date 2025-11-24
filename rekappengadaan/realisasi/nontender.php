@@ -115,6 +115,12 @@ include '../../navbar/header.php';
 
 <script src="../../js/submenu.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+<!-- jQuery (required for Select2) -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<!-- Select2 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<!-- Select2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
 <style>
     body {
@@ -719,6 +725,65 @@ include '../../navbar/header.php';
             transform: translateY(0);
         }
     }
+
+    /* Custom Select2 Styling */
+    .select2-container--default .select2-selection--single {
+        height: 46px;
+        border: 2px solid #e1e8ed;
+        border-radius: 8px;
+        padding: 6px 16px;
+        transition: all 0.2s ease;
+    }
+
+    .select2-container--default .select2-selection--single:hover {
+        border-color: #dc3545;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 32px;
+        padding-left: 0;
+        font-size: 14px;
+        color: #495057;
+        font-weight: 500;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 44px;
+        right: 10px;
+    }
+
+    .select2-container--default.select2-container--focus .select2-selection--single {
+        border-color: #dc3545;
+        box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.1);
+    }
+
+    .select2-dropdown {
+        border: 2px solid #e1e8ed;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .select2-search--dropdown .select2-search__field {
+        border: 2px solid #e1e8ed;
+        border-radius: 6px;
+        padding: 8px 12px;
+        font-size: 14px;
+    }
+
+    .select2-search--dropdown .select2-search__field:focus {
+        border-color: #dc3545;
+        outline: none;
+    }
+
+    .select2-results__option {
+        padding: 10px 14px;
+        font-size: 14px;
+    }
+
+    .select2-results__option--highlighted {
+        background-color: #dc3545 !important;
+    }
+    }
 </style>
 
 <div class="container">
@@ -765,7 +830,7 @@ include '../../navbar/header.php';
 
                     <div class="filter-group">
                         <label><i class="fas fa-building"></i> Satuan Kerja</label>
-                        <select name="nama_satker">
+                        <select name="nama_satker" id="nama_satker" class="select2-searchable">
                             <option value="">Semua Satuan Kerja</option>
                             <?php if (!empty($satkerOptions)): ?>
                                 <?php foreach ($satkerOptions as $satker): ?>
@@ -1167,7 +1232,48 @@ include '../../navbar/header.php';
                 });
             });
         }
+        $('#nama_satker').select2({
+            placeholder: 'Ketik untuk mencari Satuan Kerja...',
+            allowClear: true,
+            width: '100%',
+            minimumResultsForSearch: 0,
+            matcher: function (params, data) {
+                if ($.trim(params.term) === '') {
+                    return data;
+                }
+                if (typeof data.text === 'undefined') {
+                    return null;
+                }
+                if (data.text.toLowerCase().indexOf(params.term.toLowerCase()) > -1) {
+                    return data;
+                }
+                return null;
+            },
+            language: {
+                noResults: function () {
+                    return "Tidak ditemukan Satuan Kerja yang cocok";
+                },
+                searching: function () {
+                    return "Mencari...";
+                }
+            },
+            templateResult: function (data) {
+                if (!data.id) {
+                    return data.text;
+                }
+                var term = $('.select2-search__field').val();
+                if (term) {
+                    var regex = new RegExp('(' + term + ')', 'gi');
+                    var highlighted = data.text.replace(regex, '<strong>$1</strong>');
+                    return $('<span>' + highlighted + '</span>');
+                }
+                return data.text;
+            }
+        });
+
+        console.log('✅ Select2 initialized for Satuan Kerja');
     });
+
 </script>
 
 <?php
