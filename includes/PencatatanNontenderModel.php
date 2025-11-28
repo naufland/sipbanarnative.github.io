@@ -245,13 +245,29 @@ class PencatatanNontenderModel
 
     public function getAvailableYears()
     {
+        // 1. Ambil tahun yang sudah ada di database
         $sql = "SELECT DISTINCT tahun 
                 FROM " . $this->table_name . " 
                 WHERE tahun IS NOT NULL 
                 ORDER BY tahun DESC";
         $stmt = $this->conn->prepare($sql);
         $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_COLUMN);
+        $dbYears = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+        // 2. Buat rentang tahun manual (Misal: dari 2023 sampai tahun depan)
+        $tahunSekarang = date('Y');
+        $tahunMulai = 2023; // Ubah ini jika ingin mundur lebih jauh
+        $tahunAkhir = $tahunSekarang + 1; // Agar bisa input untuk tahun depan
+        
+        $manualYears = range($tahunAkhir, $tahunMulai); // Membuat array [2026, 2025, 2024, 2023]
+
+        // 3. Gabungkan array database dan manual, lalu hapus duplikat
+        $allYears = array_unique(array_merge($dbYears, $manualYears));
+
+        // 4. Urutkan dari yang terbaru (Descending)
+        rsort($allYears);
+
+        return $allYears;
     }
 
     // BARU: Ambil bulan yang tersedia (dalam format nama Indonesia)
@@ -265,7 +281,7 @@ class PencatatanNontenderModel
         
         $sql .= " ORDER BY 
             CASE bulan
-                WHEN 'Januari' THEN 1
+                WHEN 'Januari' THEN 1   
                 WHEN 'Februari' THEN 2
                 WHEN 'Maret' THEN 3
                 WHEN 'April' THEN 4

@@ -41,12 +41,31 @@ if (!empty($selectedSatker)) {
     }
     
     if ($responseData && ($responseData['success'] ?? false)) {
-        $kontrakData = $responseData['data'] ?? [];
+        $rawData = $responseData['data'] ?? [];
+        
+        // ===== FILTER DUPLIKASI BERDASARKAN KODE RUP =====
+        $uniqueData = [];
+        $seenKodeRUP = [];
+        
+        foreach ($rawData as $row) {
+            $kodeRUP = $row['Kode_RUP'] ?? '';
+            
+            // Hanya tambahkan jika Kode RUP belum pernah muncul
+            if (!empty($kodeRUP) && !isset($seenKodeRUP[$kodeRUP])) {
+                $uniqueData[] = $row;
+                $seenKodeRUP[$kodeRUP] = true;
+            }
+        }
+        
+        $kontrakData = $uniqueData;
+        // ===== END FILTER DUPLIKASI =====
+        
         $statistik = $responseData['statistik'] ?? [];
-        $totalKontrak = $statistik['total_paket'] ?? 0;
+        $totalKontrak = count($kontrakData); // Update total berdasarkan data unik
     }
 }
 
+// Include header
 include '../navbar/header.php';
 ?>
 
@@ -54,15 +73,9 @@ include '../navbar/header.php';
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 
 <style>
-    body {
-        font-family: 'Times New Roman', Times, serif;
-        background-color: #f8f9fa;
-        padding: 20px;
-    }
-
-    .container {
-        max-width: 1400px;
-        margin: 0 auto;
+    /* Custom styles untuk halaman LPPD */
+    .lppd-container {
+        padding: 30px 0;
     }
 
     .filter-section {
@@ -203,18 +216,18 @@ include '../navbar/header.php';
     }
 
     .form-header {
-        display: flex;
+        display: grid;
+        grid-template-columns: 100px 1fr 100px;
         align-items: center;
         margin-bottom: 30px;
         padding-bottom: 20px;
         border-bottom: 3px solid #000;
+        gap: 20px;
     }
 
     .form-header-logo {
         width: 100px;
         height: 100px;
-        margin-right: 20px;
-        flex-shrink: 0;
     }
 
     .form-header-logo img {
@@ -224,12 +237,11 @@ include '../navbar/header.php';
     }
 
     .form-header-text {
-        flex: 1;
         text-align: center;
     }
 
     .form-header-text h2 {
-        font-size: 18px;
+        font-size: 25px;
         font-weight: bold;
         margin: 5px 0;
         text-transform: uppercase;
@@ -395,15 +407,35 @@ include '../navbar/header.php';
             margin: 0;
         }
 
+        /* Hide semua elemen navigasi dan UI */
         .filter-section,
         .btn-actions,
         .navbar,
         nav,
         header,
+        .main-header,
         aside,
         .sidebar,
-        .alert-debug {
+        .alert-debug,
+        footer,
+        .footer,
+        .page-footer,
+        .site-footer,
+        #footer,
+        .lppd-footer,
+        .main-footer {
             display: none !important;
+        }
+
+        /* Reset container untuk print */
+        .lppd-container {
+            padding: 0 !important;
+        }
+
+        .container {
+            max-width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
         }
 
         .form-container {
@@ -422,6 +454,7 @@ include '../navbar/header.php';
             border-bottom: 2px solid #000;
         }
 
+        /* Form footer (bagian signature) tetap ditampilkan */
         .form-footer {
             display: block !important;
             page-break-inside: avoid;
@@ -436,164 +469,193 @@ include '../navbar/header.php';
             display: block !important;
         }
 
-        body > footer,
-        body > .footer,
-        #footer,
-        .site-footer,
-        .page-footer {
-            display: none !important;
+        /* Pastikan tidak ada halaman tambahan */
+        @page {
+            margin: 1cm;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .filter-content {
+            grid-template-columns: 1fr;
+        }
+
+        .form-container {
+            padding: 20px;
+        }
+
+        .form-header {
+            grid-template-columns: 60px 1fr 60px;
+        }
+
+        .form-header-logo {
+            width: 60px;
+            height: 60px;
+        }
+
+        .form-header-text h2 {
+            font-size: 16px;
+        }
+
+        .form-table {
+            font-size: 9px;
         }
     }
 </style>
 
-<div class="container">
-    <?php if (!empty($apiError)): ?>
-        <div class="alert-debug">
-            <strong>Debug Info:</strong><br>
-            API URL: <?= htmlspecialchars($satkerListUrl) ?><br>
-            <?= htmlspecialchars($apiError) ?>
-        </div>
-    <?php endif; ?>
+<div class="lppd-container">
+    <div class="container">
+        <?php if (!empty($apiError)): ?>
+            <div class="alert-debug">
+                <strong>Debug Info:</strong><br>
+                API URL: <?= htmlspecialchars($satkerListUrl) ?><br>
+                <?= htmlspecialchars($apiError) ?>
+            </div>
+        <?php endif; ?>
 
-    <div class="filter-section">
-        <div class="filter-header">
-            <i class="fas fa-filter"></i>
-            <h3>Filter Data LPPD</h3>
+        <div class="filter-section">
+            <div class="filter-header">
+                <i class="fas fa-filter"></i>
+                <h3>Filter Data LPPD</h3>
+            </div>
+            <form method="GET" action="" id="filterForm">
+                <div class="filter-content">
+                    <div class="form-group">
+                        <label><i class="fas fa-calendar-alt"></i> Tahun Anggaran</label>
+                        <select name="tahun" id="selectTahun">
+                            <?php for ($y = date('Y'); $y >= 2020; $y--): ?>
+                                <option value="<?= $y ?>" <?= $selectedTahun == $y ? 'selected' : '' ?>><?= $y ?></option>
+                            <?php endfor; ?>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label><i class="fas fa-building"></i> Satuan Kerja</label>
+                        <select name="satuan_kerja" id="selectSatker" class="select2-satker">
+                            <option value="">-- Pilih Satuan Kerja --</option>
+                            <?php foreach ($satkerList as $satker): ?>
+                                <option value="<?= htmlspecialchars($satker) ?>" 
+                                        <?= $selectedSatker == $satker ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($satker) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn-generate">
+                        <i class="fas fa-file-alt"></i> Generate Form
+                    </button>
+                </div>
+            </form>
         </div>
-        <form method="GET" action="" id="filterForm">
-            <div class="filter-content">
-                <div class="form-group">
-                    <label><i class="fas fa-calendar-alt"></i> Tahun Anggaran</label>
-                    <select name="tahun" id="selectTahun">
-                        <?php for ($y = date('Y'); $y >= 2020; $y--): ?>
-                            <option value="<?= $y ?>" <?= $selectedTahun == $y ? 'selected' : '' ?>><?= $y ?></option>
-                        <?php endfor; ?>
-                    </select>
+
+        <?php if (!empty($selectedSatker) && !empty($kontrakData)): ?>
+            <div class="form-container" id="printableForm">
+                <div class="form-header">
+                    <div class="form-header-logo">
+                        <img src="../images/logobjm.png" alt="Logo Banjarmasin" onerror="this.onerror=null; this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22%3E%3Crect fill=%22%23ddd%22 width=%22100%22 height=%22100%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 font-size=%2212%22 text-anchor=%22middle%22 dy=%22.3em%22%3ELogo%3C/text%3E%3C/svg%3E';">
+                    </div>
+                    <div class="form-header-text">
+                        <h2>PEMERINTAH KOTA BANJARMASIN</h2>
+                        <div class="subtitle">SEKRETARIAT DAERAH</div>
+                        <div class="address">
+                            Jl. RE. Martadinata No.1 Banjarmasin 70111 - (0511) 4368142 - 4368145 Fax. 3353933<br>
+                            http://www.banjarmasinkota.go.id/
+                        </div>
+                    </div>
+                    <div class="form-header-logo">
+                        <!-- Spacer untuk simetri -->
+                    </div>
                 </div>
 
-                <div class="form-group">
-                    <label><i class="fas fa-building"></i> Satuan Kerja</label>
-                    <select name="satuan_kerja" id="selectSatker" class="select2-satker">
-                        <option value="">-- Pilih Satuan Kerja --</option>
-                        <?php foreach ($satkerList as $satker): ?>
-                            <option value="<?= htmlspecialchars($satker) ?>" 
-                                    <?= $selectedSatker == $satker ? 'selected' : '' ?>>
-                                <?= htmlspecialchars($satker) ?>
-                            </option>
+                <div class="form-title">
+                    <strong>JUMLAH KONTRAK KESELURUHAN TAHUN <?= $selectedTahun ?></strong><br>
+                    DI PROVINSI <?= strtoupper($provinsi) ?><br>
+                    TAHUN <?= $selectedTahun ?>
+                </div>
+
+                <table class="form-table">
+                    <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>Kode RUP</th>
+                            <th>Perangkat Daerah</th>
+                            <th>Nama Paket</th>
+                            <th>HPS</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php 
+                        $no = 1;
+                        foreach ($kontrakData as $row): 
+                        ?>
+                            <tr>
+                                <td><?= $no++ ?></td>
+                                <td><?= htmlspecialchars($row['Kode_RUP'] ?? '-') ?></td>
+                                <td><?= htmlspecialchars($row['Nama_Satker'] ?? '-') ?></td>
+                                <td style="text-align: left; padding-left: 10px;">
+                                    <?= htmlspecialchars($row['Nama_Paket'] ?? '-') ?>
+                                </td>
+                                <td style="text-align: right; padding-right: 10px;">
+                                    Rp <?= number_format($row['Nilai_HPS'] ?? 0, 0, ',', '.') ?>
+                                </td>
+                                <td>Selesai</td>
+                            </tr>
                         <?php endforeach; ?>
-                    </select>
-                </div>
+                        <tr>
+                            <td colspan="6" style="text-align: left; padding: 10px;">
+                                <strong>Dst.</strong>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
 
-                <button type="submit" class="btn-generate">
-                    <i class="fas fa-file-alt"></i> Generate Form
+                <div class="form-footer">
+                    <div class="footer-note">
+                        <strong>Sumber Data:</strong> Biro Pengadaan Barang/Jasa Provinsi <?= $provinsi ?>
+                    </div>
+
+                    <div class="footer-signature">
+                        <div class="signature-block">
+                            <div class="signature-date">Banjarmasin, ............. <?= $selectedTahun ?></div>
+                            <div class="signature-title">Kepala Biro Pengadaan Barang/Jasa</div>
+                            <div class="signature-title">Provinsi <?= $provinsi ?></div>
+                            <div class="signature-ttd">Ttd dan cap</div>
+                            <div class="signature-name">( .................................. )</div>
+                            <div class="signature-nip">Pangkat/Gol Ruang .....</div>
+                            <div class="signature-nip">NIP. .....</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="btn-actions">
+                <button class="btn-action btn-print" onclick="printForm()">
+                    <i class="fas fa-print"></i> Cetak Form
+                </button>
+                <button class="btn-action btn-export" onclick="exportPDF()">
+                    <i class="fas fa-file-pdf"></i> Export PDF
                 </button>
             </div>
-        </form>
+        <?php elseif (!empty($selectedSatker)): ?>
+            <div class="form-container">
+                <div class="empty-state">
+                    <i class="fas fa-inbox"></i>
+                    <p><strong>Tidak ada data kontrak</strong></p>
+                    <small>Untuk <?= htmlspecialchars($selectedSatker) ?> tahun <?= $selectedTahun ?></small>
+                </div>
+            </div>
+        <?php else: ?>
+            <div class="form-container">
+                <div class="empty-state">
+                    <i class="fas fa-hand-pointer"></i>
+                    <p><strong>Silakan pilih Tahun dan Satuan Kerja</strong></p>
+                    <small>untuk menampilkan form LPPD</small>
+                </div>
+            </div>
+        <?php endif; ?>
     </div>
-
-    <?php if (!empty($selectedSatker) && !empty($kontrakData)): ?>
-        <div class="form-container" id="printableForm">
-            <div class="form-header">
-                <div class="form-header-logo">
-                    <img src="../images/logobjm.png" alt="Logo Banjarmasin" onerror="this.onerror=null; this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22%3E%3Crect fill=%22%23ddd%22 width=%22100%22 height=%22100%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 font-size=%2212%22 text-anchor=%22middle%22 dy=%22.3em%22%3ELogo%3C/text%3E%3C/svg%3E';">
-                </div>
-                <div class="form-header-text">
-                    <h2>PEMERINTAH KOTA BANJARMASIN</h2>
-                    <div class="subtitle">SEKRETARIAT DAERAH</div>
-                    <div class="address">
-                        Jl. RE. Martadinata No.1 Banjarmasin 70111 - (0511) 4368142 - 4368145 Fax. 3353933<br>
-                        http://www.banjarmසinkota.go.id/
-                    </div>
-                </div>
-            </div>
-
-            <div class="form-title">
-                <strong>JUMLAH KONTRAK KESELURUHAN TAHUN <?= $selectedTahun ?></strong><br>
-                DI PROVINSI <?= strtoupper($provinsi) ?><br>
-                TAHUN <?= $selectedTahun ?>
-            </div>
-
-            <table class="form-table">
-                <thead>
-                    <tr>
-                        <th>No</th>
-                        <th>Kode RUP</th>
-                        <th>Perangkat Daerah</th>
-                        <th>Nama Paket</th>
-                        <th>HPS</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php 
-                    $no = 1;
-                    foreach ($kontrakData as $row): 
-                    ?>
-                        <tr>
-                            <td><?= $no++ ?></td>
-                            <td><?= htmlspecialchars($row['Kode_RUP'] ?? '-') ?></td>
-                            <td><?= htmlspecialchars($row['Nama_Satker'] ?? '-') ?></td>
-                            <td style="text-align: left; padding-left: 10px;">
-                                <?= htmlspecialchars($row['Nama_Paket'] ?? '-') ?>
-                            </td>
-                            <td style="text-align: right; padding-right: 10px;">
-                                Rp <?= number_format($row['Nilai_HPS'] ?? 0, 0, ',', '.') ?>
-                            </td>
-                            <td>Selesai</td>
-                        </tr>
-                    <?php endforeach; ?>
-                    <tr>
-                        <td colspan="6" style="text-align: left; padding: 10px;">
-                            <strong>Dst.</strong>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-
-            <div class="form-footer">
-                <div class="footer-note">
-                    <strong>Sumber Data:</strong> Biro Pengadaan Barang/Jasa Provinsi <?= $provinsi ?>
-                </div>
-
-                <div class="footer-signature">
-                    <div class="signature-block">
-                        <div class="signature-date">Banjarmasin, ............. <?= $selectedTahun ?></div>
-                        <div class="signature-title">Kepala Biro Pengadaan Barang/Jasa</div>
-                        <div class="signature-title">Provinsi <?= $provinsi ?></div>
-                        <div class="signature-ttd">Ttd dan cap</div>
-                        <div class="signature-name">( .................................. )</div>
-                        <div class="signature-nip">Pangkat/Gol Ruang .....</div>
-                        <div class="signature-nip">NIP. .....</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="btn-actions">
-            <button class="btn-action btn-print" onclick="printForm()">
-                <i class="fas fa-print"></i> Cetak Form
-            </button>
-            <button class="btn-action btn-export" onclick="exportPDF()">
-                <i class="fas fa-file-pdf"></i> Export PDF
-            </button>
-        </div>
-    <?php elseif (!empty($selectedSatker)): ?>
-        <div class="form-container">
-            <div class="empty-state">
-                <i class="fas fa-inbox"></i>
-                <p><strong>Tidak ada data kontrak</strong></p>
-                <small>Untuk <?= htmlspecialchars($selectedSatker) ?> tahun <?= $selectedTahun ?></small>
-            </div>
-        </div>
-    <?php else: ?>
-        <div class="form-container">
-            <div class="empty-state">
-                <i class="fas fa-hand-pointer"></i>
-                <p><strong>Silakan pilih Tahun dan Satuan Kerja</strong></p>
-                <small>untuk menampilkan form LPPD</small>
-            </div>
-        </div>
-    <?php endif; ?>
 </div>
 
 <!-- jQuery (required for Select2) -->

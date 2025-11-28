@@ -837,7 +837,7 @@ $rekap_metode_display = array_filter($rekap_metode, function ($data) {
 $metode_order = ['Tender', 'Seleksi', 'Tender Cepat', 'Penunjukan Langsung', 'E-Purchasing', 'Pengadaan Langsung', 'Dikecualikan'];
 $rekap_metode_sorted = [];
 foreach ($metode_order as $metode) {
-    if (isset($rekap_metode_display[$metode])) {
+    if (isset($rekap_metode_display[$metode])) {    
         $rekap_metode_sorted[$metode] = $rekap_metode_display[$metode];
     }
 }
@@ -903,6 +903,7 @@ include '../navbar/header.php';
 <script src="../../js/submenu.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 <style>
     .charts-section {

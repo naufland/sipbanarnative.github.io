@@ -1,0 +1,1 @@
+[28-Nov-2025 08:02:50 Asia/Jakarta] Notion API Error: HTTP 404 - {"object":"error","status":404,"code":"object_not_found","message":"Could not find database with ID: 2b997e8e-9c19-801d-93b7-c81cc67c1595. Make sure the relevant pages and databases are shared with your integration.","request_id":"2ec7061f-dbb6-4668-9c8f-15daa1f8b7d9"}

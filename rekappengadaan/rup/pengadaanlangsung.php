@@ -68,7 +68,7 @@ if ($summaryData && isset($summaryData['success']) && $summaryData['success'] &&
     $summary = $summaryData['summary'];
     $totalPaket = $summary['total_paket'] ?? 0;
     $totalPagu = $summary['total_pagu'] ?? 0;
-    $formattedTotalPagu = 'Rp ' . number_format($totalPagu, 0, ',', '.');
+    $formattedTotalPagu = '' . number_format($totalPagu, 0, ',', '.');
 }
 
 // 7. Siapkan variabel untuk paginasi

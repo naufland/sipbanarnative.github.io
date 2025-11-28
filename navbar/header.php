@@ -515,9 +515,9 @@ if (!isset($page_title)) {
 
                         <li class="nav-item">
                             <a class="nav-link"
-                                href="<?= $_SERVER['REQUEST_SCHEME'] ?>://<?= $_SERVER['HTTP_HOST'] ?>/form-satu-data">
+                                href="<?= $_SERVER['REQUEST_SCHEME'] ?>://<?= $_SERVER['HTTP_HOST'] ?>/formsatudata/formsatudata.php">
                                 <i class="fas fa-file-invoice"></i>
-                                Form Satu Data
+                                Forum Satu Data
                             </a>
                         </li>
 
@@ -564,32 +564,14 @@ if (!isset($page_title)) {
                             <a class="nav-link dropdown-toggle" href="#" id="laporanDropdown" role="button"
                                 data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="fas fa-file-alt"></i>
-                                Laporan
+                                Data Khusus PBJ
                             </a>
                             <ul class="dropdown-menu" aria-labelledby="laporanDropdown">
                                 <li>
                                     <a class="dropdown-item"
-                                        href="<?= $_SERVER['REQUEST_SCHEME'] ?>://<?= $_SERVER['HTTP_HOST'] ?>/laporan/excel">
+                                        href="<?= $_SERVER['REQUEST_SCHEME'] ?>://<?= $_SERVER['HTTP_HOST'] ?>/datakhususpbj/datapbj.php">
                                         <i class="fas fa-file-excel"></i>
-                                        Export Excel
-                                    </a>
-                                </li>
-                                <li>
-                                    <a class="dropdown-item"
-                                        href="<?= $_SERVER['REQUEST_SCHEME'] ?>://<?= $_SERVER['HTTP_HOST'] ?>/laporan/pdf">
-                                        <i class="fas fa-file-pdf"></i>
-                                        Export PDF
-                                    </a>
-                                </li>
-                                <li>
-                                    <a class="dropdown-item"
-                                        href="<?= $_SERVER['REQUEST_SCHEME'] ?>://<?= $_SERVER['HTTP_HOST'] ?>/laporan/print">
-                                        <i class="fas fa-print"></i>
-                                        Print Laporan
-                                    </a>
-                                </li>
-                                <li>
-                                    <hr class="dropdown-divider">
+                                        Efiesiensi
                                 </li>
                                 <li>
                                     <a class="dropdown-item"
