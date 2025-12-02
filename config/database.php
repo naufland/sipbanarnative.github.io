@@ -5,17 +5,17 @@
  */
 
 // Database connection variables
-$host = "localhost";
+$host = "db";
 $dbname = "sipbanar"; // Sesuaikan dengan nama database Anda
 $username = "root";
-$password = ""; // Kosongkan jika tidak ada password
+$password = "root"; // Kosongkan jika tidak ada password
 
 // Alternative database connection using class (optional)
 class Database {
-    private $host = "localhost";
+    private $host = "db";
     private $db_name = "sipbanar";
     private $username = "root";
-    private $password = "";
+    private $password = "root";
     private $conn;
 
     public function getConnection() {

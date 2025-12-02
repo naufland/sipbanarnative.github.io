@@ -1,26 +1,16 @@
 <?php
 // File: config.php
-// Konfigurasi API Notion - JANGAN UPLOAD KE GIT!
 
 // ============================================
 // NOTION API CONFIGURATION
 // ============================================
-// Cara mendapatkan API Key dan Database ID:
-// 1. Buka https://www.notion.so/my-integrations
-// 2. Klik "+ New integration"
-// 3. Copy "Internal Integration Token" (secret_xxxxx...)
-// 4. Buat database di Notion dengan kolom:
-//    - Nama dokumen (Title)
-//    - Kategori (Select)
-//    - Dibuat oleh (Rich Text)
-//    - Waktu dibuat (Date)
-//    - Terakhir diedit oleh (Rich Text)
-//    - Waktu terakhir diperbarui (Date)
-// 5. Share database ke integration Anda
-// 6. Copy Database ID dari URL (32 karakter setelah nama workspace)
 
+// API Key Anda (Sudah saya masukkan)
 define('NOTION_API_KEY', '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');
-define('NOTION_DATABASE_ID', '2b997e8e9c19801d93b7c81cc67c1595');
+
+// Database ID Anda (Sudah saya masukkan)
+define('NOTION_DATABASE_ID', '2b997e8e9c198041a02ccef584546463');
+
 define('NOTION_API_VERSION', '2022-06-28');
 define('NOTION_API_URL', 'https://api.notion.com/v1');
 
@@ -28,7 +18,7 @@ define('NOTION_API_URL', 'https://api.notion.com/v1');
 // UPLOAD CONFIGURATION
 // ============================================
 define('UPLOAD_DIR', __DIR__ . '/uploads/');
-define('MAX_FILE_SIZE', 10 * 1024 * 1024); // 10MB (ubah sesuai kebutuhan)
+define('MAX_FILE_SIZE', 10 * 1024 * 1024); // 10MB
 
 // Ekstensi file yang diizinkan
 define('ALLOWED_EXTENSIONS', ['pdf', 'doc', 'docx']);
@@ -50,7 +40,6 @@ date_default_timezone_set(APP_TIMEZONE);
 // ============================================
 // ERROR REPORTING
 // ============================================
-// Set ke true untuk development, false untuk production
 define('DEBUG_MODE', true);
 
 if (DEBUG_MODE) {
@@ -66,46 +55,33 @@ if (DEBUG_MODE) {
 // ============================================
 // SECURITY SETTINGS
 // ============================================
-// Session configuration (jika diperlukan di masa depan)
 ini_set('session.cookie_httponly', 1);
 ini_set('session.use_only_cookies', 1);
-ini_set('session.cookie_secure', 0); // Set ke 1 jika menggunakan HTTPS
+ini_set('session.cookie_secure', 0);
 
 // ============================================
 // VALIDATION FUNCTIONS
 // ============================================
 
-/**
- * Validasi apakah Notion API Key sudah diisi
- */
 function validateNotionConfig() {
-    if (NOTION_API_KEY === 'secret_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx') {
+    if (empty(NOTION_API_KEY) || strpos(NOTION_API_KEY, 'secret_') === false && strpos(NOTION_API_KEY, 'ntn_') === false) {
+        // Saya tambahkan pengecekan 'ntn_' karena key Anda berawalan ntn_
         return [
             'valid' => false,
-            'message' => 'NOTION_API_KEY belum diisi! Edit file config.php dan masukkan API Key Anda.'
-        ];
-    }
-    
-    if (NOTION_DATABASE_ID === 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx') {
-        return [
-            'valid' => false,
-            'message' => 'NOTION_DATABASE_ID belum diisi! Edit file config.php dan masukkan Database ID Anda.'
+            'message' => 'Format NOTION_API_KEY sepertinya salah. Cek kembali.'
         ];
     }
     
     if (strlen(NOTION_DATABASE_ID) !== 32) {
         return [
             'valid' => false,
-            'message' => 'NOTION_DATABASE_ID tidak valid! Harus 32 karakter.'
+            'message' => 'NOTION_DATABASE_ID tidak valid! Harus 32 karakter (tanpa tanda tanya).'
         ];
     }
     
     return ['valid' => true, 'message' => 'Konfigurasi Notion valid'];
 }
 
-/**
- * Cek apakah PHP extension yang dibutuhkan sudah terinstall
- */
 function checkRequirements() {
     $requirements = [
         'curl' => extension_loaded('curl'),
@@ -123,22 +99,19 @@ function checkRequirements() {
     if (!empty($missing)) {
         return [
             'valid' => false,
-            'message' => 'PHP Extension yang dibutuhkan belum terinstall: ' . implode(', ', $missing)
+            'message' => 'PHP Extension kurang: ' . implode(', ', $missing)
         ];
     }
     
-    return ['valid' => true, 'message' => 'Semua requirement terpenuhi'];
+    return ['valid' => true, 'message' => 'Requirements OK'];
 }
 
-/**
- * Cek permission folder uploads
- */
 function checkUploadDirectory() {
     if (!file_exists(UPLOAD_DIR)) {
         if (!@mkdir(UPLOAD_DIR, 0755, true)) {
             return [
                 'valid' => false,
-                'message' => 'Tidak bisa membuat folder uploads! Cek permission.'
+                'message' => 'Gagal membuat folder uploads.'
             ];
         }
     }
@@ -146,26 +119,17 @@ function checkUploadDirectory() {
     if (!is_writable(UPLOAD_DIR)) {
         return [
             'valid' => false,
-            'message' => 'Folder uploads tidak bisa ditulis! Jalankan: chmod 755 uploads/'
+            'message' => 'Folder uploads tidak writable (chmod 755).'
         ];
     }
     
-    return ['valid' => true, 'message' => 'Folder uploads siap digunakan'];
+    return ['valid' => true, 'message' => 'Folder OK'];
 }
 
 // ============================================
-// AUTO CHECK (Optional)
+// AUTO CHECK (Diaktifkan untuk memastikan aman)
 // ============================================
-// Uncomment baris di bawah untuk auto-check saat config dimuat
-/*
-$configCheck = validateNotionConfig();
-if (!$configCheck['valid']) {
-    die('<h2>Configuration Error</h2><p>' . $configCheck['message'] . '</p>');
-}
+// Saya aktifkan pengecekan folder otomatis agar tidak error saat upload pertama
+checkUploadDirectory();
 
-$reqCheck = checkRequirements();
-if (!$reqCheck['valid']) {
-    die('<h2>System Requirements Error</h2><p>' . $reqCheck['message'] . '</p>');
-}
-*/
 ?>

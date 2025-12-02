@@ -1,311 +1,134 @@
 <?php
 // File: notion_api.php
-// Helper untuk interaksi dengan Notion API
-
 require_once 'config.php';
 
 class NotionAPI {
-    private $apiKey;
+    private $token;
     private $databaseId;
-    private $apiVersion;
-    private $apiUrl;
-    
+    private $version;
+    private $url;
+
     public function __construct() {
-        $this->apiKey = NOTION_API_KEY;
+        // Mengambil konfigurasi dari file config.php
+        $this->token = NOTION_API_KEY;
         $this->databaseId = NOTION_DATABASE_ID;
-        $this->apiVersion = NOTION_API_VERSION;
-        $this->apiUrl = NOTION_API_URL;
+        $this->version = NOTION_API_VERSION;
+        $this->url = NOTION_API_URL;
     }
-    
+
     /**
-     * Kirim request ke Notion API
+     * Mengirim data dokumen ke Notion
      */
-    private function makeRequest($endpoint, $method = 'GET', $data = null) {
-        $url = $this->apiUrl . $endpoint;
+    public function saveDocument($data) {
+        $endpoint = $this->url . '/pages';
         
-        $ch = curl_init($url);
-        
-        $headers = [
-            'Authorization: Bearer ' . $this->apiKey,
-            'Content-Type: application/json',
-            'Notion-Version: ' . $this->apiVersion
-        ];
-        
-        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        
-        if ($method === 'POST') {
-            curl_setopt($ch, CURLOPT_POST, true);
-            if ($data) {
-                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-            }
-        } elseif ($method === 'PATCH') {
-            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'PATCH');
-            if ($data) {
-                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-            }
-        } elseif ($method === 'DELETE') {
-            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'DELETE');
-        }
-        
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-        
-        if ($httpCode >= 400) {
-            error_log("Notion API Error: HTTP $httpCode - " . $response);
-            return ['success' => false, 'error' => $response, 'http_code' => $httpCode];
-        }
-        
-        return ['success' => true, 'data' => json_decode($response, true)];
-    }
-    
-    /**
-     * Simpan metadata dokumen ke Notion Database
-     * Sesuai dengan struktur Notion yang ada
-     */
-    public function saveDocument($documentData) {
-        $data = [
-            'parent' => [
-                'database_id' => $this->databaseId
-            ],
-            'properties' => [
-                // Nama dokumen (Title/Name column)
-                'Nama dokumen' => [
-                    'title' => [
+        // MENYUSUN DATA AGAR COCOK DENGAN KOLOM NOTION ANDA
+        $payload = [
+            "parent" => ["database_id" => $this->databaseId],
+            "properties" => [
+                // 1. Kolom Judul (Wajib: Nama dokumen)
+                "Nama dokumen" => [
+                    "title" => [
                         [
-                            'text' => [
-                                'content' => $documentData['original_name']
-                            ]
+                            "text" => ["content" => $data['original_name']]
                         ]
                     ]
                 ],
-                // Kategori (Select) - User pilih manual
-                'Kategori' => [
-                    'select' => [
-                        'name' => $documentData['category']
+                
+                // 2. Kolom Kategori (Wajib: Kategori)
+                "Kategori" => [
+                    "select" => [
+                        "name" => $data['category']
                     ]
                 ],
-                // Dibuat oleh (Created by - Person)
-                'Dibuat oleh' => [
-                    'rich_text' => [
+                
+                // 3. Kolom Pengunggah (Tipe Text yang baru Anda buat)
+                "Pengunggah" => [
+                    "rich_text" => [
                         [
-                            'text' => [
-                                'content' => $documentData['uploader']
-                            ]
+                            "text" => ["content" => $data['uploader']]
                         ]
                     ]
                 ],
-                // Waktu dibuat (Created time - Date)
-                'Waktu dibuat' => [
-                    'date' => [
-                        'start' => date('Y-m-d\TH:i:s', strtotime($documentData['upload_date']))
-                    ]
-                ],
-                // Terakhir diedit oleh (Last edited by - Person)
-                'Terakhir diedit oleh' => [
-                    'rich_text' => [
+
+                // 4. Kolom Nama File Fisik (Tipe Text yang baru Anda buat)
+                "Nama File Fisik" => [
+                    "rich_text" => [
                         [
-                            'text' => [
-                                'content' => $documentData['uploader']
-                            ]
+                            "text" => ["content" => $data['stored_name']]
                         ]
-                    ]
-                ],
-                // Waktu terakhir diperbarui (Last edited time - Date)
-                'Waktu terakhir diperbarui' => [
-                    'date' => [
-                        'start' => date('Y-m-d\TH:i:s', strtotime($documentData['upload_date']))
                     ]
                 ]
             ]
         ];
-        
-        return $this->makeRequest('/pages', 'POST', $data);
+
+        // Kirim ke Notion
+        return $this->sendRequest($endpoint, 'POST', $payload);
     }
-    
+
     /**
-     * DEPRECATED: Tidak digunakan lagi karena kategori dipilih user
-     */
-    private function getCategory($fileType) {
-        return 'Dokumen strategi'; // Default fallback
-    }
-    
-    /**
-     * Ambil semua dokumen dari Notion Database
-     */
-    public function getDocuments($filter = null) {
-        $data = [
-            'page_size' => 100
-        ];
-        
-        if ($filter) {
-            $data['filter'] = $filter;
-        }
-        
-        // Sort by created time descending
-        $data['sorts'] = [
-            [
-                'timestamp' => 'created_time',
-                'direction' => 'descending'
-            ]
-        ];
-        
-        return $this->makeRequest('/databases/' . $this->databaseId . '/query', 'POST', $data);
-    }
-    
-    /**
-     * Update dokumen di Notion
-     */
-    public function updateDocument($pageId, $documentData) {
-        $data = [
-            'properties' => [
-                'Terakhir diedit oleh' => [
-                    'rich_text' => [
-                        [
-                            'text' => [
-                                'content' => $documentData['uploader'] ?? 'System'
-                            ]
-                        ]
-                    ]
-                ],
-                'Waktu terakhir diperbarui' => [
-                    'date' => [
-                        'start' => date('Y-m-d\TH:i:s')
-                    ]
-                ]
-            ]
-        ];
-        
-        return $this->makeRequest('/pages/' . $pageId, 'PATCH', $data);
-    }
-    
-    /**
-     * Archive/hapus dokumen di Notion (set archived = true)
+     * Mengarsipkan dokumen (Delete soft)
      */
     public function archiveDocument($pageId) {
-        $data = [
-            'archived' => true
-        ];
+        $endpoint = $this->url . '/pages/' . $pageId;
+        $payload = ["archived" => true];
         
-        return $this->makeRequest('/pages/' . $pageId, 'PATCH', $data);
+        $response = $this->sendRequest($endpoint, 'PATCH', $payload);
+        return isset($response['id']); // Berhasil jika mengembalikan ID
     }
-    
+
     /**
-     * Cari dokumen berdasarkan nama file
+     * Fungsi Helper untuk mengirim Request cURL
      */
-    public function findDocumentByName($fileName) {
-        $filter = [
-            'property' => 'Nama dokumen',
-            'title' => [
-                'equals' => $fileName
-            ]
+    private function sendRequest($url, $method, $data = []) {
+        $ch = curl_init();
+        
+        $headers = [
+            "Authorization: Bearer " . $this->token,
+            "Notion-Version: " . $this->version,
+            "Content-Type: application/json"
         ];
+
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
         
-        $result = $this->getDocuments($filter);
+        if (!empty($data)) {
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+        }
+
+        $result = curl_exec($ch);
         
-        if ($result['success'] && isset($result['data']['results']) && count($result['data']['results']) > 0) {
+        if (curl_errno($ch)) {
             return [
-                'success' => true,
-                'page_id' => $result['data']['results'][0]['id'],
-                'data' => $result['data']['results'][0]
+                'success' => false, 
+                'message' => 'Koneksi Error: ' . curl_error($ch)
             ];
         }
         
-        return ['success' => false, 'error' => 'Document not found'];
-    }
-    
-    /**
-     * Parse properties dari Notion page
-     */
-    public function parseProperties($properties) {
-        $parsed = [];
+        curl_close($ch);
         
-        foreach ($properties as $key => $value) {
-            switch ($value['type']) {
-                case 'title':
-                    $parsed[$key] = $value['title'][0]['text']['content'] ?? '';
-                    break;
-                case 'rich_text':
-                    $parsed[$key] = $value['rich_text'][0]['text']['content'] ?? '';
-                    break;
-                case 'number':
-                    $parsed[$key] = $value['number'] ?? 0;
-                    break;
-                case 'select':
-                    $parsed[$key] = $value['select']['name'] ?? '';
-                    break;
-                case 'date':
-                    $parsed[$key] = $value['date']['start'] ?? '';
-                    break;
-                case 'created_time':
-                    $parsed[$key] = $value['created_time'] ?? '';
-                    break;
-                case 'last_edited_time':
-                    $parsed[$key] = $value['last_edited_time'] ?? '';
-                    break;
-                case 'created_by':
-                    $parsed[$key] = $value['created_by']['name'] ?? '';
-                    break;
-                case 'last_edited_by':
-                    $parsed[$key] = $value['last_edited_by']['name'] ?? '';
-                    break;
-                default:
-                    $parsed[$key] = '';
-            }
+        $response = json_decode($result, true);
+
+        // Validasi Response dari Notion
+        // Notion mengembalikan object 'page' jika sukses membuat halaman baru
+        if (isset($response['object']) && $response['object'] === 'page') {
+            return ['success' => true, 'data' => $response];
+        } 
+        // Jika arsip sukses, objectnya juga 'page' tapi kita cek ID-nya saja
+        else if (isset($response['id']) && $method === 'PATCH') {
+             return ['success' => true, 'data' => $response];
         }
-        
-        return $parsed;
-    }
-    
-    /**
-     * Sinkronisasi dari Notion ke lokal
-     * Ambil dokumen dari Notion dan simpan ke metadata.json
-     */
-    public function syncFromNotion($uploadDir) {
-        $result = $this->getDocuments();
-        
-        if (!$result['success']) {
-            return ['success' => false, 'error' => 'Failed to fetch documents from Notion'];
+        else {
+            // Jika Gagal, ambil pesan errornya
+            $msg = $response['message'] ?? 'Unknown error';
+            $code = $response['status'] ?? 'Unknown code';
+            return [
+                'success' => false, 
+                'message' => "Notion menolak ($code): $msg"
+            ];
         }
-        
-        $notionDocs = $result['data']['results'] ?? [];
-        $metadataFile = $uploadDir . 'metadata.json';
-        $localMetadata = [];
-        
-        if (file_exists($metadataFile)) {
-            $localMetadata = json_decode(file_get_contents($metadataFile), true) ?? [];
-        }
-        
-        $synced = 0;
-        foreach ($notionDocs as $doc) {
-            if (isset($doc['archived']) && $doc['archived']) {
-                continue; // Skip archived documents
-            }
-            
-            $props = $this->parseProperties($doc['properties']);
-            
-            // Cek apakah dokumen sudah ada di lokal
-            $fileName = $props['Nama dokumen'] ?? '';
-            $found = false;
-            
-            foreach ($localMetadata as $storedName => $meta) {
-                if ($meta['original_name'] === $fileName) {
-                    $found = true;
-                    break;
-                }
-            }
-            
-            if (!$found) {
-                // Dokumen ada di Notion tapi tidak di lokal
-                // Bisa ditambahkan logika untuk handle ini
-                error_log("Document in Notion but not in local: " . $fileName);
-            } else {
-                $synced++;
-            }
-        }
-        
-        return ['success' => true, 'synced' => $synced, 'total' => count($notionDocs)];
     }
 }
 ?>

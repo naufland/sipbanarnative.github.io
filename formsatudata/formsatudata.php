@@ -518,9 +518,8 @@ body {
                             <th>Metode</th>
                             <th class="text-end">Pagu</th>
                             <th class="text-end">Realisasi</th>
-                            <th class="text-end">Selisih</th>
-                            <th class="text-center">Efisiensi</th>
-                            <th class="text-center">Status</th>
+                            <th class="text-end">Efisiensi</th>
+                            
                         </tr>
                     </thead>
                     <tbody>
@@ -542,14 +541,6 @@ body {
                             <td class="text-end text-money">
                                 Rp <?= number_format($d['realisasi'], 0, ',', '.') ?>
                             </td>
-                            <td class="text-end">
-                                <div class="text-money" style="color: <?= $is_over ? '#ef4444' : '#10b981' ?>">
-                                    <?= $d['selisih'] >= 0 ? '+' : '–' ?>Rp <?= number_format($selisih_abs, 0, ',', '.') ?>
-                                </div>
-                                <small class="mt-1 d-block" style="color: <?= $is_over ? '#dc2626' : '#059669' ?>;">
-                                    <?= number_format($d['efisiensi'], 2, ',', '.') ?>%
-                                </small>
-                            </td>
                             <td class="text-center">
                                 <div class="d-flex flex-column align-items-center">
                                     <div class="fw-medium"><?= number_format($d['persentase_realisasi'], 1) ?>%</div>
@@ -558,15 +549,7 @@ body {
                                     </div>
                                 </div>
                             </td>
-                            <td class="text-center">
-                                <?php if ($is_over): ?>
-                                    <span class="badge badge-over">Over</span>
-                                <?php elseif ($d['selisih'] == 0): ?>
-                                    <span class="badge badge-pas">Pas</span>
-                                <?php else: ?>
-                                    <span class="badge badge-hemat">Hemat</span>
-                                <?php endif; ?>
-                            </td>
+                            
                         </tr>
                         <?php endforeach; ?>
 
@@ -586,10 +569,6 @@ body {
                                     <?= number_format($total_efisiensi_persen, 2, ',', '.') ?>%
                                 </small>
                             </td>
-                            <td class="text-center">
-                                <strong><?= number_format($total_efisiensi_persentase_realisasi, 1) ?>%</strong>
-                            </td>   
-                            <td class="text-center">
                                 <i class="fas fa-check text-success"></i>
                             </td>
                         </tr>
@@ -606,4 +585,4 @@ body {
     </div>
 </div>
 
-<?php include '../navbar/footer.php'; ?>
+    <?php include '../navbar/footer.php'; ?>

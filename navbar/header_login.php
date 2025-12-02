@@ -150,10 +150,16 @@ if (!isset($page_title)) {
                             <a class="nav-link dropdown-toggle text-warning" href="#" data-bs-toggle="dropdown">
                                 <i class="fas fa-file-import"></i> Import
                             </a>
-                            <ul class="dropdown-menu">
+                            <ul class="dropdown-menu">  
                                 <li><a class="dropdown-item" href="import/import_rup.php">Import RUP</a></li>
                                 <li><a class="dropdown-item" href="import/import_realisasi.php">Import Realisasi</a></li>
                             </ul>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle text-warning" href="#" data-bs-toggle="dropdown">
+                                <i class="fas fa-file-import"></i> Dokumen Onlune
+                            </a>
+                            
                         </li>
 
                         <li class="nav-item dropdown">
