@@ -30,8 +30,15 @@ if (!isset($page_title)) {
         }
 
         /* Header Styles */
+
         .main-header {
-            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            /* PERBAIKAN: Gunakan path absolute dari root domain */
+            background: linear-gradient(135deg, rgba(44, 62, 80, 0.88) 0%, rgba(52, 73, 94, 0.88) 100%),
+                url('/images/sasirangan balik.jpg') center center;
+            background-size: cover;
+             /* Geser 50px ke ATAS */
+            background-position: 0px -5px;
+           
             color: white;
             padding: 0;
             box-shadow: 0 4px 20px rgba(220, 53, 69, 0.3);
