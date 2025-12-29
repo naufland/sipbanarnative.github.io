@@ -34,7 +34,7 @@ if (!isset($page_title)) {
         .main-header {
             /* PERBAIKAN: Gunakan path absolute dari root domain */
             background: linear-gradient(135deg, rgba(44, 62, 80, 0.88) 0%, rgba(52, 73, 94, 0.88) 100%),
-                url('/images/sasirangan balik.jpg') center center;
+                url('/images/sasirangan balik.webp') center center;
             background-size: cover;
              /* Geser 50px ke ATAS */
             background-position: 0px -5px;
@@ -530,7 +530,7 @@ if (!isset($page_title)) {
 
                         <li class="nav-item">
                             <a class="nav-link"
-                                href="<?= $_SERVER['REQUEST_SCHEME'] ?>://<?= $_SERVER['HTTP_HOST'] ?>/data/statistik-sektoral">
+                                href="<?= $_SERVER['REQUEST_SCHEME'] ?>://<?= $_SERVER['HTTP_HOST'] ?>/sektoral/sektoral.php">
                                 <i class="fas fa-chart-bar"></i>
                                 Statistik Sektoral
                             </a>

@@ -1,12 +1,33 @@
 <?php
 // ====================================================
-// HEADER KHUSUS LOGIN (TAMPILAN ADMIN/OPERATOR)
+// BAGIAN 1: LOGIKA SESI & USER
 // ====================================================
+if (session_status() == PHP_SESSION_NONE) {
+    session_start();
+}
 
-// 1. Ambil Data User dari Session
-$nama_tampil = !empty($_SESSION['full_name']) ? $_SESSION['full_name'] : ($_SESSION['username'] ?? 'Admin');
-$role_tampil = ucfirst($_SESSION['role'] ?? 'User');
-// Ambil inisial untuk avatar (misal: "Admin Super" -> "AS")
+// Deteksi parameter logout dari URL
+if (isset($_GET['action']) && $_GET['action'] === 'logout') {
+    $_SESSION = array(); // Kosongkan session
+    if (ini_get("session.use_cookies")) {
+        $params = session_get_cookie_params();
+        setcookie(session_name(), '', time() - 42000,
+            $params["path"], $params["domain"],
+            $params["secure"], $params["httponly"]
+        );
+    }
+    session_destroy(); // Hancurkan session
+    
+    // Redirect ke root domain agar tidak terjadi 404
+    header("Location: /index.php"); 
+    exit;
+}
+if (session_status() == PHP_SESSION_NONE) {
+    session_start();
+}
+
+$nama_tampil = !empty($_SESSION['full_name']) ? $_SESSION['full_name'] : ($_SESSION['username'] ?? 'Administrator');
+$role_tampil = ucfirst($_SESSION['role'] ?? 'ADMIN');
 $inisial = urlencode($nama_tampil);
 
 if (!isset($page_title)) {
@@ -26,212 +47,424 @@ if (!isset($page_title)) {
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
-        * { font-family: 'Inter', sans-serif; }
-        body { margin: 0; padding: 0; background-color: #f8f9fa; }
+        /* --- GLOBAL STYLES --- */
+        * {
+            font-family: 'Inter', sans-serif;
+        }
 
-        /* HEADER GRADASI MERAH */
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #f8f9fa;
+        }
+
+        /* --- HEADER MAIN STYLE --- */
         .main-header {
-            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
-            color: white; padding: 0;
+            background: linear-gradient(135deg, rgba(44, 62, 80, 0.88) 0%, rgba(52, 73, 94, 0.88) 100%),
+                url('/images/sasirangan balik.webp') center center;
+            background-size: cover;
+            background-position: 0px -5px;
+            color: white;
+            padding: 0;
             box-shadow: 0 4px 20px rgba(220, 53, 69, 0.3);
-            position: sticky; top: 0; z-index: 1000;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
             border-bottom: 3px solid #b21e2f;
         }
 
-        .navbar { padding: 6px 0; } /* Padding diperkecil sedikit biar compact */
+        .navbar {
+            padding: 8px 0;
+        }
 
         .navbar-brand {
-            font-weight: 700; font-size: 22px; color: white !important; text-decoration: none;
-            display: flex; align-items: center; gap: 10px; margin-right: 30px;
+            font-weight: 700;
+            font-size: 24px;
+            color: white !important;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-right: 40px;
         }
+
+        .navbar-brand:hover {
+            color: #f8f9fa !important;
+        }
+
         .navbar-brand i {
-            font-size: 24px; background: rgba(255, 255, 255, 0.15); padding: 8px; border-radius: 8px; backdrop-filter: blur(10px);
+            font-size: 28px;
+            background: rgba(255, 255, 255, 0.15);
+            padding: 8px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
         }
 
-        /* MENU NAVIGATION */
-        .navbar-nav { gap: 5px; align-items: center; }
-        
+        /* --- NAVIGATION MENU --- */
+        .navbar-nav {
+            gap: 15px;
+            align-items: center;
+        }
+
         .nav-item .nav-link {
-            color: rgba(255, 255, 255, 0.9) !important; font-weight: 500; font-size: 13px;
-            padding: 8px 12px !important; border-radius: 6px; display: flex; align-items: center; gap: 6px;
-            transition: all 0.2s ease; white-space: nowrap;
+            color: rgba(255, 255, 255, 0.9) !important;
+            font-weight: 500;
+            font-size: 14px;
+            padding: 8px 0 !important;
+            border-radius: 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            text-decoration: none;
+            border: none;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+            min-width: fit-content;
+            border-bottom: 2px solid transparent;
         }
-        .nav-item .nav-link:hover { background: rgba(255,255,255,0.1); color: white !important; }
-        .nav-item .nav-link.active { background: rgba(255,255,255,0.2); color: white !important; font-weight: 600; }
 
-        /* DROPDOWN MENU */
+        .nav-item .nav-link:hover {
+            background: transparent;
+            color: white !important;
+            border-bottom-color: rgba(255, 255, 255, 0.5);
+        }
+
+        .nav-item .nav-link.active {
+            background: transparent;
+            color: white !important;
+            font-weight: 600;
+            border-bottom-color: white;
+        }
+
+        /* --- DROPDOWN DEFAULT --- */
         .dropdown-menu {
-            border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.15); border-radius: 10px; margin-top: 8px; padding: 8px 0;
-        }
-        .dropdown-item { padding: 8px 20px; font-size: 13px; color: #444; }
-        .dropdown-item:hover { background: #fef2f2; color: #dc3545; }
-        .dropdown-item i { width: 20px; text-align: center; margin-right: 5px; }
-
-        /* SUBMENU (NESTED DROPDOWN) */
-        .dropdown-submenu { position: relative; }
-        .dropdown-submenu>.dropdown-menu {
-            top: 0; left: 100%; margin-top: -5px; margin-left: 0; display: none;
-        }
-        .dropdown-submenu:hover>.dropdown-menu { display: block; }
-        .dropdown-submenu>.dropdown-item::after {
-            content: "\f054"; font-family: "Font Awesome 5 Free"; font-weight: 900; margin-left: auto; font-size: 10px; opacity: 0.5;
+            background: white;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            margin-top: 5px;
+            min-width: 200px;
+            z-index: 1020;
         }
 
-        /* --- STYLE KHUSUS AVATAR PROFILE (BULAT) --- */
+        .dropdown-item {
+            padding: 10px 16px;
+            font-size: 14px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background-color 0.2s ease;
+        }
+
+        .dropdown-item:hover {
+            background: #f8f9fa;
+            color: #dc3545;
+        }
+
+        .dropdown-item i {
+            font-size: 14px;
+            width: 16px;
+            text-align: center;
+        }
+
+        /* --- GAYA KHUSUS HEADER USER --- */
+        .user-dropdown-header {
+            background-color: #f1f3f5;
+            padding: 15px 20px;
+            text-align: center;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        /* Avatar Bulat */
         .user-avatar-btn {
-            padding: 2px !important; /* Reset padding link */
+            padding: 2px !important;
+            border: 2px solid rgba(255, 255, 255, 0.5);
             border-radius: 50%;
-            border: 2px solid rgba(255,255,255,0.5);
             transition: all 0.3s;
             margin-left: 10px;
         }
+
         .user-avatar-btn:hover {
             border-color: white;
-            box-shadow: 0 0 10px rgba(255,255,255,0.3);
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
         }
-        .user-avatar-img {
-            width: 36px; height: 36px; border-radius: 50%; object-fit: cover;
-        }
-        /* Hilangkan panah dropdown di avatar */
-        .user-avatar-btn::after { display: none !important; }
 
-        /* INFO USER DI DALAM DROPDOWN */
-        .user-info-header {
-            padding: 15px 20px; background: #f8f9fa; border-bottom: 1px solid #eee; text-align: center; margin-bottom: 5px;
+        .user-avatar-btn::after {
+            display: none !important;
         }
-        .user-name { font-weight: 700; color: #333; font-size: 14px; margin-bottom: 2px; }
-        .user-role { font-size: 11px; color: #777; text-transform: uppercase; letter-spacing: 0.5px; background: #e9ecef; padding: 2px 8px; border-radius: 10px; display: inline-block; }
 
-        /* MOBILE RESPONSIVE */
-        .navbar-toggler { border: none; color: white; font-size: 20px; }
-        .navbar-toggler:focus { box-shadow: none; }
-        
+        .user-name {
+            font-weight: 700;
+            color: #212529;
+            font-size: 15px;
+            margin-bottom: 6px;
+        }
+
+        .user-role-badge {
+            background-color: #dc3545;
+            color: white;
+            padding: 4px 16px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .user-menu-item {
+            color: #495057;
+            font-weight: 500;
+        }
+
+        .user-menu-item i {
+            color: #dc3545;
+            width: 20px;
+            text-align: center;
+        }
+
+        .logout-item {
+            color: #dc3545 !important;
+            font-weight: 700;
+        }
+
+        .logout-item:hover {
+            background-color: #fff5f5;
+        }
+
+        /* --- SUBMENU DROPDOWN --- */
+        .dropdown-submenu {
+            position: relative;
+        }
+
+        .dropdown-submenu>.dropdown-menu {
+            position: absolute;
+            top: 0;
+            left: 100%;
+            margin-top: 0;
+            margin-left: 2px;
+            display: none !important;
+            min-width: 180px;
+            border-radius: 8px;
+        }
+
+        .dropdown-submenu:hover>.dropdown-menu {
+            display: block !important;
+        }
+
+        .dropdown-submenu>.dropdown-item::after {
+            content: "\f054";
+            font-family: "Font Awesome 5 Free";
+            font-weight: 900;
+            margin-left: auto;
+            font-size: 10px;
+            color: #999;
+        }
+
+        /* --- MOBILE RESPONSIVE --- */
+        .navbar-toggler {
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            padding: 6px 10px;
+        }
+
+        .navbar-toggler-icon {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.8%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='m4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+        }
+
         @media (max-width: 991.98px) {
             .navbar-collapse {
-                background: white; margin-top: 15px; border-radius: 10px; padding: 15px;
-                box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+                background: rgba(44, 62, 80, 0.98);
+                backdrop-filter: blur(15px);
+                margin-top: 15px;
+                border-radius: 12px;
+                padding: 20px;
+                border: 1px solid rgba(255, 255, 255, 0.2);
             }
-            .nav-item .nav-link { color: #333 !important; justify-content: flex-start; }
-            .nav-item .nav-link:hover { background: #f8f9fa; color: #dc3545 !important; }
-            
-            /* Menu Import di Mobile jadi merah biar beda */
-            .text-warning { color: #dc3545 !important; font-weight: bold; }
 
-            /* Fix Submenu Mobile */
-            .dropdown-submenu>.dropdown-menu { position: static; margin-left: 20px; border: none; box-shadow: none; padding-left: 0; }
-            
-            /* Profile di Mobile */
-            .user-avatar-btn { margin-left: 0; border-color: #dc3545; display: flex; align-items: center; gap: 10px; border-radius: 8px; padding: 8px !important; border: none; }
-            .user-avatar-btn::after { display: inline-block !important; margin-left: auto; color: #333; } 
+            .navbar-nav {
+                gap: 5px;
+                width: 100%;
+            }
+
+            .nav-item .nav-link {
+                margin: 3px 0;
+                justify-content: flex-start;
+                width: 100%;
+            }
+
+            .navbar-nav.ms-auto {
+                margin-top: 15px;
+                border-top: 1px solid rgba(255, 255, 255, 0.2);
+                padding-top: 10px;
+                margin-left: 0 !important;
+            }
+
+            .user-avatar-btn {
+                border-radius: 8px;
+                width: 100%;
+                text-align: left;
+                padding: 10px !important;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                background: rgba(0, 0, 0, 0.2);
+                border: none;
+            }
+
+            .user-avatar-btn::after {
+                display: inline-block !important;
+                margin-left: auto;
+            }
+
+            .dropdown-submenu>.dropdown-menu {
+                position: static;
+                margin-left: 15px;
+                border-left: 3px solid #dc3545;
+                background: rgba(255, 255, 255, 0.95);
+                opacity: 1;
+                display: none !important;
+            }
+
+            .dropdown-submenu.active>.dropdown-menu {
+                display: block !important;
+            }
         }
-
-        .content-wrapper { min-height: calc(100vh - 70px); }
     </style>
 </head>
 
 <body>
     <header class="main-header">
-        <nav class="navbar navbar-expand-xl"> 
-            <div class="container-fluid px-4">
-                
-                <a class="navbar-brand" href="index.php">
+        <nav class="navbar navbar-expand-lg">
+            <div class="container">
+                <a class="navbar-brand" href="<?= $_SERVER['REQUEST_SCHEME'] ?>://<?= $_SERVER['HTTP_HOST'] ?>">
                     <i class="fas fa-database"></i>
                     <span>SIP BANAR</span>
                 </a>
 
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                    <i class="fas fa-bars"></i>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                    aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
                 </button>
 
                 <div class="collapse navbar-collapse" id="navbarNav">
-                    <ul class="navbar-nav me-auto">
-                        
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                         <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle text-warning" href="#" data-bs-toggle="dropdown">
-                                <i class="fas fa-file-import"></i> Import
+                            <a class="nav-link dropdown-toggle" href="#" id="rekapDropdown" role="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-chart-line"></i> Data PBJ
                             </a>
-                            <ul class="dropdown-menu">  
-                                <li><a class="dropdown-item" href="import/import_rup.php">Import RUP</a></li>
-                                <li><a class="dropdown-item" href="import/import_realisasi.php">Import Realisasi</a></li>
-                            </ul>
-                        </li>
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle text-warning" href="#" data-bs-toggle="dropdown">
-                                <i class="fas fa-file-import"></i> Dokumen Onlune
-                            </a>
-                            
-                        </li>
-
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown"><i class="fas fa-chart-line"></i> Data PBJ</a>
                             <ul class="dropdown-menu">
                                 <li class="dropdown-submenu">
-                                    <a class="dropdown-item" href="#"> RUP </a>
+                                    <a class="dropdown-item" href="#"> <i class="fas fa-folder-open"></i> RUP </a>
                                     <ul class="dropdown-menu">
-                                        <li><a class="dropdown-item" href="rekappengadaan/rup/pengadaanlangsung.php">Penyedia</a></li>
-                                        <li><a class="dropdown-item" href="rekappengadaan/rup/swakelola.php">Swakelola</a></li>
+                                        <li><a class="dropdown-item" href="/rekappengadaan/rup/pengadaanlangsung.php"><i class="fas fa-bolt"></i> Penyedia</a></li>
+                                        <li><a class="dropdown-item" href="/rekappengadaan/rup/swakelola.php"><i class="fas fa-people-carry"></i> Swakelola</a></li>
                                     </ul>
                                 </li>
                                 <li class="dropdown-submenu">
-                                    <a class="dropdown-item" href="#"> Realisasi </a>
+                                    <a class="dropdown-item" href="#"> <i class="fas fa-folder"></i> Realisasi </a>
                                     <ul class="dropdown-menu">
-                                        <li><a class="dropdown-item" href="rekappengadaan/realisasi/tender.php">Tender</a></li>
-                                        <li><a class="dropdown-item" href="rekappengadaan/realisasi/nontender.php">Non Tender</a></li>
-                                        <li><a class="dropdown-item" href="rekappengadaan/realisasi/epurchasing.php">E-Purchasing</a></li>
-                                        </ul>
+                                        <li><a class="dropdown-item" href="/rekappengadaan/realisasi/tender.php"><i class="fas fa-file-alt"></i> Tender</a></li>
+                                        <li><a class="dropdown-item" href="/rekappengadaan/realisasi/seleksi.php"><i class="fas fa-file-alt"></i> Seleksi</a></li>
+                                        <li><a class="dropdown-item" href="/rekappengadaan/realisasi/swakelola.php"><i class="fas fa-file-alt"></i> Swakelola</a></li>
+                                        <li><a class="dropdown-item" href="/rekappengadaan/realisasi/nontender.php"><i class="fas fa-file-alt"></i> Non Tender</a></li>
+                                        <li><a class="dropdown-item" href="/rekappengadaan/realisasi/penunjukanlangsung.php"><i class="fas fa-file-alt"></i> Penunjukkan Langsung</a></li>
+                                        <li><a class="dropdown-item" href="/rekappengadaan/realisasi/pencatatan_nontender.php"><i class="fas fa-file-alt"></i> Pencatatan Nontender</a></li>
+                                        <li><a class="dropdown-item" href="/rekappengadaan/realisasi/dikecualikan.php"><i class="fas fa-file-alt"></i> Dikecualikan</a></li>
+                                        <li><a class="dropdown-item" href="/rekappengadaan/realisasi/pengadaandarurat.php"><i class="fas fa-file-alt"></i> Pengadaan Darurat</a></li>
+                                        <li><a class="dropdown-item" href="/rekappengadaan/realisasi/epurchasing.php"><i class="fas fa-file-alt"></i> E-Purchasing</a></li>
+                                    </ul>
                                 </li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="grafik/rekapitulasi.php">Grafik</a></li>
+                                <li>
+                                    <hr class="dropdown-divider">
+                                </li>
+                                <li><a class="dropdown-item" href="/grafik/rekapitulasi.php"><i class="fas fa-chart-pie"></i> Grafik</a></li>
                             </ul>
                         </li>
 
                         <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown"><i class="fas fa-folder"></i> Pembukuan</a>
+                            <a class="nav-link dropdown-toggle" href="#" id="rekapPembukaanDropdown" role="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-folder"></i> Rekap Pembukuan
+                            </a>
                             <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="rekappembukuan/lppd.php">LPPD</a></li>
-                                <li><a class="dropdown-item" href="rekappengadaan/pembukaan/lkpj.php">LKPJ</a></li>
+                                <li><a class="dropdown-item" href="/rekappembukuan/lppd.php"><i class="fas fa-file-contract"></i> LPPD</a></li>
+                                <li><a class="dropdown-item" href="/rekappengadaan/pembukaan/lkpj.php"><i class="fas fa-clipboard-check"></i> LKPJ</a></li>
                             </ul>
                         </li>
 
-                        <li class="nav-item"><a class="nav-link" href="formsatudata/formsatudata.php"><i class="fas fa-file-invoice"></i> Satu Data</a></li>
-                        <li class="nav-item"><a class="nav-link" href="data/statistik-sektoral"><i class="fas fa-chart-bar"></i> Statistik</a></li>
-                        
+                        <li class="nav-item">
+                            <a class="nav-link" href="/formsatudata/formsatudata.php"><i class="fas fa-file-invoice"></i> Forum Satu Data</a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a class="nav-link" href="grafik/import.php"><i class="fas fa-chart-bar"></i> Import</a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a class="nav-link" href="/sektoral/sektoral.php"><i class="fas fa-chart-bar"></i> Statistik Sektoral</a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a class="nav-link" href="/dokumenonline/dokumen.php"><i class="fas fa-cloud-download-alt"></i> Dokumen Online</a>
+                        </li>
+
                         <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown"><i class="fas fa-building"></i> Vendor</a>
+                            <a class="nav-link dropdown-toggle" href="#" id="vendorDropdown" role="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-building"></i> Vendor Manajemen
+                            </a>
                             <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="vendor/daftar">Daftar Vendor</a></li>
-                                <li><a class="dropdown-item" href="vendor/verifikasi">Verifikasi</a></li>
+                                <li><a class="dropdown-item" href="/vendor/daftar"><i class="fas fa-list"></i> Daftar Vendor</a></li>
+                                <li><a class="dropdown-item" href="/vendor/verifikasi"><i class="fas fa-check-circle"></i> Verifikasi Vendor</a></li>
+                                <li><a class="dropdown-item" href="/vendor/pengadaan"><i class="fas fa-handshake"></i> Sistem Pengadaan</a></li>
                             </ul>
                         </li>
 
                         <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown"><i class="fas fa-file-alt"></i> Data Khusus</a>
+                            <a class="nav-link dropdown-toggle" href="#" id="laporanDropdown" role="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-file-alt"></i> Data Khusus PBJ
+                            </a>
                             <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="datakhususpbj/datapbj.php">Efisiensi</a></li>
-                                <li><a class="dropdown-item" href="laporan/custom">Custom Report</a></li>
+                                <li><a class="dropdown-item" href="/datakhususpbj/datapbj.php"><i class="fas fa-file-excel"></i> Efiesiensi</a></li>
+                                <li><a class="dropdown-item" href="/laporan/custom"><i class="fas fa-cog"></i> Custom Report</a></li>
                             </ul>
                         </li>
                     </ul>
 
                     <ul class="navbar-nav ms-auto">
                         <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle user-avatar-btn" href="#" id="profileDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                <img src="https://ui-avatars.com/api/?name=<?= $inisial ?>&background=fff&color=dc3545&bold=true&size=128" 
-                                     alt="User" class="user-avatar-img">
+                            <a class="nav-link dropdown-toggle user-avatar-btn" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <img src="https://ui-avatars.com/api/?name=<?= $inisial ?>&background=dc3545&color=fff&size=128&bold=true"
+                                    alt="User" width="40" height="40" class="rounded-circle">
+                                <span class="d-lg-none ms-2 text-white">Menu Pengguna</span>
                             </a>
-                            
-                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="profileDropdown" style="min-width: 240px;">
+
+                            <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="userDropdown"
+                                style="min-width: 220px; padding: 0 !important; overflow: hidden; border-radius: 8px;">
+
                                 <li>
-                                    <div class="user-info-header">
+                                    <div class="user-dropdown-header">
                                         <div class="user-name"><?= htmlspecialchars($nama_tampil) ?></div>
-                                        <div class="user-role"><?= htmlspecialchars($role_tampil) ?></div>
+                                        <span class="user-role-badge"><?= htmlspecialchars($role_tampil) ?></span>
                                     </div>
                                 </li>
-                                <li><a class="dropdown-item" href="profile.php"><i class="fas fa-user-circle"></i> Profil Saya</a></li>
-                                <li><a class="dropdown-item" href="settings.php"><i class="fas fa-cog"></i> Pengaturan</a></li>
-                                <li><hr class="dropdown-divider"></li>
+
                                 <li>
-                                    <a class="dropdown-item text-danger fw-bold" href="api/logout.php">
+                                    <a class="dropdown-item user-menu-item" href="profil_saya.php">
+                                        <i class="fas fa-user-circle"></i> Profil Saya
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item user-menu-item" href="pengaturan.php">
+                                        <i class="fas fa-cog"></i> Pengaturan
+                                    </a>
+                                </li>
+
+                                <li>
+                                    <hr class="dropdown-divider" style="margin: 0;">
+                                </li>
+
+                                <li>
+                                    <a class="dropdown-item logout-item" href="?action=logout" onclick="return confirm('Apakah Anda yakin ingin keluar?');">
                                         <i class="fas fa-sign-out-alt"></i> Keluar / Logout
                                     </a>
                                 </li>
@@ -245,23 +478,37 @@ if (!isset($page_title)) {
     </header>
 
     <div class="content-wrapper">
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
-        
-        <script>
-            document.addEventListener('DOMContentLoaded', function () {
-                document.querySelectorAll('.dropdown-submenu .dropdown-item').forEach(function(element) {
-                    element.addEventListener('click', function(e) {
-                        // Hanya jalankan logic ini di desktop jika perlu, atau biarkan default
-                        if (window.innerWidth < 1200) { 
-                            // Fix untuk mobile/tablet agar submenu terbuka
-                            var nextEl = this.nextElementSibling;
-                            if(nextEl && nextEl.classList.contains('dropdown-menu')){
-                                e.preventDefault();
-                                e.stopPropagation();
-                                nextEl.style.display = (nextEl.style.display === 'block') ? 'none' : 'block';
-                            }
-                        }
-                    });
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const dropdownSubmenus = document.querySelectorAll('.dropdown-submenu');
+            dropdownSubmenus.forEach(function(submenu) {
+                const submenuLink = submenu.querySelector('.dropdown-item');
+                submenuLink.addEventListener('click', function(e) {
+                    if (window.innerWidth <= 991.98) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const parentUl = submenu.parentElement;
+                        parentUl.querySelectorAll('.dropdown-submenu').forEach(function(otherSubmenu) {
+                            if (otherSubmenu !== submenu) otherSubmenu.classList.remove('active');
+                        });
+                        submenu.classList.toggle('active');
+                    }
                 });
             });
-        </script>
+
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.nav-item.dropdown')) {
+                    dropdownSubmenus.forEach(function(submenu) {
+                        submenu.classList.remove('active');
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>

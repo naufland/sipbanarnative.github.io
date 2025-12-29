@@ -231,11 +231,8 @@ if (isset($_SESSION['user_id'])) {
 
     <section class="hero-section">
         <div class="background-slider">
-            <img src="../images/WALI.png" class="slider-image active" alt="Foto 1">
-            <img src="../images/foto2.jpg" class="slider-image" alt="Foto 2">
             <img src="../images/foto3.png" class="slider-image" alt="Foto 3">
-            <img src="../images/PEMKO 2.jpg" class="slider-image" alt="PEMKO 2">
-            <img src="../images/PEMKO1.jpg" class="slider-image" alt="PEMKO 1">
+            <\
         </div>
 
         <div class="overlay"></div>

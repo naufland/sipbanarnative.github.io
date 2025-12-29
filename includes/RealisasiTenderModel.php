@@ -1,6 +1,6 @@
 <?php
 // =================================================================
-// == RealisasiTenderModel.php (MODEL) - FIXED =====================
+// == RealisasiTenderModel.php (MODEL) - FINAL FIX PHP CALCULATION =
 // =================================================================
 
 class RealisasiTenderModel
@@ -28,7 +28,7 @@ class RealisasiTenderModel
         $whereClause = " WHERE 1=1";
         $params = [];
 
-        // Filter bulan dan tahun (kolom: bulan ENUM dan tahun YEAR)
+        // Filter bulan dan tahun
         if (!empty($filters['bulan']) && !empty($filters['tahun'])) {
             $bulanNama = $this->getBulanNama($filters['bulan']);
             if ($bulanNama) {
@@ -41,49 +41,36 @@ class RealisasiTenderModel
             $params[':tahun'] = (int)$filters['tahun'];
         }
 
-        // Filter Tahun Anggaran
+        // Filter Lainnya
         if (!empty($filters['tahun_anggaran'])) {
             $whereClause .= " AND Tahun_Anggaran = :tahun_anggaran";
             $params[':tahun_anggaran'] = (int)$filters['tahun_anggaran'];
         }
-
-        // Filter Jenis Pengadaan
         if (!empty($filters['jenis_pengadaan'])) {
             $whereClause .= " AND Jenis_Pengadaan = :jenis_pengadaan";
             $params[':jenis_pengadaan'] = $filters['jenis_pengadaan'];
         }
-
-        // ✅ Filter Nama Satker - DITAMBAHKAN
         if (!empty($filters['nama_satker'])) {
             $whereClause .= " AND Nama_Satker = :nama_satker";
             $params[':nama_satker'] = $filters['nama_satker'];
         }
-
-        // Filter KLPD (tetap ada untuk backward compatibility)
+        // Filter KLPD (untuk backward compatibility)
         if (!empty($filters['klpd'])) {
             $whereClause .= " AND KLPD = :klpd";
             $params[':klpd'] = $filters['klpd'];
         }
-
-        // Filter Metode Pengadaan
         if (!empty($filters['metode_pengadaan'])) {
             $whereClause .= " AND Metode_Pengadaan = :metode_pengadaan";
             $params[':metode_pengadaan'] = $filters['metode_pengadaan'];
         }
-
-        // Filter Sumber Dana
         if (!empty($filters['sumber_dana'])) {
             $whereClause .= " AND Sumber_Dana = :sumber_dana";
             $params[':sumber_dana'] = $filters['sumber_dana'];
         }
-
-        // Filter Jenis Kontrak
         if (!empty($filters['jenis_kontrak'])) {
             $whereClause .= " AND Jenis_Kontrak = :jenis_kontrak";
             $params[':jenis_kontrak'] = $filters['jenis_kontrak'];
         }
-
-        // Search: Nama Paket, Nama Pemenang, Nama Satker, Kode Tender
         if (!empty($filters['search'])) {
             $whereClause .= " AND (Nama_Paket LIKE :search OR Nama_Pemenang LIKE :search OR Nama_Satker LIKE :search OR Kode_Tender LIKE :search)";
             $params[':search'] = "%" . $filters['search'] . "%";
@@ -119,41 +106,88 @@ class RealisasiTenderModel
         return $row['total'] ?? 0;
     }
     
+    // =========================================================================
+    // == PERBAIKAN UTAMA: HITUNG MANUAL DI PHP (BUKAN SQL SUM) ================
+    // =========================================================================
     public function getSummaryWithFilters($filters = [])
     {
-        list($whereClause, $params) = $this->buildWhereClause($filters);
+        // 1. Ambil data mentah (raw data) sesuai filter
+        $allData = $this->getAllDataForSummary($filters);
         
-        $sql = "SELECT 
-                    COUNT(No) as total_paket, 
-                    SUM(Nilai_Pagu) as total_pagu, 
-                    SUM(Nilai_HPS) as total_hps, 
-                    SUM(Nilai_Kontrak) as total_kontrak,
-                    SUM(Nilai_PDN) as total_pdn,
-                    SUM(Nilai_UMK) as total_umk
-                FROM " . $this->table_name . $whereClause;
-        
-        $stmt = $this->conn->prepare($sql);
-        $stmt->execute($params);
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        // 2. Inisialisasi variabel
+        $totalPaket = 0;
+        $totalPagu = 0;
+        $totalHPS = 0;
+        $totalKontrak = 0;
+        $totalPDN = 0;
+        $totalUMK = 0;
+
+        // 3. Loop PHP untuk menjumlahkan (Lebih aman dari kesalahan tipe data SQL)
+        foreach ($allData as $row) {
+            $totalPaket++;
+
+            // Bersihkan format angka (jika ada titik/koma) dan cast ke float
+            // Fungsi cleanNumber untuk memastikan '1.000.000' dibaca 1 juta, bukan 1
+            $pagu = $this->cleanNumber($row['Nilai_Pagu'] ?? 0);
+            $hps = $this->cleanNumber($row['Nilai_HPS'] ?? 0);
+            $kontrak = $this->cleanNumber($row['Nilai_Kontrak'] ?? 0);
+            $pdn = $this->cleanNumber($row['Nilai_PDN'] ?? 0);
+            $umk = $this->cleanNumber($row['Nilai_UMK'] ?? 0);
+
+            $totalPagu += $pagu;
+            $totalHPS += $hps;
+            $totalKontrak += $kontrak;
+            $totalPDN += $pdn;
+            $totalUMK += $umk;
+        }
         
         return [
-            'total_paket' => (int)($result['total_paket'] ?? 0),
-            'total_pagu' => (float)($result['total_pagu'] ?? 0),
-            'total_hps' => (float)($result['total_hps'] ?? 0),
-            'total_kontrak' => (float)($result['total_kontrak'] ?? 0),
-            'total_pdn' => (float)($result['total_pdn'] ?? 0),
-            'total_umk' => (float)($result['total_umk'] ?? 0)
+            'total_paket' => $totalPaket,
+            'total_pagu' => $totalPagu,
+            'total_hps' => $totalHPS,
+            'total_kontrak' => $totalKontrak,
+            'total_pdn' => $totalPDN,
+            'total_umk' => $totalUMK
         ];
+    }
+
+    // Helper untuk membersihkan angka
+    private function cleanNumber($value) {
+        if (is_numeric($value)) {
+            return (float)$value;
+        }
+        // Jika string mengandung titik sebagai ribuan (format Indonesia), hilangkan titik
+        // Contoh: "1.000.000" jadi "1000000"
+        // Hati-hati: pastikan database Anda tidak menggunakan titik sebagai desimal
+        $clean = str_replace('.', '', $value); 
+        $clean = str_replace(',', '.', $clean); // Ubah koma jadi titik desimal jika ada
+        return (float)$clean;
     }
 
     public function getAllDataForSummary($filters = []) {
         list($whereClause, $params) = $this->buildWhereClause($filters);
-        $sql = "SELECT Jenis_Pengadaan, KLPD, Nama_Satker, Metode_Pengadaan, Sumber_Dana, Jenis_Kontrak, Nilai_Pagu, Nilai_HPS, Nilai_Kontrak FROM " . $this->table_name . $whereClause;
+        // Pastikan kolom yang diambil lengkap
+        $sql = "SELECT Jenis_Pengadaan, KLPD, Nama_Satker, Metode_Pengadaan, Sumber_Dana, Jenis_Kontrak, Nilai_Pagu, Nilai_HPS, Nilai_Kontrak, Nilai_PDN, Nilai_UMK FROM " . $this->table_name . $whereClause;
         $stmt = $this->conn->prepare($sql);
         $stmt->execute($params);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    public function getEfficiencyStats($filters = [])
+    {
+        // Menggunakan perhitungan PHP yang baru
+        $summary = $this->getSummaryWithFilters($filters);
+        
+        $efisiensi = 0;
+        // Mencegah pembagian dengan nol
+        if ($summary['total_pagu'] > 0) {
+            $efisiensi = (($summary['total_pagu'] - $summary['total_kontrak']) / $summary['total_pagu']) * 100;
+        }
+        
+        return ['efisiensi_persen' => round($efisiensi, 2)] + $summary;
+    }
+
+    // --- Fungsi Dropdown (Tetap Sama) ---
     public function getDistinctValues($column)
     {
         $allowedColumns = ['Jenis_Pengadaan', 'KLPD', 'Metode_Pengadaan', 'Sumber_Dana', 'Jenis_Kontrak', 'Nama_Satker'];
@@ -187,90 +221,42 @@ class RealisasiTenderModel
         return $stmt->fetchAll(PDO::FETCH_COLUMN);
     }
 
-    public function getMonthlySummary($tahun)
-    {
-        $sql = "SELECT 
-                    bulan, 
-                    COUNT(No) as total_paket, 
-                    SUM(Nilai_Pagu) as total_pagu, 
-                    SUM(Nilai_HPS) as total_hps, 
-                    SUM(Nilai_Kontrak) as total_kontrak 
-                FROM " . $this->table_name . " 
-                WHERE tahun = :tahun 
-                GROUP BY bulan 
-                ORDER BY FIELD(bulan, 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember')";
-        $stmt = $this->conn->prepare($sql);
-        $stmt->bindValue(':tahun', (int)$tahun, PDO::PARAM_INT);
-        $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
-    
-    public function getEfficiencyStats($filters = [])
-    {
-        $summary = $this->getSummaryWithFilters($filters);
-        $efisiensi = 0;
-        if ($summary['total_pagu'] > 0) {
-            $efisiensi = (($summary['total_pagu'] - $summary['total_kontrak']) / $summary['total_pagu']) * 100;
-        }
-        return ['efisiensi_persen' => round($efisiensi, 2)] + $summary;
-    }
-
+    // --- Fungsi Breakdown untuk Grafik (Tetap Sama, menggunakan data dari getAllDataForSummary) ---
     public function getSummaryByJenisPengadaan($filters = [])
     {
-        list($whereClause, $params) = $this->buildWhereClause($filters);
-        $sql = "SELECT Jenis_Pengadaan, COUNT(No) as total_paket, SUM(Nilai_Pagu) as total_pagu, SUM(Nilai_Kontrak) as total_kontrak FROM " . $this->table_name . $whereClause . " GROUP BY Jenis_Pengadaan ORDER BY total_paket DESC";
-        $stmt = $this->conn->prepare($sql);
-        $stmt->execute($params);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
-
-    public function getSummaryByKLPD($filters = [])
-    {
-        list($whereClause, $params) = $this->buildWhereClause($filters);
-        $sql = "SELECT KLPD, COUNT(No) as total_paket, SUM(Nilai_Pagu) as total_pagu, SUM(Nilai_Kontrak) as total_kontrak FROM " . $this->table_name . $whereClause . " GROUP BY KLPD ORDER BY total_paket DESC";
-        $stmt = $this->conn->prepare($sql);
-        $stmt->execute($params);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
-
-    // ✅ Fungsi baru untuk summary berdasarkan Satker
-    public function getSummaryBySatker($filters = [])
-    {
-        list($whereClause, $params) = $this->buildWhereClause($filters);
-        $sql = "SELECT Nama_Satker, COUNT(No) as total_paket, SUM(Nilai_Pagu) as total_pagu, SUM(Nilai_Kontrak) as total_kontrak FROM " . $this->table_name . $whereClause . " GROUP BY Nama_Satker ORDER BY total_paket DESC";
-        $stmt = $this->conn->prepare($sql);
-        $stmt->execute($params);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        // Kita gunakan logika PHP juga untuk konsistensi
+        $data = $this->getAllDataForSummary($filters);
+        $stats = [];
+        
+        foreach ($data as $row) {
+            $key = $row['Jenis_Pengadaan'] ?? 'Lainnya';
+            if (!isset($stats[$key])) $stats[$key] = ['total_paket' => 0, 'total_pagu' => 0, 'total_kontrak' => 0];
+            
+            $stats[$key]['total_paket']++;
+            $stats[$key]['total_pagu'] += $this->cleanNumber($row['Nilai_Pagu']);
+            $stats[$key]['total_kontrak'] += $this->cleanNumber($row['Nilai_Kontrak']);
+        }
+        
+        // Ubah format array agar sesuai dengan ekspektasi frontend/chart (opsional)
+        // Disini kita kembalikan array of values untuk diolah controller jika perlu
+        // Tapi controller Anda pakai array key-value, jadi ini cukup.
+        return $stats; 
     }
     
-    public function readByMonth($month, $year)
+    public function getSummaryBySatker($filters = [])
     {
-        $bulanNama = $this->getBulanNama($month);
-        if (!$bulanNama) return false;
+        $data = $this->getAllDataForSummary($filters);
+        $stats = [];
         
-        $query = "SELECT * FROM " . $this->table_name . " WHERE bulan = :bulan AND tahun = :tahun";
-        $stmt = $this->conn->prepare($query);
-        $stmt->bindParam(':bulan', $bulanNama);
-        $stmt->bindParam(':tahun', $year);
-        $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
-
-    public function getTotalByMonth($year)
-    {
-        $query = "SELECT 
-                    bulan, 
-                    tahun, 
-                    SUM(Nilai_HPS) as total_hps, 
-                    SUM(Nilai_Kontrak) as total_kontrak 
-                  FROM " . $this->table_name . " 
-                  WHERE tahun = :tahun 
-                  GROUP BY bulan, tahun 
-                  ORDER BY FIELD(bulan, 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember')";
-        $stmt = $this->conn->prepare($query);
-        $stmt->bindParam(':tahun', $year, PDO::PARAM_INT);
-        $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($data as $row) {
+            $key = $row['Nama_Satker'] ?? 'Lainnya';
+            if (!isset($stats[$key])) $stats[$key] = ['total_paket' => 0, 'total_pagu' => 0, 'total_kontrak' => 0];
+            
+            $stats[$key]['total_paket']++;
+            $stats[$key]['total_pagu'] += $this->cleanNumber($row['Nilai_Pagu']);
+            $stats[$key]['total_kontrak'] += $this->cleanNumber($row['Nilai_Kontrak']);
+        }
+        return $stats;
     }
 }
 ?>

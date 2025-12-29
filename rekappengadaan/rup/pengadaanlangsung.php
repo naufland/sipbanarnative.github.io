@@ -1,9 +1,21 @@
 <?php
+
 // =================================================================
 // == BLOK PHP DENGAN FILTER BULAN DEFAULT JULI + FILTER PERUBAHAN ==
 // == FILTER KLPD DIGANTI MENJADI SATUAN_KERJA ==
 // =================================================================
+if (session_status() == PHP_SESSION_NONE) {
+    session_start();
+}
 
+// Logika pemilihan header
+if (isset($_SESSION['username']) && !empty($_SESSION['username'])) {
+    // Jika ada session login, panggil header khusus login
+    include '../navbar/header_login.php';
+} else {
+    // Jika tidak ada session, panggil header biasa/umum
+    include '../../navbar/header.php'; 
+}
 // URL API dasar
 $apiBaseUrl = "http://sipbanarnative.id/api/pengadaan.php";
 
@@ -20,7 +32,7 @@ $selectedTahun = $_GET['tahun'] ?? $currentYear;
 // TAMBAHAN: Filter Perubahan
 $selectedPerubahan = $_GET['perubahan'] ?? 'Tidak'; // Default: Tidak
 
-// 2. Siapkan parameter query untuk API
+// 2. Siapkan parameter query untuk API     
 // Ambil semua parameter filter dari URL
 $queryParams = $_GET;
 $queryParams['page'] = $currentPage;
@@ -104,7 +116,6 @@ if ($optionsResponse) {
 // echo '<pre>'; print_r($satuanKerjaList); echo '</pre>'; exit;
 
 // Include header
-include '../../navbar/header.php';
 ?>
 
 <!-- Select2 CSS -->

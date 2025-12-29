@@ -35,7 +35,7 @@ class RealisasiPengadaanDaruratModel {
             $bulanNama = $this->getBulanNama($filters['bulan']);
             if ($bulanNama) {
                 $sql .= " AND bulan = :bulan AND tahun = :tahun_sekarang";
-                $params[':bulan'] = $bulanNama;
+                $params[':bulan'] = $bulanNama; 
                 $params[':tahun_sekarang'] = date('Y');
             }
         }

@@ -3,6 +3,18 @@
 // == FILE DASHBOARD UNTUK REALISASI DIKECUALIKAN ==================
 // == DENGAN FILTER BULAN + SATKER DINAMIS (UPDATE) ================
 // =================================================================
+if (session_status() == PHP_SESSION_NONE) {
+    session_start();
+}
+
+// Logika pemilihan header
+if (isset($_SESSION['username']) && !empty($_SESSION['username'])) {
+    // Jika ada session login, panggil header khusus login
+    include '../../navbar/header_login.php';
+} else {
+    // Jika tidak ada session, panggil header biasa/umum
+    include '../../navbar/header.php'; 
+}
 
 // 1. URL API untuk Realisasi Dikecualikan
 $apiBaseUrl = "http://sipbanarnative.id/api/realisasi_dikecualikan.php";
@@ -103,7 +115,6 @@ $namaBulan = [
 ];
 
 // --- Mulai Output HTML ---
-include '../../navbar/header.php';
 ?>
 <script src="../../js/submenu.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>

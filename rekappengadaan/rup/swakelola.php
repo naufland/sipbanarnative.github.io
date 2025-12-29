@@ -1,4 +1,17 @@
 <?php
+if (session_status() == PHP_SESSION_NONE) {
+    session_start();
+}
+
+// Logika pemilihan header
+if (isset($_SESSION['username']) && !empty($_SESSION['username'])) {
+    // Jika ada session login, panggil header khusus login
+    include '../../navbar/header_login.php';
+} else {
+    // Jika tidak ada session, panggil header biasa/umum
+    include '../../navbar/header.php'; 
+}
+
 $apiBaseUrl = "http://sipbanarnative.id/api/swakelola.php";
 
 $currentPage = isset($_GET['page']) ? (int) $_GET['page'] : 1;
@@ -111,7 +124,7 @@ if (empty($satuanKerjaList)) {
     }
 }
 
-include '../../navbar/header.php';
+
 ?>
 <!-- Select2 CSS -->
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />

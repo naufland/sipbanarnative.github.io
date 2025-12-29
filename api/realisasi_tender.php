@@ -1,6 +1,6 @@
 <?php
 // =================================================================
-// == realisasi_tender.php (API) - REVISI GANTI KLPD → SATKER =====
+// == realisasi_tender.php (API) - FINAL FIX CALCULATION ==========
 // =================================================================
 
 header('Content-Type: application/json; charset=utf-8');
@@ -27,31 +27,35 @@ try {
         case 'GET':
             switch ($action) {
                 // ==========================================================
-                // == LIST DATA =============================================
+                // == LIST DATA (TABEL) =====================================
                 // ==========================================================
                 case 'list':
+                    // Ambil parameter filter
                     $filters = [
                         'bulan' => $_GET['bulan'] ?? '',
                         'tahun' => $_GET['tahun'] ?? '',
                         'tahun_anggaran' => $_GET['tahun_anggaran'] ?? '',
                         'jenis_pengadaan' => $_GET['jenis_pengadaan'] ?? '',
-                        'nama_satker' => $_GET['nama_satker'] ?? '', // ✅ ganti klpd jadi nama_satker
+                        'nama_satker' => $_GET['nama_satker'] ?? '',
                         'metode_pengadaan' => $_GET['metode_pengadaan'] ?? '',
                         'sumber_dana' => $_GET['sumber_dana'] ?? '',
                         'jenis_kontrak' => $_GET['jenis_kontrak'] ?? '',
                         'search' => $_GET['search'] ?? ''
                     ];
 
+                    // Bersihkan filter kosong
                     $filters = array_filter($filters, fn($v) => $v !== '' && $v !== null);
 
                     $page = intval($_GET['page'] ?? 1);
                     $limit = intval($_GET['limit'] ?? 50);
                     $offset = ($page - 1) * $limit;
 
+                    // Ambil data tabel
                     $data = $realisasiTender->getRealisasiTenderData($filters, $limit, $offset);
                     $total = $realisasiTender->getTotalCount($filters);
                     $totalPages = ceil($total / $limit);
 
+                    // Tambahkan nomor urut
                     foreach ($data as $key => $row) {
                         $data[$key]['Row_Number'] = $offset + $key + 1;
                     }
@@ -72,7 +76,7 @@ try {
                     break;
 
                 // ==========================================================
-                // == SUMMARY ===============================================
+                // == SUMMARY (DASHBOARD) - HITUNG MANUAL PHP ===============
                 // ==========================================================
                 case 'summary':
                     $filters = [
@@ -88,73 +92,82 @@ try {
                     ];
                     $filters = array_filter($filters);
 
+                    // 1. AMBIL SEMUA DATA RAW (TANPA LIMIT)
+                    // Kita akan menghitung total menggunakan looping PHP untuk menjamin akurasi
+                    // dan menghindari kesalahan agregasi SQL tersembunyi.
                     $allData = $realisasiTender->getAllDataForSummary($filters);
-                    $totalRecords = count($allData);
-                    
-                    $totalPagu = $totalHPS = $totalKontrak = 0;
+
+                    // 2. INISIALISASI VARIABEL TOTAL
+                    $totalPaket = count($allData);
+                    $totalPagu = 0;
+                    $totalHPS = 0;
+                    $totalKontrak = 0;
+
+                    // Variabel untuk Breakdown (Grafik)
                     $jenisPengadaanStats = [];
-                    $satkerStats = []; // ✅ Ganti klpdStats → satkerStats
+                    $satkerStats = [];
                     $metodeStats = [];
                     $sumberDanaStats = [];
-                    
+
+                    // 3. LOOPING PERHITUNGAN (AGAR KONSISTEN)
                     foreach ($allData as $row) {
-                        $paguValue = (float)($row['Nilai_Pagu'] ?? 0);
-                        $hpsValue = (float)($row['Nilai_HPS'] ?? 0);
-                        $kontrakValue = (float)($row['Nilai_Kontrak'] ?? 0);
+                        // Pastikan casting ke float agar angka string dari DB terbaca sebagai angka
+                        $pagu = (float)($row['Nilai_Pagu'] ?? 0);
+                        $hps = (float)($row['Nilai_HPS'] ?? 0);
+                        $kontrak = (float)($row['Nilai_Kontrak'] ?? 0);
 
-                        $totalPagu += $paguValue;
-                        $totalHPS += $hpsValue;
-                        $totalKontrak += $kontrakValue;
+                        // Tambahkan ke Total Utama
+                        $totalPagu += $pagu;
+                        $totalHPS += $hps;
+                        $totalKontrak += $kontrak;
 
+                        // --- LOGIKA BREAKDOWN (RINCIAN) ---
+                        
                         // Jenis Pengadaan
-                        $jenis = $row['Jenis_Pengadaan'];
-                        if (!isset($jenisPengadaanStats[$jenis])) {
-                            $jenisPengadaanStats[$jenis] = ['count' => 0, 'total_pagu' => 0, 'total_kontrak' => 0];
-                        }
+                        $jenis = $row['Jenis_Pengadaan'] ?? 'Lainnya';
+                        if (!isset($jenisPengadaanStats[$jenis])) $jenisPengadaanStats[$jenis] = ['count' => 0, 'total_pagu' => 0, 'total_kontrak' => 0];
                         $jenisPengadaanStats[$jenis]['count']++;
-                        $jenisPengadaanStats[$jenis]['total_pagu'] += $paguValue;
-                        $jenisPengadaanStats[$jenis]['total_kontrak'] += $kontrakValue;
+                        $jenisPengadaanStats[$jenis]['total_pagu'] += $pagu;
+                        $jenisPengadaanStats[$jenis]['total_kontrak'] += $kontrak;
 
                         // Satuan Kerja
                         $satker = $row['Nama_Satker'] ?? 'Tidak Diketahui';
-                        if (!isset($satkerStats[$satker])) {
-                            $satkerStats[$satker] = ['count' => 0, 'total_pagu' => 0, 'total_kontrak' => 0];
-                        }
+                        if (!isset($satkerStats[$satker])) $satkerStats[$satker] = ['count' => 0, 'total_pagu' => 0, 'total_kontrak' => 0];
                         $satkerStats[$satker]['count']++;
-                        $satkerStats[$satker]['total_pagu'] += $paguValue;
-                        $satkerStats[$satker]['total_kontrak'] += $kontrakValue;
+                        $satkerStats[$satker]['total_pagu'] += $pagu;
+                        $satkerStats[$satker]['total_kontrak'] += $kontrak;
 
                         // Metode Pengadaan
-                        $metode = $row['Metode_Pengadaan'];
-                        if (!isset($metodeStats[$metode])) {
-                            $metodeStats[$metode] = ['count' => 0, 'total_pagu' => 0, 'total_kontrak' => 0];
-                        }
+                        $metode = $row['Metode_Pengadaan'] ?? 'Lainnya';
+                        if (!isset($metodeStats[$metode])) $metodeStats[$metode] = ['count' => 0, 'total_pagu' => 0, 'total_kontrak' => 0];
                         $metodeStats[$metode]['count']++;
-                        $metodeStats[$metode]['total_pagu'] += $paguValue;
-                        $metodeStats[$metode]['total_kontrak'] += $kontrakValue;
+                        $metodeStats[$metode]['total_pagu'] += $pagu;
+                        $metodeStats[$metode]['total_kontrak'] += $kontrak;
 
                         // Sumber Dana
-                        $sumberDana = $row['Sumber_Dana'] ?? 'Tidak Diketahui';
-                        if (!isset($sumberDanaStats[$sumberDana])) {
-                            $sumberDanaStats[$sumberDana] = ['count' => 0, 'total_pagu' => 0, 'total_kontrak' => 0];
-                        }
+                        $sumberDana = $row['Sumber_Dana'] ?? 'Lainnya';
+                        if (!isset($sumberDanaStats[$sumberDana])) $sumberDanaStats[$sumberDana] = ['count' => 0, 'total_pagu' => 0, 'total_kontrak' => 0];
                         $sumberDanaStats[$sumberDana]['count']++;
-                        $sumberDanaStats[$sumberDana]['total_pagu'] += $paguValue;
-                        $sumberDanaStats[$sumberDana]['total_kontrak'] += $kontrakValue;
+                        $sumberDanaStats[$sumberDana]['total_pagu'] += $pagu;
+                        $sumberDanaStats[$sumberDana]['total_kontrak'] += $kontrak;
                     }
 
-                    // Sort
+                    // 4. HITUNG EFISIENSI
+                    $efisiensi = 0;
+                    if ($totalPagu > 0) {
+                        $efisiensi = (($totalPagu - $totalKontrak) / $totalPagu) * 100;
+                    }
+
+                    // 5. SORTING BREAKDOWN
                     uasort($jenisPengadaanStats, fn($a, $b) => $b['total_pagu'] - $a['total_pagu']);
                     uasort($satkerStats, fn($a, $b) => $b['total_pagu'] - $a['total_pagu']);
                     uasort($metodeStats, fn($a, $b) => $b['total_pagu'] - $a['total_pagu']);
                     uasort($sumberDanaStats, fn($a, $b) => $b['total_pagu'] - $a['total_pagu']);
 
-                    $efisiensi = $totalPagu > 0 ? (($totalPagu - $totalKontrak) / $totalPagu) * 100 : 0;
-
                     echo json_encode([
                         'success' => true,
                         'summary' => [
-                            'total_paket' => $totalRecords,
+                            'total_paket' => $totalPaket,
                             'total_pagu' => $totalPagu,
                             'total_hps' => $totalHPS,
                             'total_kontrak' => $totalKontrak,
@@ -163,7 +176,7 @@ try {
                         ],
                         'breakdown' => [
                             'jenis_pengadaan' => $jenisPengadaanStats,
-                            'satker' => $satkerStats, // ✅ Ganti klpd jadi satker
+                            'satker' => $satkerStats,
                             'metode_pengadaan' => $metodeStats,
                             'sumber_dana' => $sumberDanaStats
                         ],
@@ -172,11 +185,11 @@ try {
                     break;
 
                 // ==========================================================
-                // == OPTIONS (Dropdown Data) ==============================
+                // == OPTIONS (Dropdown) ====================================
                 // ==========================================================
                 case 'options':
                     $jenisPengadaan = $realisasiTender->getDistinctValues('Jenis_Pengadaan');
-                    $satker = $realisasiTender->getDistinctValues('Nama_Satker'); // ✅ Ambil dari Nama_Satker
+                    $satker = $realisasiTender->getDistinctValues('Nama_Satker');
                     $metodePengadaan = $realisasiTender->getDistinctValues('Metode_Pengadaan');
                     $sumberDana = $realisasiTender->getDistinctValues('Sumber_Dana');
                     $jenisKontrak = $realisasiTender->getDistinctValues('Jenis_Kontrak');

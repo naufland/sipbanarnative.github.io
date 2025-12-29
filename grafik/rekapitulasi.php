@@ -1,7 +1,18 @@
 <?php
 // FILE: dashboard_rekapitulasi_bulan.php
 // VERSI TERINTEGRASI: PERENCANAAN + REALISASI + PENCATATAN + GRAFIK LENGKAP
+if (session_status() == PHP_SESSION_NONE) {
+    session_start();
+}
 
+// Logika pemilihan header
+if (isset($_SESSION['username']) && !empty($_SESSION['username'])) {
+    // Jika ada session login, panggil header khusus login
+    include '../navbar/header_login.php';
+} else {
+    // Jika tidak ada session, panggil header biasa/umum
+    include '../navbar/header.php'; 
+}
 require_once '../config/database.php';
 
 $bulan_dipilih = isset($_GET['bulan']) ? $_GET['bulan'] : 'Juli';
@@ -897,7 +908,6 @@ foreach ($grafik_perbandingan_metode as $metode) {
 }
 
 $page_title = "Dashboard Perencanaan & Realisasi - " . htmlspecialchars($bulan_tampil . ' ' . $tahun_dipilih);
-include '../navbar/header.php';
 ?>
 
 <script src="../../js/submenu.js"></script>

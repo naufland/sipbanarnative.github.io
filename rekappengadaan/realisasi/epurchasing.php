@@ -2,7 +2,18 @@
 // =================================================================
 // == epurchasing_view.php (TAMPILAN FINAL) - LENGKAP =============
 // =================================================================
+if (session_status() == PHP_SESSION_NONE) {
+    session_start();
+}
 
+// Logika pemilihan header
+if (isset($_SESSION['username']) && !empty($_SESSION['username'])) {
+    // Jika ada session login, panggil header khusus login
+    include '../../navbar/header_login.php';
+} else {
+    // Jika tidak ada session, panggil header biasa/umum
+    include '../../navbar/header.php'; 
+}
 // URL API dasar
 $apiBaseUrl = "http://sipbanarnative.id/api/epurchasing.php";
 

@@ -1,11 +1,10 @@
 <?php
-// File: api/perencanaan.php
-
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, OPTIONS');
+header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
 
+// Handle preflight requests
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     exit(0);
 }
@@ -16,150 +15,298 @@ require_once '../includes/SektoralModel.php';
 try {
     $database = new Database();
     $db = $database->getConnection();
-    $perencanaan = new SektoralModel($db);
+    $sektoral = new SektoralModel($db);
+
+    $method = $_SERVER['REQUEST_METHOD'];
     $action = $_GET['action'] ?? 'list';
 
-    // Build filters untuk Perencanaan
-    $filters = array_filter([
-        'tahun' => $_GET['tahun'] ?? '',
-        'kategori' => $_GET['kategori'] ?? '',
-        'search' => $_GET['search'] ?? ''
-    ], function($value) {
-        return $value !== null && $value !== '';
-    });
-
-    switch ($action) {
-        case 'list':
-            $page = intval($_GET['page'] ?? 1);
-            $limit = intval($_GET['limit'] ?? 50);
-            $offset = ($page - 1) * $limit;
-
-            $data = $perencanaan->getPerencanaanData($filters, $limit, $offset);
-            $total = $perencanaan->getTotalCount($filters);
-            $totalPages = $total > 0 ? ceil($total / $limit) : 1;
-            
-            // Pastikan $data adalah array
-            if (!is_array($data)) {
-                $data = [];
-            }
-            
-            // Tambahkan nomor urut
-            $startNumber = $offset + 1;
-            $processedData = [];
-            foreach ($data as $index => $row) {
-                $row['No_Urut'] = $startNumber + $index;
-                $processedData[] = $row;
-            }
-            
-            echo json_encode([
-                'success' => true,
-                'data' => $processedData,
-                'pagination' => [
-                    'current_page' => $page,
-                    'total_pages' => $totalPages,
-                    'total_records' => (int)$total,
-                    'per_page' => $limit
-                ]
-            ], JSON_PRETTY_PRINT);
-            break;
-
-        case 'summary':
-            // Gunakan fungsi getSummaryData()
-            $summary = $perencanaan->getSummaryData($filters);
-            
-            // Ambil data detail untuk breakdown
-            $allData = $perencanaan->getAllDataForSummary($filters);
-            
-            // Pastikan $allData adalah array
-            if (!is_array($allData)) {
-                $allData = [];
-            }
-            
-            // Breakdown berdasarkan kategori
-            $breakdown = [
-                'kategori' => [],
-                'nama_satker' => []
-            ];
-            
-            foreach ($allData as $row) {
-                $totalPerencanaan = (float)($row['Total_Perencanaan_Rp'] ?? 0);
-                $pdn = (float)($row['PDN_Rp'] ?? 0);
-                
-                // Breakdown Kategori
-                $kategori = $row['Kategori'] ?? 'Tidak Diketahui';
-                if (!isset($breakdown['kategori'][$kategori])) {
-                    $breakdown['kategori'][$kategori] = [
-                        'count' => 0,
-                        'total_perencanaan' => 0,
-                        'total_pdn' => 0
+    switch ($method) {
+        case 'GET':
+            switch ($action) {
+                case 'list':
+                    // Get filters from query parameters
+                    $filters = [
+                        'tahun_anggaran' => $_GET['tahun_anggaran'] ?? '',
+                        'nama_satker' => $_GET['nama_satker'] ?? '',
+                        'kategori' => $_GET['kategori'] ?? '',
+                        'kode_rup' => $_GET['kode_rup'] ?? '',
+                        'min_total' => $_GET['min_total'] ?? '',
+                        'max_total' => $_GET['max_total'] ?? '',
+                        'search' => $_GET['search'] ?? ''
                     ];
-                }
-                $breakdown['kategori'][$kategori]['count']++;
-                $breakdown['kategori'][$kategori]['total_perencanaan'] += $totalPerencanaan;
-                $breakdown['kategori'][$kategori]['total_pdn'] += $pdn;
-                
-                // Breakdown Nama Satker
-                $satker = $row['Nama_Satker'] ?? 'Tidak Diketahui';
-                if (!isset($breakdown['nama_satker'][$satker])) {
-                    $breakdown['nama_satker'][$satker] = [
-                        'count' => 0,
-                        'total_perencanaan' => 0,
-                        'total_pdn' => 0
+
+                    // Remove empty filters
+                    $filters = array_filter($filters, function ($value) {
+                        return $value !== '' && $value !== null;
+                    });
+
+                    // Pagination parameters
+                    $page = intval($_GET['page'] ?? 1);
+                    $limit = intval($_GET['limit'] ?? 100);
+                    $offset = ($page - 1) * $limit;
+
+                    // Get data and total count
+                    $data = $sektoral->getSektoralData($filters, $limit, $offset);
+                    $total = $sektoral->getTotalCount($filters);
+                    $totalPages = ceil($total / $limit);
+
+                    // Add row numbers
+                    foreach ($data as $key => $row) {
+                        $data[$key]['No'] = $offset + $key + 1;
+                    }
+
+                    echo json_encode([
+                        'success' => true,
+                        'data' => $data,
+                        'pagination' => [
+                            'current_page' => $page,
+                            'total_pages' => $totalPages,
+                            'total_records' => $total,
+                            'per_page' => $limit,
+                            'has_next' => $page < $totalPages,
+                            'has_prev' => $page > 1
+                        ],
+                        'filters_applied' => $filters
+                    ]);
+                    break;
+
+                case 'summary':
+                    // Get summary/statistics data
+                    $filters = [
+                        'tahun_anggaran' => $_GET['tahun_anggaran'] ?? '',
+                        'nama_satker' => $_GET['nama_satker'] ?? '',
+                        'kategori' => $_GET['kategori'] ?? '',
+                        'search' => $_GET['search'] ?? ''
                     ];
-                }
-                $breakdown['nama_satker'][$satker]['count']++;
-                $breakdown['nama_satker'][$satker]['total_perencanaan'] += $totalPerencanaan;
-                $breakdown['nama_satker'][$satker]['total_pdn'] += $pdn;
+
+                    // Remove empty filters
+                    $filters = array_filter($filters, function ($value) {
+                        return $value !== '' && $value !== null;
+                    });
+
+                    // Get all data for summary calculation
+                    $allData = $sektoral->getSektoralData($filters, 1000000, 0);
+                    $totalRecords = count($allData);
+                    
+                    // Calculate summary statistics
+                    $totalPerencanaan = 0;
+                    $totalPDN = 0;
+                    $skpdStats = [];
+                    $kategoriStats = [];
+                    $tahunStats = [];
+                    
+                    foreach ($allData as $row) {
+                        $totalPerencanaan += (float)$row['Total_Perencanaan_Rp'];
+                        $totalPDN += (float)$row['PDN_Rp'];
+                        
+                        // Count by SKPD
+                        $skpd = $row['Nama_Satker'];
+                        if (!isset($skpdStats[$skpd])) {
+                            $skpdStats[$skpd] = [
+                                'count' => 0,
+                                'total_perencanaan' => 0,
+                                'total_pdn' => 0
+                            ];
+                        }
+                        $skpdStats[$skpd]['count']++;
+                        $skpdStats[$skpd]['total_perencanaan'] += (float)$row['Total_Perencanaan_Rp'];
+                        $skpdStats[$skpd]['total_pdn'] += (float)$row['PDN_Rp'];
+                        
+                        // Count by Kategori
+                        $kategori = $row['Kategori'];
+                        if (!isset($kategoriStats[$kategori])) {
+                            $kategoriStats[$kategori] = [
+                                'count' => 0,
+                                'total_perencanaan' => 0,
+                                'total_pdn' => 0
+                            ];
+                        }
+                        $kategoriStats[$kategori]['count']++;
+                        $kategoriStats[$kategori]['total_perencanaan'] += (float)$row['Total_Perencanaan_Rp'];
+                        $kategoriStats[$kategori]['total_pdn'] += (float)$row['PDN_Rp'];
+                        
+                        // Count by Tahun
+                        $tahun = $row['Tahun_Anggaran'];
+                        if (!isset($tahunStats[$tahun])) {
+                            $tahunStats[$tahun] = [
+                                'count' => 0,
+                                'total_perencanaan' => 0,
+                                'total_pdn' => 0
+                            ];
+                        }
+                        $tahunStats[$tahun]['count']++;
+                        $tahunStats[$tahun]['total_perencanaan'] += (float)$row['Total_Perencanaan_Rp'];
+                        $tahunStats[$tahun]['total_pdn'] += (float)$row['PDN_Rp'];
+                    }
+                    
+                    // Sort arrays by total_perencanaan descending
+                    uasort($skpdStats, function($a, $b) {
+                        return $b['total_perencanaan'] - $a['total_perencanaan'];
+                    });
+                    uasort($kategoriStats, function($a, $b) {
+                        return $b['total_perencanaan'] - $a['total_perencanaan'];
+                    });
+                    uksort($tahunStats, function($a, $b) {
+                        return $b - $a;
+                    });
+                    
+                    // Calculate averages
+                    $avgPerencanaan = $totalRecords > 0 ? $totalPerencanaan / $totalRecords : 0;
+                    $avgPDN = $totalRecords > 0 ? $totalPDN / $totalRecords : 0;
+                    $persentasePDN = $totalPerencanaan > 0 ? ($totalPDN / $totalPerencanaan) * 100 : 0;
+                    
+                    // Prepare response
+                    echo json_encode([
+                        'success' => true,
+                        'summary' => [
+                            'total_paket' => $totalRecords,
+                            'total_perencanaan' => $totalPerencanaan,
+                            'total_pdn' => $totalPDN,
+                            'avg_perencanaan' => $avgPerencanaan,
+                            'avg_pdn' => $avgPDN,
+                            'persentase_pdn' => round($persentasePDN, 2),
+                            'total_skpd' => count($skpdStats),
+                            'total_kategori' => count($kategoriStats)
+                        ],
+                        'breakdown' => [
+                            'skpd' => $skpdStats,
+                            'kategori' => $kategoriStats,
+                            'tahun' => $tahunStats
+                        ],
+                        'filters_applied' => $filters
+                    ]);
+                    break;
+
+                case 'options':
+                    // Get dropdown options
+                    $tahunAnggaran = $sektoral->getAvailableYears();
+                    $namaSatker = $sektoral->getAvailableSKPD();
+                    $kategori = $sektoral->getAvailableKategori();
+
+                    echo json_encode([
+                        'success' => true,
+                        'options' => [
+                            'tahun_anggaran' => $tahunAnggaran,
+                            'nama_satker' => $namaSatker,
+                            'kategori' => $kategori
+                        ]
+                    ]);
+                    break;
+
+                case 'statistics':
+                    // Get statistics by SKPD
+                    $filters = [
+                        'tahun_anggaran' => $_GET['tahun_anggaran'] ?? '',
+                        'nama_satker' => $_GET['nama_satker'] ?? ''
+                    ];
+                    $filters = array_filter($filters);
+
+                    $stats = $sektoral->getStatisticsBySKPD($filters);
+
+                    echo json_encode([
+                        'success' => true,
+                        'statistics' => $stats,
+                        'filters_applied' => $filters
+                    ]);
+                    break;
+
+                case 'top_skpd':
+                    // Get top N SKPD
+                    $limit = intval($_GET['limit'] ?? 10);
+                    $filters = [
+                        'tahun_anggaran' => $_GET['tahun_anggaran'] ?? ''
+                    ];
+                    $filters = array_filter($filters);
+
+                    $topSKPD = $sektoral->getTopSKPD($limit, $filters);
+
+                    echo json_encode([
+                        'success' => true,
+                        'data' => $topSKPD,
+                        'limit' => $limit,
+                        'filters_applied' => $filters
+                    ]);
+                    break;
+
+                case 'export':
+                    // Export functionality
+                    $filters = [
+                        'tahun_anggaran' => $_GET['tahun_anggaran'] ?? '',
+                        'nama_satker' => $_GET['nama_satker'] ?? '',
+                        'kategori' => $_GET['kategori'] ?? '',
+                        'search' => $_GET['search'] ?? ''
+                    ];
+                    $filters = array_filter($filters);
+
+                    $format = $_GET['format'] ?? 'csv';
+                    $data = $sektoral->getSektoralData($filters, 10000, 0);
+
+                    if ($format == 'csv') {
+                        $fileName = 'statistik_sektoral';
+                        if (!empty($filters['tahun_anggaran'])) {
+                            $fileName .= '_' . $filters['tahun_anggaran'];
+                        }
+                        if (!empty($filters['nama_satker'])) {
+                            $fileName .= '_' . str_replace(' ', '_', strtolower($filters['nama_satker']));
+                        }
+                        
+                        header('Content-Type: text/csv; charset=utf-8');
+                        header('Content-Disposition: attachment; filename="' . $fileName . '.csv"');
+
+                        $output = fopen('php://output', 'w');
+                        fprintf($output, chr(0xEF) . chr(0xBB) . chr(0xBF));
+
+                        // Headers
+                        fputcsv($output, [
+                            'No',
+                            'Tahun Anggaran',
+                            'Nama Satker (SKPD)',
+                            'Kategori',
+                            'Kode RUP',
+                            'Nama Paket',
+                            'Total Perencanaan (Rp)',
+                            'PDN (Rp)'
+                        ]);
+
+                        // Data rows
+                        foreach ($data as $index => $row) {
+                            fputcsv($output, [
+                                $index + 1,
+                                $row['Tahun_Anggaran'],
+                                $row['Nama_Satker'],
+                                $row['Kategori'],
+                                $row['Kode_RUP'],
+                                $row['Nama_Paket'],
+                                $row['Total_Perencanaan_Rp'],
+                                $row['PDN_Rp']
+                            ]);
+                        }
+
+                        fclose($output);
+                        exit;
+                    }
+                    break;
+
+                default:
+                    echo json_encode([
+                        'success' => false,
+                        'message' => 'Invalid action'
+                    ]);
+                    break;
             }
-            
-            // Urutkan breakdown berdasarkan total_perencanaan
-            foreach ($breakdown as $key => $group) {
-                uasort($breakdown[$key], function($a, $b) {
-                    return $b['total_perencanaan'] <=> $a['total_perencanaan'];
-                });
-            }
-            
-            // Hitung persentase PDN
-            $persentase_pdn = 0;
-            if ($summary['total_perencanaan'] > 0) {
-                $persentase_pdn = ($summary['total_pdn'] / $summary['total_perencanaan']) * 100;
-            }
-            
-            echo json_encode([
-                'success' => true,
-                'summary' => [
-                    'total_paket' => $summary['total_paket'],
-                    'total_perencanaan' => $summary['total_perencanaan'],
-                    'total_pdn' => $summary['total_pdn'],
-                    'persentase_pdn' => round($persentase_pdn, 2),
-                    'breakdown' => $breakdown
-                ]
-            ], JSON_PRETTY_PRINT);
             break;
-        
-        case 'options':
-            echo json_encode([
-                'success' => true,
-                'options' => [
-                    'kategori' => $perencanaan->getDistinctValues('Kategori'),
-                    'nama_satker' => $perencanaan->getDistinctValues('Nama_Satker'),
-                    'years' => $perencanaan->getAvailableYears()
-                ]
-            ], JSON_PRETTY_PRINT);
-            break;
-            
+
         default:
             echo json_encode([
                 'success' => false,
-                'message' => 'Invalid action'
-            ], JSON_PRETTY_PRINT);
+                'message' => 'Method not allowed'
+            ]);
             break;
     }
 } catch (Exception $e) {
-    error_log("API Error in perencanaan: " . $e->getMessage());
-    http_response_code(500);
+    error_log("API Error: " . $e->getMessage());
     echo json_encode([
         'success' => false,
         'message' => 'Server error: ' . $e->getMessage()
-    ], JSON_PRETTY_PRINT);
+    ]);
 }

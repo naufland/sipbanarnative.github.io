@@ -1,196 +1,375 @@
 <?php
-// File: includes/PerencanaanModel.php
-
-class SektoralModel
-{
+class SektoralModel {
     private $conn;
-    private $table_name = "data_sektoral";
+    private $table_name = "statistik_sektoral";
 
-    public function __construct($db)
-    {
+    public function __construct($db) {
         $this->conn = $db;
     }
 
-    private function buildWhereClause($filters)
-    {
-        $whereClause = " WHERE 1=1";
+    // Ambil data sektoral dengan filter + pagination
+    public function getSektoralData($filters = [], $limit = 50, $offset = 0) {
+        $sql = "SELECT * FROM " . $this->table_name . " WHERE 1=1";
         $params = [];
 
-        // Filter berdasarkan tahun anggaran
-        if (!empty($filters['tahun'])) {
-            $whereClause .= " AND Tahun_Anggaran = :tahun";
-            $params[':tahun'] = $filters['tahun'];
+        // Filter Tahun Anggaran
+        if (!empty($filters['tahun_anggaran'])) {
+            $sql .= " AND Tahun_Anggaran = :tahun_anggaran";
+            $params[':tahun_anggaran'] = $filters['tahun_anggaran'];
         }
 
-        // Filter berdasarkan Kategori
+        // Filter Nama Satker (SKPD)
+        if (!empty($filters['nama_satker'])) {
+            $sql .= " AND Nama_Satker = :nama_satker";
+            $params[':nama_satker'] = $filters['nama_satker'];
+        }
+
+        // Filter Kategori
         if (!empty($filters['kategori'])) {
-            $whereClause .= " AND Kategori = :kategori";
+            $sql .= " AND Kategori = :kategori";
             $params[':kategori'] = $filters['kategori'];
         }
 
-        // Filter berdasarkan pencarian
+        // Filter Kode RUP
+        if (!empty($filters['kode_rup'])) {
+            $sql .= " AND Kode_RUP = :kode_rup";
+            $params[':kode_rup'] = $filters['kode_rup'];
+        }
+
+        // Search (pencarian nama paket)
         if (!empty($filters['search'])) {
-            $whereClause .= " AND (Nama_Paket LIKE :search OR Nama_Satker LIKE :search OR Kode_RUP LIKE :search)";
+            $sql .= " AND (Nama_Paket LIKE :search OR Nama_Satker LIKE :search OR Kategori LIKE :search)";
             $params[':search'] = "%" . $filters['search'] . "%";
         }
-        
-        return [$whereClause, $params];
-    }
 
-    /**
-     * Helper function untuk mengkonversi nilai string ke float
-     */
-    private function convertToFloat($value)
-    {
-        if (is_null($value) || $value === '') {
-            return 0.0;
+        // Filter range Total Perencanaan
+        if (!empty($filters['min_total'])) {
+            $sql .= " AND Total_Perencanaan_Rp >= :min_total";
+            $params[':min_total'] = $filters['min_total'];
         }
-        
-        // Jika sudah numeric, langsung return
-        if (is_numeric($value)) {
-            return floatval($value);
+        if (!empty($filters['max_total'])) {
+            $sql .= " AND Total_Perencanaan_Rp <= :max_total";
+            $params[':max_total'] = $filters['max_total'];
         }
-        
-        // Jika string, bersihkan formatnya
-        if (is_string($value)) {
-            // Hapus titik sebagai pemisah ribuan
-            $value = str_replace('.', '', $value);
-            // Ubah koma desimal jadi titik
-            $value = str_replace(',', '.', $value);
-        }
-        
-        return floatval($value);
-    }
 
-    public function getPerencanaanData($filters = [], $limit = 50, $offset = 0)
-    {
-        list($whereClause, $params) = $this->buildWhereClause($filters);
-        
-        $sql = "SELECT 
-                Tahun_Anggaran, 
-                Nama_Satker, 
-                Kategori, 
-                Kode_RUP, 
-                Nama_Paket, 
-                Total_Perencanaan_Rp, 
-                PDN_Rp 
-                FROM " . $this->table_name . $whereClause . " 
-                ORDER BY Tahun_Anggaran DESC, Kode_RUP ASC 
-                LIMIT :limit OFFSET :offset";
-        
+        $sql .= " ORDER BY Tahun_Anggaran DESC, Total_Perencanaan_Rp DESC LIMIT :limit OFFSET :offset";
         $stmt = $this->conn->prepare($sql);
-        
-        // Bind semua parameter dari filter
-        foreach ($params as $key => $value) { 
-            $stmt->bindValue($key, $value); 
+
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value);
         }
-        
-        // Bind parameter limit dan offset
+
         $stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);
         $stmt->bindValue(':offset', (int)$offset, PDO::PARAM_INT);
-        
+
         $stmt->execute();
-        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        // Konversi semua nilai numerik ke float
-        foreach ($results as &$row) {
-            $row['Total_Perencanaan_Rp'] = $this->convertToFloat($row['Total_Perencanaan_Rp'] ?? 0);
-            $row['PDN_Rp'] = $this->convertToFloat($row['PDN_Rp'] ?? 0);
-        }
-        
-        return $results;
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function getTotalCount($filters = [])
-    {
-        list($whereClause, $params) = $this->buildWhereClause($filters);
-        $sql = "SELECT COUNT(*) as total FROM " . $this->table_name . $whereClause;
+    // Hitung total data (untuk pagination)
+    public function getTotalCount($filters = []) {
+        $sql = "SELECT COUNT(*) as total FROM " . $this->table_name . " WHERE 1=1";
+        $params = [];
+
+        if (!empty($filters['tahun_anggaran'])) {
+            $sql .= " AND Tahun_Anggaran = :tahun_anggaran";
+            $params[':tahun_anggaran'] = $filters['tahun_anggaran'];
+        }
+
+        if (!empty($filters['nama_satker'])) {
+            $sql .= " AND Nama_Satker = :nama_satker";
+            $params[':nama_satker'] = $filters['nama_satker'];
+        }
+
+        if (!empty($filters['kategori'])) {
+            $sql .= " AND Kategori = :kategori";
+            $params[':kategori'] = $filters['kategori'];
+        }
+
+        if (!empty($filters['kode_rup'])) {
+            $sql .= " AND Kode_RUP = :kode_rup";
+            $params[':kode_rup'] = $filters['kode_rup'];
+        }
+
+        if (!empty($filters['search'])) {
+            $sql .= " AND (Nama_Paket LIKE :search OR Nama_Satker LIKE :search OR Kategori LIKE :search)";
+            $params[':search'] = "%" . $filters['search'] . "%";
+        }
+
+        if (!empty($filters['min_total'])) {
+            $sql .= " AND Total_Perencanaan_Rp >= :min_total";
+            $params[':min_total'] = $filters['min_total'];
+        }
+        if (!empty($filters['max_total'])) {
+            $sql .= " AND Total_Perencanaan_Rp <= :max_total";
+            $params[':max_total'] = $filters['max_total'];
+        }
+
         $stmt = $this->conn->prepare($sql);
-        $stmt->execute($params);
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value);
+        }
+        $stmt->execute();
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
         return $row['total'] ?? 0;
     }
 
-    /**
-     * Fungsi untuk mendapatkan summary data
-     */
-    public function getSummaryData($filters = [])
-    {
-        list($whereClause, $params) = $this->buildWhereClause($filters);
-        
+    // Ambil summary data sektoral
+    public function getSummaryData($filters = []) {
         $sql = "SELECT 
-                    COUNT(*) as total_paket,
-                    COALESCE(SUM(
-                        CASE 
-                            WHEN Total_Perencanaan_Rp REGEXP '^[0-9.]+$' 
-                            THEN CAST(REPLACE(Total_Perencanaan_Rp, '.', '') AS DECIMAL(20,2))
-                            ELSE 0 
-                        END
-                    ), 0) as total_perencanaan,
-                    COALESCE(SUM(
-                        CASE 
-                            WHEN PDN_Rp REGEXP '^[0-9.]+$' 
-                            THEN CAST(REPLACE(PDN_Rp, '.', '') AS DECIMAL(20,2))
-                            ELSE 0 
-                        END
-                    ), 0) as total_pdn
-                FROM " . $this->table_name . $whereClause;
-        
-        $stmt = $this->conn->prepare($sql);
-        $stmt->execute($params);
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        return [
-            'total_paket' => (int)($result['total_paket'] ?? 0),
-            'total_perencanaan' => $this->convertToFloat($result['total_perencanaan'] ?? 0),
-            'total_pdn' => $this->convertToFloat($result['total_pdn'] ?? 0)
-        ];
-    }
+                COUNT(*) as total_paket,
+                SUM(Total_Perencanaan_Rp) as total_perencanaan,
+                AVG(Total_Perencanaan_Rp) as avg_perencanaan,
+                SUM(PDN_Rp) as total_pdn,
+                COUNT(DISTINCT Nama_Satker) as total_skpd,
+                COUNT(DISTINCT Kategori) as total_kategori
+                FROM " . $this->table_name . " WHERE 1=1";
+        $params = [];
 
-    public function getAllDataForSummary($filters = []) 
-    {
-        list($whereClause, $params) = $this->buildWhereClause($filters);
-        $sql = "SELECT 
-                    Kategori,
-                    Nama_Satker,
-                    Total_Perencanaan_Rp,
-                    PDN_Rp
-                FROM " . $this->table_name . $whereClause;
-        $stmt = $this->conn->prepare($sql);
-        $stmt->execute($params);
-        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        // Konversi nilai ke float
-        foreach ($results as &$row) {
-            $row['Total_Perencanaan_Rp'] = $this->convertToFloat($row['Total_Perencanaan_Rp'] ?? 0);
-            $row['PDN_Rp'] = $this->convertToFloat($row['PDN_Rp'] ?? 0);
+        if (!empty($filters['tahun_anggaran'])) {
+            $sql .= " AND Tahun_Anggaran = :tahun_anggaran";
+            $params[':tahun_anggaran'] = $filters['tahun_anggaran'];
         }
+
+        if (!empty($filters['nama_satker'])) {
+            $sql .= " AND Nama_Satker = :nama_satker";
+            $params[':nama_satker'] = $filters['nama_satker'];
+        }
+
+        if (!empty($filters['kategori'])) {
+            $sql .= " AND Kategori = :kategori";
+            $params[':kategori'] = $filters['kategori'];
+        }
+
+        if (!empty($filters['search'])) {
+            $sql .= " AND (Nama_Paket LIKE :search OR Nama_Satker LIKE :search OR Kategori LIKE :search)";
+            $params[':search'] = "%" . $filters['search'] . "%";
+        }
+
+        $stmt = $this->conn->prepare($sql);
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value);
+        }
+        $stmt->execute();
         
-        return $results;
+        return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    public function getDistinctValues($column)
-    {
-        $allowedColumns = ['Kategori', 'Nama_Satker', 'Tahun_Anggaran'];
-        if (!in_array($column, $allowedColumns)) return [];
+    // Breakdown berdasarkan SKPD (Nama Satker)
+    public function getBreakdownBySKPD($filters = []) {
+        $sql = "SELECT 
+                Nama_Satker,
+                COUNT(*) as count,
+                SUM(Total_Perencanaan_Rp) as total_perencanaan,
+                SUM(PDN_Rp) as total_pdn
+                FROM " . $this->table_name . " WHERE 1=1";
+        $params = [];
+
+        if (!empty($filters['tahun_anggaran'])) {
+            $sql .= " AND Tahun_Anggaran = :tahun_anggaran";
+            $params[':tahun_anggaran'] = $filters['tahun_anggaran'];
+        }
+
+        if (!empty($filters['kategori'])) {
+            $sql .= " AND Kategori = :kategori";
+            $params[':kategori'] = $filters['kategori'];
+        }
+
+        $sql .= " GROUP BY Nama_Satker ORDER BY total_perencanaan DESC";
+
+        $stmt = $this->conn->prepare($sql);
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value);
+        }
+        $stmt->execute();
+
+        $result = [];
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $result[$row['Nama_Satker']] = [
+                'count' => (int)$row['count'],
+                'total_perencanaan' => (float)$row['total_perencanaan'],
+                'total_pdn' => (float)$row['total_pdn']
+            ];
+        }
+
+        return $result;
+    }
+
+    // Breakdown berdasarkan Kategori
+    public function getBreakdownByKategori($filters = []) {
+        $sql = "SELECT 
+                Kategori,
+                COUNT(*) as count,
+                SUM(Total_Perencanaan_Rp) as total_perencanaan,
+                SUM(PDN_Rp) as total_pdn
+                FROM " . $this->table_name . " WHERE 1=1";
+        $params = [];
+
+        if (!empty($filters['tahun_anggaran'])) {
+            $sql .= " AND Tahun_Anggaran = :tahun_anggaran";
+            $params[':tahun_anggaran'] = $filters['tahun_anggaran'];
+        }
+
+        if (!empty($filters['nama_satker'])) {
+            $sql .= " AND Nama_Satker = :nama_satker";
+            $params[':nama_satker'] = $filters['nama_satker'];
+        }
+
+        $sql .= " GROUP BY Kategori ORDER BY total_perencanaan DESC";
+
+        $stmt = $this->conn->prepare($sql);
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value);
+        }
+        $stmt->execute();
+
+        $result = [];
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $result[$row['Kategori']] = [
+                'count' => (int)$row['count'],
+                'total_perencanaan' => (float)$row['total_perencanaan'],
+                'total_pdn' => (float)$row['total_pdn']
+            ];
+        }
+
+        return $result;
+    }
+
+    // Breakdown berdasarkan Tahun Anggaran
+    public function getBreakdownByTahun($filters = []) {
+        $sql = "SELECT 
+                Tahun_Anggaran,
+                COUNT(*) as count,
+                SUM(Total_Perencanaan_Rp) as total_perencanaan,
+                SUM(PDN_Rp) as total_pdn
+                FROM " . $this->table_name . " WHERE 1=1";
+        $params = [];
+
+        if (!empty($filters['nama_satker'])) {
+            $sql .= " AND Nama_Satker = :nama_satker";
+            $params[':nama_satker'] = $filters['nama_satker'];
+        }
+
+        if (!empty($filters['kategori'])) {
+            $sql .= " AND Kategori = :kategori";
+            $params[':kategori'] = $filters['kategori'];
+        }
+
+        $sql .= " GROUP BY Tahun_Anggaran ORDER BY Tahun_Anggaran DESC";
+
+        $stmt = $this->conn->prepare($sql);
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value);
+        }
+        $stmt->execute();
+
+        $result = [];
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $result[$row['Tahun_Anggaran']] = [
+                'count' => (int)$row['count'],
+                'total_perencanaan' => (float)$row['total_perencanaan'],
+                'total_pdn' => (float)$row['total_pdn']
+            ];
+        }
+
+        return $result;
+    }
+
+    // Ambil nilai unik untuk dropdown
+    public function getDistinctValues($column) {
+        $allowedColumns = ['Tahun_Anggaran', 'Nama_Satker', 'Kategori'];
         
+        if (!in_array($column, $allowedColumns)) {
+            return [];
+        }
+
         $sql = "SELECT DISTINCT $column FROM " . $this->table_name . " WHERE $column IS NOT NULL AND $column != '' ORDER BY $column ASC";
         $stmt = $this->conn->prepare($sql);
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_COLUMN);
     }
-    
-    /**
-     * Fungsi untuk mengambil semua tahun unik dari kolom Tahun_Anggaran
-     */
-    public function getAvailableYears()
-    {
-        $sql = "SELECT DISTINCT Tahun_Anggaran as tahun 
-                FROM " . $this->table_name . " 
-                WHERE Tahun_Anggaran IS NOT NULL 
-                ORDER BY tahun DESC";
+
+    // Ambil daftar SKPD yang unik
+    public function getAvailableSKPD() {
+        $sql = "SELECT DISTINCT Nama_Satker FROM " . $this->table_name . " WHERE Nama_Satker IS NOT NULL AND Nama_Satker != '' ORDER BY Nama_Satker ASC";
         $stmt = $this->conn->prepare($sql);
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_COLUMN);
+    }
+
+    // Ambil tahun anggaran yang tersedia
+    public function getAvailableYears() {
+        $sql = "SELECT DISTINCT Tahun_Anggaran FROM " . $this->table_name . " WHERE Tahun_Anggaran IS NOT NULL ORDER BY Tahun_Anggaran DESC";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_COLUMN);
+    }
+
+    // Ambil kategori yang tersedia
+    public function getAvailableKategori() {
+        $sql = "SELECT DISTINCT Kategori FROM " . $this->table_name . " WHERE Kategori IS NOT NULL AND Kategori != '' ORDER BY Kategori ASC";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_COLUMN);
+    }
+
+    // Statistik per SKPD
+    public function getStatisticsBySKPD($filters = []) {
+        $sql = "SELECT 
+                Nama_Satker,
+                Tahun_Anggaran,
+                COUNT(*) as total_paket,
+                SUM(Total_Perencanaan_Rp) as total_perencanaan,
+                SUM(PDN_Rp) as total_pdn
+                FROM " . $this->table_name . " WHERE 1=1";
+        $params = [];
+
+        if (!empty($filters['tahun_anggaran'])) {
+            $sql .= " AND Tahun_Anggaran = :tahun_anggaran";
+            $params[':tahun_anggaran'] = $filters['tahun_anggaran'];
+        }
+
+        if (!empty($filters['nama_satker'])) {
+            $sql .= " AND Nama_Satker = :nama_satker";
+            $params[':nama_satker'] = $filters['nama_satker'];
+        }
+
+        $sql .= " GROUP BY Nama_Satker, Tahun_Anggaran ORDER BY total_perencanaan DESC";
+        
+        $stmt = $this->conn->prepare($sql);
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value);
+        }
+
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    // Top N SKPD berdasarkan total perencanaan
+    public function getTopSKPD($limit = 10, $filters = []) {
+        $sql = "SELECT 
+                Nama_Satker,
+                COUNT(*) as total_paket,
+                SUM(Total_Perencanaan_Rp) as total_perencanaan,
+                SUM(PDN_Rp) as total_pdn
+                FROM " . $this->table_name . " WHERE 1=1";
+        $params = [];
+
+        if (!empty($filters['tahun_anggaran'])) {
+            $sql .= " AND Tahun_Anggaran = :tahun_anggaran";
+            $params[':tahun_anggaran'] = $filters['tahun_anggaran'];
+        }
+
+        $sql .= " GROUP BY Nama_Satker ORDER BY total_perencanaan DESC LIMIT :limit";
+        
+        $stmt = $this->conn->prepare($sql);
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value);
+        }
+        $stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);
+
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 }

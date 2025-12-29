@@ -18,7 +18,7 @@
         /* Footer Styles dengan Background Sasirangan */
         .main-footer {
             background: linear-gradient(135deg, rgba(44, 62, 80, 0.88) 0%, rgba(52, 73, 94, 0.88) 100%),
-                url('/images/sasirangan.jpg') center center;
+                url('/images/sasirangan.webp') center center;
             background-size: cover;
             background-attachment: scroll;
             background-repeat: no-repeat;

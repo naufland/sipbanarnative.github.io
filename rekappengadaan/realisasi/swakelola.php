@@ -2,7 +2,18 @@
 // =================================================================
 // == FILE DASHBOARD UNTUK REALISASI SWAKELOLA DENGAN FILTER BULAN =
 // =================================================================
+if (session_status() == PHP_SESSION_NONE) {
+    session_start();
+}
 
+// Logika pemilihan header
+if (isset($_SESSION['username']) && !empty($_SESSION['username'])) {
+    // Jika ada session login, panggil header khusus login
+    include '../../navbar/header_login.php';
+} else {
+    // Jika tidak ada session, panggil header biasa/umum
+    include '../../navbar/header.php'; 
+}
 // 1. URL API untuk Swakelola
 $apiBaseUrl = "http://sipbanarnative.id/api/realisasi_swakelola.php";
 
@@ -109,7 +120,6 @@ $namaBulan = [
 ];
 
 // Include header
-include '../../navbar/header.php';
 ?>
 
 <script src="../../js/submenu.js"></script>

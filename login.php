@@ -1,7 +1,6 @@
 <?php
 session_start();
 
-
 $page_title = "Login - Dashboard SIPBANAR";
 include 'navbar/header.php';
 ?>
@@ -10,11 +9,46 @@ include 'navbar/header.php';
     body {
         margin: 0;
         padding: 0;
-        font-family: 'Segoe UI', 'Roboto', sans-serif;
-        background: white;
+        font-family: 'Inter', 'Segoe UI', 'Roboto', sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         min-height: 100vh;
         display: flex;
         flex-direction: column;
+        position: relative;
+        overflow-x: hidden;
+    }
+
+    /* Animated Background Elements */
+    body::before {
+        content: '';
+        position: absolute;
+        width: 500px;
+        height: 500px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        top: -250px;
+        left: -250px;
+        animation: float 20s infinite ease-in-out;
+        z-index: 0;
+    }
+
+    body::after {
+        content: '';
+        position: absolute;
+        width: 400px;
+        height: 400px;
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 50%;
+        bottom: -200px;
+        right: -200px;
+        animation: float 15s infinite ease-in-out reverse;
+        z-index: 0;
+    }
+
+    @keyframes float {
+        0%, 100% { transform: translate(0, 0) rotate(0deg); }
+        33% { transform: translate(30px, -50px) rotate(120deg); }
+        66% { transform: translate(-20px, 30px) rotate(240deg); }
     }
 
     .login-container {
@@ -23,21 +57,24 @@ include 'navbar/header.php';
         align-items: center;
         justify-content: center;
         padding: 40px 20px;
+        position: relative;
+        z-index: 1;
     }
 
     .login-box {
-        background: #ffffff;
-        border-radius: 20px;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        background: rgba(255, 255, 255, 0.98);
+        border-radius: 24px;
+        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.3);
         overflow: hidden;
-        max-width: 900px;
+        max-width: 1000px;
         width: 100%;
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 45% 55%;
+        backdrop-filter: blur(10px);
     }
 
     .login-left {
-        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        background: linear-gradient(135deg, #dc3545 0%, #a72332 100%);
         padding: 60px 40px;
         color: white;
         display: flex;
@@ -45,30 +82,79 @@ include 'navbar/header.php';
         justify-content: center;
         align-items: center;
         text-align: center;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .login-left::before {
+        content: '';
+        position: absolute;
+        width: 300px;
+        height: 300px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        top: -100px;
+        right: -100px;
+    }
+
+    .login-left::after {
+        content: '';
+        position: absolute;
+        width: 200px;
+        height: 200px;
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 50%;
+        bottom: -50px;
+        left: -50px;
+    }
+
+    .logo-wrapper {
+        width: 140px;
+        height: 140px;
+        background: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 30px;
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+        position: relative;
+        z-index: 1;
+        animation: pulse 3s infinite ease-in-out;
+    }
+
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
     }
 
     .login-left img {
-        width: 120px;
+        width: 90px;
         height: auto;
-        margin-bottom: 30px;
-        filter: brightness(0) invert(1);
     }
 
     .login-left h2 {
-        font-size: 2rem;
+        font-size: 2.2rem;
         font-weight: 800;
         margin-bottom: 15px;
         line-height: 1.2;
+        position: relative;
+        z-index: 1;
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
     }
 
     .login-left p {
-        font-size: 0.95rem;
-        opacity: 0.9;
-        line-height: 1.6;
+        font-size: 1rem;
+        opacity: 0.95;
+        line-height: 1.7;
+        position: relative;
+        z-index: 1;
+        max-width: 320px;
     }
 
     .login-right {
-        padding: 60px 40px;
+        padding: 60px 50px;
+        background: white;
     }
 
     .login-header {
@@ -76,79 +162,105 @@ include 'navbar/header.php';
     }
 
     .login-header h3 {
-        font-size: 1.8rem;
+        font-size: 2rem;
         color: #1a1a1a;
-        margin-bottom: 10px;
-        font-weight: 700;
+        margin-bottom: 8px;
+        font-weight: 800;
     }
 
     .login-header p {
         color: #6c757d;
-        font-size: 0.9rem;
+        font-size: 0.95rem;
     }
 
     .form-group {
-        margin-bottom: 25px;
+        margin-bottom: 28px;
     }
 
     .form-group label {
-        display: block;
-        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 10px;
         color: #333;
         font-weight: 600;
         font-size: 0.9rem;
+    }
+
+    .form-group label i {
+        color: #dc3545;
+        font-size: 1rem;
     }
 
     .input-wrapper {
         position: relative;
     }
 
-    .input-wrapper i {
-        position: absolute;
-        left: 15px;
-        top: 50%;
-        transform: translateY(-50%);
-        color: #999;
-        font-size: 1.1rem;
-    }
-
     .form-control {
         width: 100%;
-        padding: 12px 15px 12px 45px;
-        border: 2px solid #e1e8ed;
-        border-radius: 10px;
+        padding: 15px 50px 15px 18px;
+        border: 2px solid #e8ecef;
+        border-radius: 12px;
         font-size: 0.95rem;
-        transition: all 0.3s;
+        transition: all 0.3s ease;
         box-sizing: border-box;
+        background: #f8f9fa;
+    }
+
+    .form-control::placeholder {
+        color: #adb5bd;
+        opacity: 1;
     }
 
     .form-control:focus {
         outline: none;
         border-color: #dc3545;
-        box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.1);
+        box-shadow: 0 0 0 4px rgba(220, 53, 69, 0.1);
+        background: white;
+        color: #1a1a1a;
     }
 
     .password-toggle {
         position: absolute;
-        right: 15px;
+        right: 18px;
         top: 50%;
         transform: translateY(-50%);
         cursor: pointer;
-        color: #999;
+        color: #9ca3af;
         font-size: 1.1rem;
+        transition: color 0.3s;
+    }
+
+    .password-toggle:hover {
+        color: #dc3545;
     }
 
     .alert {
-        padding: 12px 15px;
-        border-radius: 8px;
-        margin-bottom: 20px;
+        padding: 14px 18px;
+        border-radius: 10px;
+        margin-bottom: 25px;
         font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        animation: slideDown 0.4s ease;
+    }
+
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 
     .alert-danger {
-        background: #f8d7da;
-        color: #721c24;
-        border: 1px solid #f5c6cb;
+        background: #fee;
+        color: #c00;
+        border: 1px solid #fcc;
     }
 
     .alert-success {
@@ -159,58 +271,85 @@ include 'navbar/header.php';
 
     .btn-login {
         width: 100%;
-        padding: 14px;
-        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        padding: 16px;
+        background: linear-gradient(135deg, #dc3545 0%, #a72332 100%);
         color: white;
         border: none;
-        border-radius: 10px;
-        font-size: 1rem;
-        font-weight: 600;
+        border-radius: 12px;
+        font-size: 1.05rem;
+        font-weight: 700;
         cursor: pointer;
-        transition: all 0.3s;
+        transition: all 0.3s ease;
         margin-top: 10px;
+        box-shadow: 0 8px 20px rgba(220, 53, 69, 0.3);
     }
 
     .btn-login:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 25px rgba(220, 53, 69, 0.3);
+        transform: translateY(-3px);
+        box-shadow: 0 12px 30px rgba(220, 53, 69, 0.4);
     }
 
     .btn-login:active {
-        transform: translateY(0);
+        transform: translateY(-1px);
     }
 
     .forgot-password {
         text-align: center;
-        margin-top: 20px;
+        margin-top: 25px;
     }
 
     .forgot-password a {
         color: #dc3545;
         text-decoration: none;
-        font-size: 0.9rem;
-        font-weight: 500;
+        font-size: 0.95rem;
+        font-weight: 600;
+        transition: all 0.3s;
     }
 
     .forgot-password a:hover {
+        color: #a72332;
         text-decoration: underline;
     }
 
-    @media (max-width: 768px) {
+    @media (max-width: 900px) {
         .login-box {
             grid-template-columns: 1fr;
+            max-width: 500px;
         }
 
         .login-left {
-            padding: 40px 30px;
+            padding: 50px 30px;
         }
 
         .login-left h2 {
-            font-size: 1.5rem;
+            font-size: 1.8rem;
         }
 
         .login-right {
-            padding: 40px 30px;
+            padding: 50px 35px;
+        }
+    }
+
+    @media (max-width: 500px) {
+        .login-container {
+            padding: 20px 10px;
+        }
+
+        .login-right {
+            padding: 40px 25px;
+        }
+
+        .login-header h3 {
+            font-size: 1.6rem;
+        }
+
+        .logo-wrapper {
+            width: 120px;
+            height: 120px;
+        }
+
+        .login-left img {
+            width: 75px;
         }
     }
 </style>
@@ -218,7 +357,9 @@ include 'navbar/header.php';
 <div class="login-container">
     <div class="login-box">
         <div class="login-left">
-            <img src="https://bagianpbj.sidoarjokab.go.id/public/uploads/settings/thumbs/1639041632_982896673090d9d74e9c.png" alt="Logo">
+            <div class="logo-wrapper">
+                <img src="https://bagianpbj.sidoarjokab.go.id/public/uploads/settings/thumbs/1639041632_982896673090d9d74e9c.png" alt="Logo">
+            </div>
             <h2>Dashboard SIPBANAR</h2>
             <p>Sistem Informasi Pengadaan Banjarmasin - Transparansi Data untuk Pembangunan Kota yang Lebih Baik</p>
         </div>
@@ -233,9 +374,11 @@ include 'navbar/header.php';
 
             <form id="loginForm" method="POST">
                 <div class="form-group">
-                    <label for="username">Username</label>
-                    <div class="input-wrapper">
+                    <label for="username">
                         <i class="fas fa-user"></i>
+                        Username
+                    </label>
+                    <div class="input-wrapper">
                         <input type="text" 
                                class="form-control" 
                                id="username" 
@@ -247,9 +390,11 @@ include 'navbar/header.php';
                 </div>
 
                 <div class="form-group">
-                    <label for="password">Password</label>
-                    <div class="input-wrapper">
+                    <label for="password">
                         <i class="fas fa-lock"></i>
+                        Password
+                    </label>
+                    <div class="input-wrapper">
                         <input type="password" 
                                class="form-control" 
                                id="password" 
